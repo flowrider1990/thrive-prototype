@@ -37,10 +37,16 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 125/125** (25 at the
-foundation, 39 after the header controls, 78 after the first product loop); the
-script itself is the only authority on that number, so treat any count written in
-prose as a snapshot.
+the two the plan singles out. **The current count is 154/154** (25 at the
+foundation, 39 after the header controls, 78 after the first product loop, 123 after
+the UX/UI rework); the script itself is the only authority on that number, so treat
+any count written in prose as a snapshot.
+
+**Pass the base URL explicitly.** The default is `http://localhost:4321`, which is
+not safe on a machine running a second worktree — a stale or foreign server there
+produces failures that look like defects. This worktree serves the export on
+**4410** and `pnpm dev` on **4411**, and a dev run needs its routes warmed with curl
+first or Turbopack's on-demand compile outruns the script's settle time.
 
 - **no flash on reload** (item 4) — sampled from `requestAnimationFrame` starting
   before the app's own scripts run, so a wrong-state frame would be caught rather
@@ -474,6 +480,89 @@ another.**
 - **`introductionFinished`'s doc named a caller that was not one.** `app/page.tsx` kept
   its own inline `reviewed === areas.length`, so the two definitions the function exists
   to unify could have drifted apart. Now actually wired.
+
+## UI refinement (branch `feature/ui-refinement-2`)
+
+`pnpm verify` is **154 checks**, up from 125, passing against both the export and
+`pnpm dev`. Frontend only: no store, schema, key, consent-semantics or dependency
+change.
+
+- **Privacy copy now scopes itself to the current storage mode.** `data.p1`, `data.p2`,
+  `stored.introSaved` and the footer description stated "there is no server, no
+  account, no cloud" as timeless facts. They would have quietly become false the day
+  anything syncs, and a privacy page that has to be retracted is worse than one
+  accurate about its own scope. None of them implies a cloud is coming.
+- **Home names the unfinished area and links to it.** "One of your life areas has a
+  goal but nothing to try yet" left the reader to work out which. The link text is the
+  area's own name, which is what makes it useful out of context. Only the first one is
+  named — listing five would be a list of things you have not done.
+- **The storage choice is reopenable on `/data/`,** reusing onboarding's own question
+  verbatim rather than a toggle. See the finding below; this was the one item with a
+  real trap in it.
+- **`/data/stored/` folds per area** as a native `<details>`, and says what actually
+  happened to each entry: added, reworded, working on, done, set aside.
+- **Three levels of hierarchy on `/areas/`,** where the area name had been the quietest
+  thing in its own row.
+- **One shared back link** on both nested routes, replacing "no way back at all" on the
+  area pages.
+
+### The one real trap: turning saving off does not clear the key
+
+`declineConsent()` alone leaves `localStorage` untouched. `commit()` writes only when
+the mode is `local`, and nothing in it removes anything — so a "change storage
+settings" control that simply called it would have left the stored key on disk while
+the page said nothing was being saved. That is the §8 guarantee inverted, on a path
+that had never existed because consent had only ever been decided once, at the start.
+
+Leaving `local` is therefore `forgetEverything()` (which removes the key) and then
+`declineConsent()` (which carries the visit on in memory), in that order. Both already
+existed, so no store semantics changed — but it makes **turning saving off
+necessarily destructive**, which is why the cost is on its own confirmation step with
+"Keep it" as the filled button. §36f asserts `Object.keys(localStorage)` is empty
+afterwards: not "no facts", no key.
+
+Two consequences worth knowing before this is built on:
+
+- `forgetEverything()` also resets the theme to following the OS, since it is the only
+  available way to clear the key. A side effect, not an intention.
+- If keeping in-memory facts while clearing the key is ever wanted, that needs a new
+  store function (`stopPersisting()` or similar) and belongs to whoever owns the
+  persistence boundary — not to a UI change.
+
+### Deliberately not done
+
+- **No destructive colour on the final delete action.** The palette is monochrome by
+  intent and there is no danger token; adding one would be the system's first hue and
+  needs approval (`CLAUDE.md` §7). Emphasis and step count carry the weight instead.
+  Recorded in `docs/design-system.md` so the next person does not re-litigate it.
+- The `About` page's "there is no server, no account" wording was left alone. It is
+  the same class of claim as the copy that was rescoped, but it was outside the pages
+  this pass covered.
+
+### Checks that would have kept passing while proving nothing
+
+- **Six content checks read `/data/stored/` as text**, and `innerText` cannot see
+  inside a closed `<details>`. Folding would have answered them instead of the content
+  — "not there" and "hidden" are indistinguishable from outside. They unfold first now.
+  §30 is the sharp one: it sweeps for leaked internal ids on the one surface where an
+  entry's id sits beside its words, and it reports how many sections it opened.
+- **Check 12a asked the whole document** whether "Data protection" was laid out at
+  390px, in order to prove the header had collapsed. The new storage link on home
+  carries that exact label, so a correct header started failing. It is scoped to
+  `header` now, which is the region the claim was always about.
+- **`__clickText` only clicks leaf elements**, which silently excludes every control
+  holding an icon beside its label — the new back links and the disclosure summaries.
+  `clickSelector` and `clickSummary` exist for those; without them the new checks
+  would have thrown rather than asserted.
+- **§7g asserted the word "removed"** in the stored record, which is precisely the
+  claim this pass set out to stop making: an entry taken out of current use is still on
+  the page one line down. It now asserts the new vocabulary *and* that "removed from"
+  is gone.
+
+Also: `serve` fell over mid-run once, and two checks failed in a way that looked like
+a UI defect until the port was checked. Verification ports and the ownership check are
+recorded at the top of this file's sibling note in the session memory, not here — but
+the habit is worth repeating: confirm the server before believing a failure.
 
 ## Supabase: paused deliberately after the proposal (2026-08-11)
 

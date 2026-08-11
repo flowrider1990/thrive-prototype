@@ -161,10 +161,26 @@ of them in a three-item list read as peers of "Add another" and "That is enough"
 the list became a stack of pills.
 
 **In a destructive flow, the safe choice takes `.btn-primary`.** On both steps of the
-delete confirmation, "Keep it" is the filled button and the step toward deletion is
-`.btn-quiet`. Emphasis marks what is *recommended*, not what is next — a filled
-"Yes, delete everything" would be the interface leaning on someone at the one moment
-it should not.
+delete confirmation, and on the step that turns saving off, "Keep it" is the filled
+button and the step toward deletion is `.btn-quiet`. Emphasis marks what is
+*recommended*, not what is next — a filled "Yes, delete everything" would be the
+interface leaning on someone at the one moment it should not.
+
+**There is no destructive/danger variant, and adding one is a decision not yet
+made.** The obvious ask — paint the final irreversible action red — has no token to
+use: the palette is monochrome by intent (`CLAUDE.md` §7, "do not introduce an accent
+hue without asking"), so a danger colour would be the first hue in the system. It was
+considered and deferred rather than improvised. What carries the weight instead is
+*where* emphasis sits and how many steps there are, which is the pattern above. If a
+danger token is ever added it needs the same treatment as `--color-line-strong`: a
+contrast floor against both backgrounds, in both themes, asserted.
+
+`.link-inline` is a link inside a sentence. Its underline is load-bearing, not
+decoration: these sit in `text-muted` prose, so without the rule "this word is a
+link" would be carried by the ink/muted difference alone, which §17 rules out. Two
+cues at rest, and the hover strengthens the rule rather than adding a third.
+`underline-offset-2` keeps it off the descenders, which is what stops an underlined
+link reading as struck through.
 
 Two rules that are load-bearing rather than stylistic:
 
@@ -235,13 +251,100 @@ It is a real `role="progressbar"` with `aria-valuenow` and a translated
 measures is **areas looked at** — "not right now" advances it exactly as much as
 setting a goal does.
 
+## Disclosure
+
+`.disclosure` styles a native `<details>`, and native is the whole point: the
+open/closed state, the role, Enter and Space, and find-in-page opening a closed
+section all come from the element. "Primitives" at the end of this file explains why
+this project will not claim a role it has not implemented — here there is nothing to
+implement.
+
+Two rules that are easy to undo by accident:
+
+- **`<summary>` may only contain phrasing content and heading content.** A wrapping
+  `<div>` is not allowed; an `<h2>` is. That is why `components/stored-areas.tsx`
+  lays its summary out as a **grid** rather than nesting boxes — it needs a heading
+  and a line of text beside a marker, and the grid places them without a wrapper the
+  content model forbids. Keeping the real `h2` is what keeps five stored areas
+  visible as five sections in the document outline.
+- **Only the marker moves.** The chevron rotates; no height, padding or weight
+  changes, so opening a section shifts nothing except the content it reveals. The
+  hover cue is on the marker rather than the summary text, because recolouring the
+  whole summary would pull its muted second line up to ink and undo the hierarchy
+  that line exists to have.
+
+A collapsed section still has to be worth not opening: on `/data/stored/` each one
+names the area, its current goal and how many entries are behind it. Folding may hide
+detail; it may not hide that anything is there, which is what `scripts/verify.mjs`
+§28c asserts.
+
+**Anything folded is invisible to `innerText`.** Every check that reads text off a
+page with disclosures has to unfold first — `expandAll()` exists for that — or the
+assertion is answered by the fold rather than by the content, and "not there" and
+"hidden" look identical from outside. §30, the sweep for leaked internal ids, is the
+one where this matters most: it now unfolds and reports how many sections it opened,
+because a sweep that silently stopped looking would still have printed PASS.
+
+## Nested-page navigation
+
+`components/back-link.tsx` is the one way back, shared by `/data/stored/` and
+`/areas/<id>/`.
+
+It navigates to an **explicit parent route**, never `history.back()`. Those answer
+different questions: arriving at an area from a link on the start page and pressing
+back should still offer the life areas, because that is what the page is part of. The
+browser's own back button already does the other thing, and better.
+
+It sits **above** the page's own heading. A nested page can be as long as the
+person's history, and a way back that has to be scrolled to is not a way back for
+someone who took a wrong turn.
+
+It reuses `.nav-link`, which is what keeps its size, colour and hover identical to
+the rest of the app's navigation rather than becoming a third kind of link. §35e
+measures that both nested pages render the same font size, colour, arrow and
+position, so a hand-rolled second copy fails rather than quietly diverging.
+
+On `/areas/<id>/` it is rendered by `AreaScreen`, **not** by `AreaManage`: it is
+chrome belonging to the route, not content belonging to one of eight views. Put
+inside, it would have to be repeated in each and would go missing from whichever view
+was added next. That placement also gave three question views a way out they never
+had — changing the goal, adding something, and choosing what to work on are plain
+fields with no cancel.
+
+## Icons
+
+There is no icon library, and two glyphs do not justify one (`CLAUDE.md` §11).
+`components/icons.tsx` holds `Lock` and `ArrowLeft`, the ones used on more than one
+page. They follow the conventions the existing inline icons already set: a 12-unit
+viewBox, `fill="none"`, `stroke="currentColor"` so they take the colour of the text
+around them, and `aria-hidden`.
+
+`Check` and `Chevron` deliberately stay in `components/menu.tsx`. They belong to that
+widget; moving them would be churn without a reader benefit.
+
+**An icon may not be the only thing making a claim.** The lock beside the storage
+note on the start page is decorative and carries no label — the sentence beside it
+says everything. §32b fails if it ever gains one, because a privacy assurance encoded
+in a glyph is exactly what §17 forbids.
+
 ## The area label
 
-`components/area-label.tsx` in two sizes. `eyebrow` sits directly above a question
-and is `text-ink`; `row` labels an area inside a list and is `text-sm text-muted`.
-Neither renders a heading element — the eyebrow sits above the `h1` that owns the
+`components/area-label.tsx` in three sizes. `eyebrow` sits directly above a question
+and is `text-ink`; `row` labels an area inside a list and is `text-sm text-muted`;
+`card` titles an area on `/areas/` and is `text-lg` medium ink.
+
+`card` exists because that list had no hierarchy: the name was `text-sm text-muted`
+while the goal beneath it was full-size ink, so the row's own *subject* was the
+quietest thing in it and five rows read as ten interchangeable lines. The goal drops a
+step in size but **stays `text-ink`** — muting the person's own words to make room for
+a label the app chose would be the wrong trade, and size alone separates them once the
+name is bigger. §34a measures the two font sizes rather than trusting the eye, and
+§34b pins the goal to ink.
+
+None renders a heading element — the eyebrow sits above the `h1` that owns the
 question, and an `h2` in front of it would put the document outline in the wrong
-order.
+order. On `/areas/` the whole row is a link, and a heading inside a link is worse
+again.
 
 The eyebrow is passed to `QuestionCard`'s `area` slot rather than rendered beside
 it, and that grouping is the whole point. Rendered by the caller it sat in an

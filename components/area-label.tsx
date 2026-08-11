@@ -26,16 +26,37 @@ import { useI18n } from '@/lib/i18n'
  *   from the size alone.
  * - `row` labels an area inside a list, where the surrounding text already
  *   supplies the context and the label should recede.
+ * - `card` titles an area on `/areas/`, where it is the *subject* of the row
+ *   rather than a label on one. There the name and its state were within a step
+ *   of each other in size and both muted, so a list of five read as ten equally
+ *   weighted lines and the eye had nothing to land on. It is the one place the
+ *   name has to win.
  *
- * Neither renders a heading element: the eyebrow sits above an `h1` that owns the
- * question, and an `h2` before it would put the outline in the wrong order.
+ * None of them renders a heading element: the eyebrow sits above an `h1` that owns
+ * the question, and an `h2` before it would put the outline in the wrong order. On
+ * `/areas/` the whole row is a link, and a heading inside a link is worse again.
  */
-export function AreaLabel({ area, size = 'row' }: { area: AreaId; size?: 'eyebrow' | 'row' }) {
+export function AreaLabel({
+  area,
+  size = 'row',
+}: {
+  area: AreaId
+  size?: 'eyebrow' | 'row' | 'card'
+}) {
   const { m } = useI18n()
 
   if (size === 'eyebrow') {
     return (
       <p className="flex items-center gap-x-2.5 font-medium text-ink">
+        <AreaIcon area={area} size="eyebrow" />
+        {m.areas[area]}
+      </p>
+    )
+  }
+
+  if (size === 'card') {
+    return (
+      <p className="flex items-center gap-x-2.5 text-lg font-medium leading-snug text-ink">
         <AreaIcon area={area} size="eyebrow" />
         {m.areas[area]}
       </p>

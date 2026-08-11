@@ -319,6 +319,18 @@ export const en = {
     p4: 'Another browser, or another device, will not have it.',
     /** The one thing this page is for, besides being true. */
     show: 'Show what is stored',
+    /**
+     * The second way in, for someone who came here to leave rather than to read.
+     *
+     * It goes to the same flow in the same place — `/data/stored/#delete` — rather
+     * than putting a second copy of the confirmation on this page. Two delete flows
+     * would be two things to keep in step, and the one that lives beside the data
+     * is the honest one: you see what goes before you agree to it going.
+     *
+     * Shown only when there is something stored. Offering to delete nothing is
+     * noise, and it would imply data exists where none does.
+     */
+    deleteEntry: 'Delete my data',
     memoryNote:
       'You asked for nothing to be saved, so nothing is being written to this device at all. What you tell the app this visit stays in this tab and is gone when you close it.',
 

@@ -41,23 +41,37 @@ export default function AreasPage() {
           <p className="max-w-prose text-sm leading-relaxed text-muted">{m.manage.pickerNote}</p>
         </div>
 
+        {/**
+         * Three levels, and they have to be three: the area's name, then the goal,
+         * then where that goal stands. Previously the name was `text-sm text-muted`
+         * and the goal was full-size ink — so the row's *subject* was the quietest
+         * thing in it, and five rows read as ten interchangeable lines.
+         *
+         * The goal stays `text-ink` and only drops in size. Muting the person's own
+         * words to make room for a label the app chose would be the wrong trade, and
+         * size alone is enough separation once the name is bigger.
+         *
+         * Deliberately still not a dashboard: no counts, no dates, no badges, no
+         * status. Each row says what the area is, what you want, and one line about
+         * where that stands.
+         */}
         <ul className="space-y-3">
           {states.map((state) => (
             <li key={state.area}>
-              <Link href={`/areas/${state.area}`} className="option block space-y-1">
-                <AreaLabel area={state.area} />
+              <Link href={`/areas/${state.area}`} className="option block space-y-1.5">
+                <AreaLabel area={state.area} size="card" />
                 {state.goal ? (
-                  <span className="block leading-relaxed text-ink">{state.goal}</span>
+                  <span className="block text-sm leading-relaxed text-ink">{state.goal}</span>
                 ) : (
                   <span className="block text-sm text-muted">
                     {state.review === 'not_now' ? m.manage.notNow : m.manage.noGoal}
                   </span>
                 )}
-                {/* Only when there is a goal to be working toward: "nothing to try
-                    yet" under "no goal yet" would be two ways of saying the same
-                    absence. */}
+                {/* Only when there is a goal to be working toward: saying what has
+                    not been decided under "no goal yet" would be two ways of saying
+                    the same absence. */}
                 {state.goal && (
-                  <span className="block text-sm text-muted">
+                  <span className="block text-sm leading-relaxed text-muted">
                     {state.active ? state.active.text : m.manage.noStep}
                   </span>
                 )}

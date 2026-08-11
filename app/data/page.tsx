@@ -18,7 +18,7 @@ import { usePerson } from '@/lib/person/store'
  */
 export default function DataPage() {
   const { m, status } = useI18n()
-  const { mode } = usePerson()
+  const { mode, facts } = usePerson()
 
   if (status !== 'ready') return <PageShell>{null}</PageShell>
 
@@ -43,10 +43,29 @@ export default function DataPage() {
           </p>
         )}
 
-        <div className="border-t border-line pt-6">
-          <Link href="/data/stored" className="btn btn-primary">
-            {m.data.show}
-          </Link>
+        {/**
+         * Reading and leaving are two different reasons to be on this page, so there
+         * are two ways on. Showing what is stored stays the clear action; deleting is
+         * a quiet link under it, because the emphasis on a page like this should sit
+         * with looking rather than with the irreversible thing.
+         *
+         * Both go to `/data/stored/`. The delete link only jumps further down it, to
+         * the control that is already there — no second confirmation flow lives here,
+         * and nothing is armed by following it.
+         */}
+        <div className="space-y-4 border-t border-line pt-6">
+          <div>
+            <Link href="/data/stored" className="btn btn-primary">
+              {m.data.show}
+            </Link>
+          </div>
+          {facts.length > 0 && (
+            <p>
+              <Link href="/data/stored#delete" className="link-inline text-sm">
+                {m.data.deleteEntry}
+              </Link>
+            </p>
+          )}
         </div>
       </div>
     </PageShell>

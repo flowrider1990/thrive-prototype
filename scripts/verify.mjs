@@ -1687,6 +1687,107 @@ check(
   screen.replace(/\n/g, ' / ').slice(0, 160),
 )
 
+// --- 33. the second way into deleting, and the back link's position ---------
+//
+// Two reasons to be on `/data/`: to read, or to leave. Both now have a way on, and
+// both land on the same flow in the same place — there is deliberately no second
+// copy of the confirmation on the explanation page.
+
+await seedOnboarded()
+await goto('/data/')
+const deleteEntry = await evaluate(
+  `(() => {
+     const link = [...document.querySelectorAll('main a[href]')]
+       .find((a) => a.textContent.trim() === 'Delete my data');
+     return link ? { href: link.getAttribute('href'), tag: link.tagName } : null;
+   })()`,
+)
+check(
+  '33a. the explanation page offers deleting as its own entry point, as a link',
+  deleteEntry?.tag === 'A' && String(deleteEntry.href).includes('/data/stored'),
+  JSON.stringify(deleteEntry),
+)
+check(
+  '33b. and it points into the existing flow rather than duplicating it here',
+  String(deleteEntry?.href).includes('#delete') && !(await text()).includes(EN.delWarn),
+  `${deleteEntry?.href}, no confirmation copy on /data/`,
+)
+
+// Following it must not arm anything. Arriving one tap from deleting everything
+// would defeat the two confirmations this flow exists to have.
+await clickText('Delete my data')
+await sleep(500)
+screen = await text()
+check(
+  '33c. following it reaches the control without arming it',
+  screen.includes(EN.storedTitle) &&
+    (await visible(EN.del)) &&
+    !screen.includes(EN.delWarn) &&
+    !screen.includes(EN.delFinal),
+  screen.includes(EN.delWarn) ? 'the confirmation was already open' : 'control present, not armed',
+)
+
+// The back link moved to the top. On a page as long as someone's whole history, one
+// at the foot is only reachable by scrolling past everything.
+const backLink = await evaluate(
+  `(() => {
+     const link = [...document.querySelectorAll('main a[href]')]
+       .find((a) => a.textContent.trim().includes('Back to data protection'));
+     const h1 = document.querySelector('main h1');
+     if (!link || !h1) return null;
+     return {
+       href: new URL(link.href).pathname,
+       // 4 === DOCUMENT_POSITION_FOLLOWING: the heading comes after the link.
+       beforeHeading: Boolean(link.compareDocumentPosition(h1) & 4),
+       hasArrow: Boolean(link.querySelector('svg')),
+     };
+   })()`,
+)
+check(
+  '33d. the back link sits before the heading, with an arrow, and is a real link',
+  backLink?.beforeHeading === true && backLink.href === '/data/' && backLink.hasArrow === true,
+  JSON.stringify(backLink),
+)
+
+// --- 34. the areas list has a hierarchy rather than five flat rows ----------
+//
+// The area name used to be `text-sm text-muted` while the goal was full-size ink, so
+// the row's own subject was the quietest thing in it. Measured rather than eyeballed:
+// the name has to be larger than the goal, and the goal must stay ink — muting the
+// person's own words to make room for a label the app chose would be the wrong fix.
+
+await goto('/areas/')
+const rowType = await evaluate(
+  `(() => {
+     const row = [...document.querySelectorAll('main a.option')]
+       .find((a) => a.textContent.includes('Body & Health'));
+     if (!row) return null;
+     const name = [...row.querySelectorAll('p, span')]
+       .find((e) => e.textContent.trim().endsWith('Body & Health'));
+     const goal = [...row.querySelectorAll('span')]
+       .find((e) => e.textContent.trim() === 'Sleep better');
+     if (!name || !goal) return null;
+     const px = (el) => parseFloat(getComputedStyle(el).fontSize);
+     const ink = getComputedStyle(document.body).color;
+     return {
+       name: px(name),
+       goal: px(goal),
+       nameWeight: getComputedStyle(name).fontWeight,
+       goalIsInk: getComputedStyle(goal).color === ink,
+     };
+   })()`,
+)
+check(
+  '34a. the area name is larger than the goal beneath it',
+  rowType !== null && rowType.name > rowType.goal,
+  rowType ? `name ${rowType.name}px / goal ${rowType.goal}px, weight ${rowType.nameWeight}` : 'row not found',
+)
+check(
+  '34b. and the goal is still the person’s words in full ink, only smaller',
+  rowType?.goalIsInk === true,
+  `goal is ink: ${rowType?.goalIsInk}`,
+)
+
 // --- 30. no internal id reaches any screen, seen or spoken -----------------
 //
 // 7f does this for one page. The rework added four more surfaces where a step's own

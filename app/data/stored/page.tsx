@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft } from '@/components/icons'
 import { PageShell } from '@/components/page-shell'
 import { StoredAreas } from '@/components/stored-areas'
 import { formatWhen, useI18n } from '@/lib/i18n'
@@ -77,6 +78,20 @@ export default function StoredPage() {
     <PageShell>
       <div className="space-y-10">
         <header className="space-y-4">
+          {/* Above the title rather than at the foot of the page. This page is as
+              long as the person's history, so a back link at the bottom is only
+              reachable by reading or scrolling past everything — which is the one
+              thing someone who took a wrong turn does not want to do. Quiet, and
+              still a plain link: it navigates and changes nothing. */}
+          <p>
+            <Link
+              href="/data"
+              className="nav-link inline-flex items-center gap-x-1.5 text-sm"
+            >
+              <ArrowLeft />
+              {m.stored.back}
+            </Link>
+          </p>
           <h1 className="heading">{m.stored.title}</h1>
           <p className="max-w-prose leading-relaxed text-muted">{intro}</p>
           {mode === 'local' && consentAt && (
@@ -110,7 +125,17 @@ export default function StoredPage() {
 
         <StoredAreas />
 
-        <section className="space-y-4 border-t border-line pt-6">
+        {/* `id` so that `/data/` can offer "delete my data" as its own entry point
+            and land here, on the one control that does it. Naming the section rather
+            than the button because the button is conditional — nothing to delete
+            means no button — and a fragment pointing at an element that is sometimes
+            absent silently does nothing.
+
+            It scrolls to the control; it does not arm it. Arriving via a link must
+            not put anyone one tap from deleting everything, which is the whole
+            reason this flow has two confirmations. §33c asserts the confirmation is
+            still closed on arrival. */}
+        <section id="delete" className="space-y-4 border-t border-line pt-6">
           {/* Mounted from the start and never removed. A `role="status"` inserted
               together with its text announces nothing — the region has to exist for
               the change to be a change. Visually hidden; the visible confirmation is
@@ -200,11 +225,6 @@ export default function StoredPage() {
           )}
         </section>
 
-        <p>
-          <Link href="/data" className="nav-link text-sm">
-            {m.stored.back}
-          </Link>
-        </p>
       </div>
     </PageShell>
   )

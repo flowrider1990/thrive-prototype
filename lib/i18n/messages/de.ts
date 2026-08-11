@@ -217,6 +217,7 @@ export const de: Messages = {
     p3: 'Wenn du deine Browserdaten löschst, wird es mit allem anderen zusammen gelöscht.',
     p4: 'Ein anderer Browser oder ein anderes Gerät hat es nicht.',
     show: 'Zeigen, was gespeichert ist',
+    deleteEntry: 'Meine Daten löschen',
     memoryNote:
       'Du wolltest nicht, dass etwas gespeichert wird — deshalb wird auf dieses Gerät gar nichts geschrieben. Was du der App diesmal erzählst, bleibt in diesem Tab und ist weg, sobald du ihn schließt.',
 

@@ -32,9 +32,19 @@ pnpm verify                     # walks the whole flow in real Chrome, headless
 
 `pnpm verify` drives the served export over the DevTools protocol and asserts the
 things this app claims — including that declining leaves `localStorage`
-completely empty, that a reload shows no flash of the wrong screen, and that no
-request goes anywhere but the app's own assets. It needs a server already running
-at `http://localhost:4321` (or pass another base URL as an argument).
+completely empty, that a reload shows no flash of the wrong screen or the wrong
+theme, and that no request goes anywhere but the app's own assets. It needs a
+server already running at `http://localhost:4321` (or pass another base URL as an
+argument).
+
+Worth doing both, because they catch different things:
+
+```bash
+node scripts/verify.mjs http://localhost:3000   # against `pnpm dev`
+```
+
+React only warns about hydration mismatches in development, so the production
+export cannot surface them however many checks pass.
 
 ## Deployment
 
@@ -48,6 +58,7 @@ Static export to GitHub Pages via Actions. See [docs/hosting.md](docs/hosting.md
 | [docs/plan.md](docs/plan.md) | the plan this was built from, verbatim |
 | [docs/progress.md](docs/progress.md) | what got built, and what was learned doing it |
 | [docs/persistence-decision.md](docs/persistence-decision.md) | why browser-local, and what it costs |
+| [docs/supabase-migration.md](docs/supabase-migration.md) | proposal for cloud persistence — not implemented |
 | [docs/person-model.md](docs/person-model.md) | the append-only fact list |
 | [docs/copy-and-language.md](docs/copy-and-language.md) | both languages, and the `du` decision |
 | [docs/hosting.md](docs/hosting.md) | static export and Pages |

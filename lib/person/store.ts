@@ -2,6 +2,8 @@
 
 import { useMemo, useSyncExternalStore } from 'react'
 import { detectLocale, isLocale, type Locale } from '@/lib/i18n/locale'
+import { isTheme, type Theme, type ThemeChoice } from '@/lib/theme'
+import { STORAGE_KEY, type PersonFact, type PersonStore } from './schema'
 
 /**
  * The only place in the app that touches persistent storage.
@@ -11,31 +13,11 @@ import { detectLocale, isLocale, type Locale } from '@/lib/i18n/locale'
  * Callers never know which is active — that is what makes the consent switch one
  * line here instead of a condition at every call site.
  *
- * The key tracks neither the product name nor the package name, so renaming
- * either never orphans someone's saved answers. A rename must leave this string
- * exactly as it is — see `lib/app.ts` and `docs/renaming.md`. Changing it is a
- * migration with a version bump, never a find-and-replace.
+ * The persisted shape and the storage key live in `./schema`, which server code
+ * can import; everything else goes through this module.
  */
-export const STORAGE_KEY = 'thrive.person.v1'
-
-export type PersonFact = {
-  id: string
-  key: string
-  /** The person's own words, verbatim and unparsed. */
-  value: string
-  /** How it came up — 'onboarding' for now. */
-  source: string
-  learnedAt: string
-}
-
-/** The persisted shape. `version` exists so a later change can migrate rather than guess. */
-export type PersonStore = {
-  version: 1
-  /** Only ever written when consent was given. */
-  consentAt: string
-  locale: Locale
-  facts: PersonFact[]
-}
+export { STORAGE_KEY } from './schema'
+export type { PersonFact, PersonStore } from './schema'
 
 export type Mode =
   /** Not asked yet, or asked and then forgotten. Nothing is written in this mode. */
@@ -52,6 +34,8 @@ type Snapshot = {
   mode: Mode
   consentAt: string | null
   locale: Locale
+  /** `null` means "follow the operating system" — see `lib/theme.ts`. */
+  theme: ThemeChoice
   facts: readonly PersonFact[]
 }
 
@@ -64,6 +48,7 @@ export type Person = Snapshot & {
   declineConsent: () => void
   remember: (key: string, value: string, source?: string) => void
   setLocale: (locale: Locale) => void
+  setTheme: (theme: Theme) => void
   forgetEverything: () => void
 }
 
@@ -78,6 +63,7 @@ const EMPTY: Snapshot = {
   mode: 'undecided',
   consentAt: null,
   locale: 'en',
+  theme: null,
   facts: [],
 }
 
@@ -130,6 +116,7 @@ function loadOnce(): void {
           mode: 'local',
           consentAt: stored.consentAt,
           locale: stored.locale,
+          theme: stored.theme ?? null,
           facts: stored.facts,
         }
       : {
@@ -140,6 +127,7 @@ function loadOnce(): void {
           mode: 'undecided',
           consentAt: null,
           locale: detectLocale(),
+          theme: null,
           facts: [],
         },
   )
@@ -185,6 +173,10 @@ function parse(raw: string | null): PersonStore | null {
       version: 1,
       consentAt: stored.consentAt,
       locale: stored.locale,
+      // Absent or nonsense reads as "follow the operating system". A store
+      // written before the theme existed must keep loading — this is the whole
+      // reason the field is optional instead of a version bump.
+      ...(isTheme(stored.theme) ? { theme: stored.theme } : {}),
       facts: stored.facts.filter(isFact),
     }
   } catch {
@@ -200,6 +192,8 @@ function write(state: Snapshot): void {
     version: 1,
     consentAt: state.consentAt,
     locale: state.locale,
+    // Omitted while unset, so following the OS leaves no trace in the store.
+    ...(state.theme ? { theme: state.theme } : {}),
     facts: [...state.facts],
   }
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
@@ -256,6 +250,15 @@ export function setLocale(locale: Locale): void {
   commit((previous) => ({ ...previous, locale }))
 }
 
+/**
+ * The theme is a preference, and a preference is still something written to
+ * someone's device — so it goes through `commit()` like everything else, and
+ * declining means it lasts only for the visit.
+ */
+export function setTheme(theme: Theme): void {
+  commit((previous) => ({ ...previous, theme }))
+}
+
 export function forgetEverything(): void {
   try {
     window.localStorage.removeItem(STORAGE_KEY)
@@ -264,12 +267,14 @@ export function forgetEverything(): void {
   }
   // Forgetting includes forgetting that consent was given, so this returns to a
   // genuinely fresh state. The displayed language is left alone — yanking that
-  // away mid-sentence would be its own small betrayal.
+  // away mid-sentence would be its own small betrayal — but the theme choice
+  // goes, which is also the only way back to following the OS.
   set({
     status: 'ready',
     mode: 'undecided',
     consentAt: null,
     locale: snapshot.locale,
+    theme: null,
     facts: [],
   })
 }
@@ -295,6 +300,7 @@ export function usePerson(): Person {
       declineConsent,
       remember,
       setLocale,
+      setTheme,
       forgetEverything,
     }),
     [current],

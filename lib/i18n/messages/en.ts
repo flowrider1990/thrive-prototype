@@ -18,12 +18,21 @@ export const en = {
     home: 'Start',
     you: 'You',
     about: 'About',
+    /** Accessible name for the nav dropdown the links collapse into on narrow screens. */
+    menu: 'Menu',
   },
 
   lang: {
     label: 'Language',
     de: 'Deutsch',
     en: 'English',
+  },
+
+  theme: {
+    light: 'Light',
+    dark: 'Dark',
+    /** The toggle's accessible name: it announces the action, not just a state. */
+    switchTo: 'Switch to {theme}',
   },
 
   consent: {

@@ -174,27 +174,44 @@ Treat these as **direction**, not current requirements.
 Design for phone width first, then tablet and desktop.
 
 ### Visual language
-Initial direction:
-- black and white / neutral,
+Direction:
+- black and white / neutral, with no accent hue,
 - modern,
-- minimal,
-- simple,
 - warm rather than sterile,
 - strong typography and spacing,
 - low visual noise.
+
+Calm is the constraint, not plainness: the visual direction may be more
+distinctive than "minimal" first suggested, as long as it stays quiet. A serif
+display face for headings against sans body text is the current expression of
+that.
 
 Support:
 - light mode,
 - dark mode.
 
-Build the visual system so themes can later be extended without rewriting product logic.
+Build the visual system so themes and future skins can be changed without
+rewriting product logic. Tokens are authoritative: no component may name a color.
 
 ### Design-system approach
-Use established interaction and accessibility patterns, with Material Design 3 as a reference where useful.
+The visual system is project-owned. Established interaction and accessibility
+patterns are the reference, with Material Design 3 useful for the patterns — not
+the look. Do not reproduce Material's visual identity by default and do not make
+the product technically dependent on Material components.
 
-Do not reproduce Material's visual identity by default and do not make the product technically dependent on Material components.
+For genuinely complex interactive behavior — roving focus, collision-aware
+positioning, focus trapping — prefer an established **headless** primitive
+library over a hand-rolled implementation. Base UI is the current choice if and
+when one is needed; it is not a dependency today, and adding it needs approval
+(§11).
 
-Keep UI components driven by project-owned design tokens so colors, typography, spacing, shapes, themes, and future skins can change without rewriting product behavior.
+Keep UI components driven by project-owned design tokens so colors, typography,
+spacing, shapes, themes, and future skins can change without rewriting product
+behavior.
+
+Component-level rules — the token table, the type and shape scales, why the
+active-state indicator must not change an element's metrics, and why a theme
+change must never be animated — live in `docs/design-system.md`.
 
 ### Interface hierarchy
 As the product grows, the primary experience should increasingly help answer:
@@ -271,7 +288,8 @@ Preserve the existing rendering guarantees:
 - no user-facing copy should render before the app is ready if doing so would cause an incorrect-state flash,
 - do not read browser storage during server/prerender execution,
 - do not reintroduce page-level mount-effect loading that causes flashes,
-- preserve the existing `useSyncExternalStore` approach unless there is a demonstrated reason to replace it.
+- preserve the existing `useSyncExternalStore` approach unless there is a demonstrated reason to replace it,
+- the one sanctioned exception is the theme bootstrap script (`lib/theme.ts`, rendered by `app/layout.tsx`): it must stay synchronous and first in `<body>`, because applying a stored theme after mount *is* the flash. It only reads storage, which is not writing it.
 
 Do not “simplify” this architecture by reintroducing hydration mismatches or incorrect first-frame content.
 
@@ -453,6 +471,20 @@ Do not push to GitHub unless explicitly requested or already approved by the act
 
 Never rewrite shared history or use destructive Git operations without explicit approval.
 
+### Versioning
+
+Use Semantic Versioning (`MAJOR.MINOR.PATCH`) for application releases. The version
+lives in `package.json`.
+
+- PATCH: fixes and non-breaking refinements
+- MINOR: new backward-compatible functionality
+- MAJOR: intentionally breaking product/data/API changes
+
+Do not bump versions, create tags, or publish releases unless the task explicitly
+includes a release.
+
+Keep version changes in the same commit as the release they describe.
+
 ---
 
 ## 15. Change Discipline
@@ -528,6 +560,7 @@ Use:
 - `docs/progress.md` — current implementation/deployment status and learnings,
 - `docs/persistence-decision.md` — conditions for a future persistence/backend change,
 - `docs/copy-and-language.md` — i18n/copy rules,
+- `docs/design-system.md` — tokens, component classes, and the visual rules behind them,
 - other `docs/*` files for detailed or changing decisions.
 
 When implementation changes documented behavior, update the relevant documentation in the same task.

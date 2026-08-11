@@ -13,6 +13,11 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
     Arial, sans-serif;
 
+  /* Headings only, and a system stack for the same reason as the body font:
+     nothing here may load from a network. A serif is the whole of the visual
+     identity gain — one token, one line to revert. */
+  --font-display: ui-serif, Georgia, "Times New Roman", serif;
+
   /* Warm off-white and a soft ink — easier to sit with than pure black on white. */
   --color-ground: #faf9f7;
   --color-surface: #ffffff;
@@ -20,30 +25,111 @@
   --color-muted: #6b6862;
   --color-line: #e6e3dd;
   --color-accent: #2f2e2b;
+  /* Its own token rather than a reuse of `--color-accent`: the focus ring and a
+     filled button's background have different jobs, and sharing one variable
+     meant tuning emphasis silently retuned focus. */
+  --color-focus: #1f1e1c;
 
   --text-base: 1.0625rem;
+
+  /* This project's shape scale, replacing Tailwind's defaults for these three
+     names — shape was previously a literal at each call site. Pills
+     (`rounded-full`) stay literal, being a decision rather than a step. */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
 }
 
 /**
- * Light and dark are settled before the first paint by the media query itself —
- * no script, no stored preference, so nothing to flash and nothing to write to
- * the device. Utilities resolve these as variables, so overriding the tokens
- * here re-themes every one of them.
+ * The dark palette, defined once. Two things can ask for it — the operating
+ * system, or an explicit choice — and both apply the same mapping below.
+ */
+:root {
+  --dark-ground: #17171a;
+  --dark-surface: #202024;
+  --dark-ink: #eae7e2;
+  --dark-muted: #9d9a94;
+  --dark-line: #2d2d33;
+  --dark-accent: #e5e2dd;
+  --dark-focus: #eae7e2;
+}
+
+/**
+ * Dark because the OS asks for it — unless the person explicitly chose light.
+ * No script is involved in this path, so following the OS keeps working with
+ * nothing stored and nothing written to the device.
  */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --color-ground: #17171a;
-    --color-surface: #202024;
-    --color-ink: #eae7e2;
-    --color-muted: #9d9a94;
-    --color-line: #2d2d33;
-    --color-accent: #e5e2dd;
+  :root:not([data-theme='light']) {
+    --color-ground: var(--dark-ground);
+    --color-surface: var(--dark-surface);
+    --color-ink: var(--dark-ink);
+    --color-muted: var(--dark-muted);
+    --color-line: var(--dark-line);
+    --color-accent: var(--dark-accent);
+    --color-focus: var(--dark-focus);
+    color-scheme: dark;
   }
+}
+
+/**
+ * Dark because the person chose it. `data-theme` is set before the first paint by
+ * the bootstrap script in `app/layout.tsx`, and kept in step afterwards by
+ * `components/theme-switch.tsx`.
+ *
+ * The mapping is repeated rather than shared: a media condition and an attribute
+ * selector cannot be combined in one rule. `light-dark()` would collapse both
+ * blocks into one, but it needs Safari 17.5, too new a floor for a mobile-first
+ * app — worth revisiting later.
+ */
+:root[data-theme='dark'] {
+  --color-ground: var(--dark-ground);
+  --color-surface: var(--dark-surface);
+  --color-ink: var(--dark-ink);
+  --color-muted: var(--dark-muted);
+  --color-line: var(--dark-line);
+  --color-accent: var(--dark-accent);
+  --color-focus: var(--dark-focus);
+  color-scheme: dark;
+}
+
+/**
+ * A theme change must be instant, never animated.
+ *
+ * Every token inverts in the same frame, and the elements that carry
+ * `transition-colors` would otherwise interpolate across that inversion for
+ * 150ms — a filled button passing through mid-grey background *and* mid-grey
+ * label at the same time, which is unreadable, plus a 2px focus ring sweeping
+ * from near-ink to near-paper on the very control that was just pressed. That is
+ * the reported flash. Measured before the fix: at ~90ms into a light→dark
+ * switch, `.btn-primary` was rgb(141,139,135) on rgb(133,133,133).
+ *
+ * `components/theme-switch.tsx` sets this attribute, forces a reflow so the
+ * suppression applies to the paint that carries the new tokens, and removes it
+ * on the next frame. Nothing about focus visibility is reduced — only its
+ * animation is.
+ */
+:root[data-theme-switching],
+:root[data-theme-switching] *,
+:root[data-theme-switching] *::before,
+:root[data-theme-switching] *::after {
+  transition: none !important;
 }
 
 @layer base {
   html {
-    color-scheme: light dark;
+    /* Light unless something above says otherwise: a blanket `light dark` would
+       give an explicitly-light page dark scrollbars and form controls on a dark
+       OS. */
+    color-scheme: light;
+
+    /* Every page reserves room for a scrollbar, whether it needs one or not.
+       Without this, a classic scrollbar appears on the tall pages and not on the
+       short ones, and since every page centres its column with `mx-auto`, moving
+       between them shifted the whole layout sideways. Measured before the fix:
+       `main` sat at x=264 on `/` and x=256.5 on `/you/` and `/about/`. Has no
+       effect where scrollbars overlay, which is most phones. */
+    scrollbar-gutter: stable;
   }
 
   body {
@@ -61,14 +147,60 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-accent);
+    outline: 2px solid var(--color-focus);
     outline-offset: 3px;
+  }
+
+  /**
+   * The only motion in the app is colour transitions and the menu panel's
+   * entrance, and someone who has asked for less of it should get none. Stated
+   * once here rather than per component, so a new transition cannot forget it.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition: none !important;
+      animation: none !important;
+    }
   }
 }
 
 @layer components {
+  /**
+   * Every page's title. One class rather than the same six utilities repeated at
+   * four call sites, because the display face is a system-wide decision.
+   */
+  .heading {
+    @apply text-balance font-display text-3xl leading-tight tracking-tight text-ink sm:text-4xl;
+    /* A serif at 400 already reads as emphasis; bolder would only shout. */
+    font-weight: 400;
+  }
+
+  /**
+   * A nav item that can be marked current without moving.
+   *
+   * The border is on both edges and transparent by default, so the active state
+   * only recolours it — the box is byte-identical either way. Font weight is
+   * deliberately *not* used: bold glyphs are wider, so weighting the current
+   * page would reflow the header on every navigation, which is the defect this
+   * was added alongside.
+   */
+  .nav-link {
+    @apply border-y-2 border-transparent py-0.5 text-muted transition-colors;
+  }
+
+  .nav-link:hover {
+    @apply text-ink;
+  }
+
+  .nav-link[aria-current='page'] {
+    @apply text-ink;
+    border-bottom-color: var(--color-ink);
+  }
+
   .field {
-    @apply w-full rounded-lg border border-line bg-surface px-4 py-3 text-ink;
+    @apply w-full rounded-md border border-line bg-surface px-4 py-3 text-ink;
     @apply leading-relaxed shadow-none transition-colors;
   }
 
@@ -104,5 +236,21 @@
 
   .btn-quiet:not(:disabled):hover {
     @apply border-muted text-ink;
+  }
+
+  /**
+   * The menu panel's entrance. Opacity and transform only — nothing that could
+   * move the trigger or the header — and short enough to read as "this came from
+   * there" rather than as an animation. Off entirely under reduced motion.
+   */
+  .menu-panel {
+    animation: menu-in 120ms ease-out;
+  }
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem);
   }
 }

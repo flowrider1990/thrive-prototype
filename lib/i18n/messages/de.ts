@@ -18,12 +18,19 @@ export const de: Messages = {
     home: 'Start',
     you: 'Du',
     about: 'Über',
+    menu: 'Menü',
   },
 
   lang: {
     label: 'Sprache',
     de: 'Deutsch',
     en: 'English',
+  },
+
+  theme: {
+    light: 'Hell',
+    dark: 'Dunkel',
+    switchTo: 'Zu {theme} wechseln',
   },
 
   consent: {

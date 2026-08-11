@@ -38,9 +38,7 @@ export default function YouPage() {
     <PageShell>
       <div className="space-y-10">
         <header className="space-y-4">
-          <h1 className="text-2xl font-normal leading-snug tracking-tight text-ink sm:text-3xl">
-            {m.you.title}
-          </h1>
+          <h1 className="heading">{m.you.title}</h1>
           <p className="max-w-prose leading-relaxed text-muted">{intro}</p>
           {mode === 'local' && consentAt && (
             <p className="text-sm text-muted">

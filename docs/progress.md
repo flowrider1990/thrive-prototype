@@ -120,6 +120,138 @@ The rest by hand or by build:
   closes a gap that had been assumption-only: the shell was previously only ever
   checked at a default headless viewport.
 
+## Header controls (branch `feature/creating-subagents`)
+
+Language dropdown, theme toggle, and a nav that collapses instead of wrapping.
+`pnpm verify` now runs **39 checks**, all passing.
+
+- **The language switch is a dropdown** showing the current language as a code
+  (`EN ▾`), not a flag. Emoji flags were not an option: Windows has no
+  country-flag glyphs, so `🇩🇪` renders as boxed letters. It is also the more
+  accurate choice — flags are countries, and English is not only British.
+- **A theme toggle** cycles light ↔ dark. Three states exist even though the
+  button has two: until it is pressed nothing is stored and the OS decides, which
+  is why the icon shows the *effective* theme. `Forget everything` is the way back
+  to following the OS.
+- **The theme is consent-gated** like everything else, through the store's
+  `commit()`. Declining means the choice lasts the visit and no key is written —
+  asserted by check 17b.
+- **A pre-paint bootstrap script** (`lib/theme.ts`, first in `<body>`) applies a
+  stored theme before anything is painted. Without it, a dark choice on a
+  light-preference OS flashes white on every load. Check 16 samples the background
+  every frame from before the app's own scripts run and asserts no light frame.
+- **The nav collapses at `sm`**, and the header no longer wraps. Links are defined
+  once and rendered twice, so a future entry costs nothing on a phone — the reason
+  to collapse rather than shrink.
+- **`components/menu.tsx`** is one shared disclosure dropdown, deliberately not
+  `role="menu"`: a real menu owes the user arrow-key roving focus, and claiming
+  the role without it tells screen reader users to expect keys that do nothing.
+
+Three things worth remembering from doing it:
+
+- **The bootstrap script needs `suppressHydrationWarning` on `<html>`.** Setting
+  `data-theme` before React hydrates means the element really does differ from the
+  built HTML — that difference is the point — and React reports it as a mismatch
+  without the suppression. It covers that element's attributes only, so a genuine
+  mismatch elsewhere still surfaces.
+- **A suite that only runs against the export cannot see this.** React warns about
+  hydration mismatches in development only, so 39 passing checks said nothing
+  about it; it took opening the app in `pnpm dev`. Check 19 now fails on any
+  console error, and it is worth running against the dev server too:
+  `node scripts/verify.mjs http://localhost:3000`.
+
+- **`theme` is optional, not `version: 2`.** A version bump would make `parse()`
+  reject every existing store and discard real answers. Check 18 guards this by
+  loading a store with no `theme` field.
+- **Measuring "did the header wrap" is subtler than it looks.** Comparing child
+  `offsetTop` fails twice over: `display:none` children report `0`, and
+  centre-aligned children of different heights have different tops on the same
+  line. Comparing vertical *centres* is the measure that actually works.
+
+## Supabase: paused deliberately after the proposal (2026-08-11)
+
+**This is a deliberate deferral, not a blocked task.** The approved plan's Phase 1
+turned out to be more infrastructure than this stage of the project warrants, so
+runtime work stops after the documentation and decisions.
+
+Kept, so this resumes without redoing setup:
+
+- the `supabase` CLI devDependency and `supabase/config.toml`,
+- the linked project `oejjomqrugsgpunzmhnd`,
+- `docs/supabase-migration.md`, including decisions **D1–D10** and open points
+  **O1–O4** (O1–O4 were since decided: persistent sessions, no per-fact deletion,
+  custom SMTP deferred until external testers, and the `/you` copy naming Supabase,
+  describing hosting broadly as EU, and stating plainly that the operator could
+  technically access cloud data — without implying RLS prevents that),
+- the official Supabase agent skill (below).
+
+**Not started:** local Supabase, schema, RLS, isolation tests, Edge Functions,
+Auth, sync, and any database application code.
+
+### When it resumes, in small steps
+
+1. one basic table,
+2. basic Auth,
+3. basic RLS,
+4. one authenticated read/write flow,
+5. only then sync, migrations, Edge Functions, and advanced security testing.
+
+The seven-phase plan in `docs/supabase-migration.md` stays as the destination, not
+as the next action.
+
+### Context for whoever resumes
+
+This machine has **no container runtime**: no Docker, no Podman, and WSL is not
+installed (Windows 10 Home, where Docker Desktop requires WSL2). There is no local
+Postgres either. So step 1 above needs either a container runtime installed first,
+or a decision to work directly against the hosted project. Recorded as context, not
+as a task.
+
+### The Supabase agent skill
+
+Installed with `npx skills add supabase/agent-skills --skill supabase` (v0.1.2).
+Nothing was duplicated: no Supabase plugin was installed, and `~/.claude/skills`
+held none of these.
+
+It landed **inside the repository** at `.agents/skills/supabase/`, symlinked into
+`.claude/skills/supabase`, with `skills-lock.json` at the root. Of those, **only
+`skills-lock.json` is committed** — see `.gitignore` for why.
+
+Three things the skill flags that our own proposal does not yet cover, worth
+folding in when work resumes:
+
+- **Data API exposure is separate from RLS.** A newly created table may not be
+  reachable at all until `anon`/`authenticated` are granted access, and that is a
+  different question from which rows RLS permits.
+- **`user_metadata` is user-editable** and must never be used in authorization
+  decisions; `app_metadata` is the safe side.
+- **Deleting a user does not invalidate their existing access tokens.** This bears
+  directly on the D9/D10 delete-account design: sessions should be revoked as part
+  of deletion, not assumed dead.
+
+## Supabase CLI: installed and linked (tooling only)
+
+`supabase` is a **devDependency** (`pnpm add -D supabase`, currently 2.113.0),
+`supabase init` has been run, and the project is linked to the hosted project
+**`project thrive`** (`oejjomqrugsgpunzmhnd`, Postgres 17.6, eu-central-1).
+
+Nothing about the application has changed. There is no Auth, no table, no
+migration, no client code, and the app still stores everything in the browser
+under the rules in `CLAUDE.md` §8. Installing a CLI is tooling; introducing a
+backend is the architectural change that section governs — see
+`docs/supabase-migration.md` for the proposal that has to be approved first.
+
+- The link state lives in `supabase/.temp/`, which `supabase/.gitignore` excludes,
+  so it stays machine-local. `config.toml` is committed, including the project
+  ref: it is not a secret (it appears in the project URL) and committing it is
+  what makes migrations reproducible.
+- `npm install` was **not** used despite the instruction, because this repo pins
+  `packageManager` and CI runs `pnpm install --frozen-lockfile`; an npm lockfile
+  would have left the dependency invisible to CI. Same end state via pnpm.
+- Note for when Pages is enabled: `pnpm install --frozen-lockfile` installs dev
+  dependencies too, so CI would download the CLI binary on every build without
+  needing it. Worth scoping then.
+
 ## The repository
 
 Pushed to <https://github.com/flowrider1990/thrive-prototype>, **private** for

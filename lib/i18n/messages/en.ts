@@ -282,17 +282,42 @@ export const en = {
     },
     /** Life-area facts are shown through the domain layer, so no internal id is ever printed. */
     areas: {
-      review: 'You said',
-      yes: 'Yes',
-      notNow: 'Not right now',
+      /**
+       * Said once, above all five areas, because it is true of every line under it
+       * and because the words below — "set aside", "changed from" — would otherwise
+       * be read as things having been removed. Nothing on this page is ever deleted
+       * except by deleting all of it: the store is append-only.
+       */
+      note: 'Nothing here is removed. Earlier wordings and things you set aside are kept, so you can see how something changed.',
+      /**
+       * The stored value is the token `yes` or `not_now`, and "You said" followed by
+       * "Yes" told the reader nothing — the question it answered was not on screen.
+       * The label supplies the occasion and each value is a whole sentence, so the
+       * line stands on its own.
+       */
+      review: 'When you looked at this area',
+      yes: 'You wanted to change or try something here',
+      notNow: 'You did not want to change anything then',
       goal: 'Your goal',
-      earlier: 'earlier: {goal}',
-      steps: 'Next steps',
-      active: 'focusing on',
+      /** Explicit about being a change, rather than leaving "earlier" to imply it. */
+      earlier: 'changed from: {goal}',
+      /** Past tense, and still no noun for the thing — see `goals.stepsQuestion`. */
+      steps: 'What you wanted to try',
+      /** When it was first written down, which is separate from what became of it. */
+      added: 'added {when}',
+      active: 'working on this',
       open: 'prepared',
       done: 'done',
-      retired: 'removed from current steps',
+      /**
+       * Not "removed" and not "deleted": the words are still here, one line further
+       * down, and either would be a false claim about the person's own data.
+       */
+      retired: 'set aside',
       edited: 'reworded from: {text}',
+      /** The collapsed summary has to say enough to be worth not opening. */
+      noGoal: 'No goal recorded',
+      entryCountOne: '1 entry',
+      entryCount: '{count} entries',
     },
   },
 

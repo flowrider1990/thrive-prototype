@@ -485,6 +485,45 @@ async function clickText(text) {
   await evaluate(`__clickText(${JSON.stringify(text)})`)
   await sleep(220)
 }
+/**
+ * Opens every folded section on the page.
+ *
+ * `innerText` cannot see inside a closed `<details>`, so any check that asserts
+ * content is present has to unfold first or it is answered by the fold rather than
+ * by the content — "the words are not there" and "the words are hidden" look
+ * identical from the outside. Returns how many it opened, so a caller can tell the
+ * difference between "nothing folded" and "nothing on the page".
+ */
+async function expandAll() {
+  const opened = await evaluate(
+    `(() => {
+       const all = [...document.querySelectorAll('details:not([open])')];
+       all.forEach((d) => { d.open = true; });
+       return all.length;
+     })()`,
+  )
+  await sleep(200)
+  return opened
+}
+/**
+ * Opens one folded section the way a person would: by clicking its summary.
+ *
+ * `__clickText` cannot do it — it only clicks leaf elements, and these summaries
+ * hold a heading with an icon inside it.
+ */
+async function clickSummary(text) {
+  await evaluate(HELPERS)
+  await evaluate(
+    `(() => {
+       const summary = [...document.querySelectorAll('details > summary')]
+         .find((s) => s.innerText.includes(${JSON.stringify(text)}));
+       if (!summary) throw new Error('no summary containing: ' + ${JSON.stringify(text)});
+       summary.click();
+       return true;
+     })()`,
+  )
+  await sleep(250)
+}
 const focused = async (selector) => {
   await evaluate(HELPERS)
   return evaluate(`__focus(${JSON.stringify(selector)})`)
@@ -1040,6 +1079,7 @@ check(
 
 await click(EN.manageDone)
 await goto('/data/stored/')
+await expandAll()
 screen = await text()
 check(
   '7e. /you shows the current goal and the one it replaced, with dates',
@@ -1058,9 +1098,17 @@ check(
   !UUID.test([screen, ...named].join(' ')),
   UUID.exec([screen, ...named].join(' '))?.[0] ?? `clean (${named.length} accessible names)`,
 )
+// The three outcomes, in the words the record now uses. The negative half is the
+// point of that rewording: an entry taken out of current use is still on this page,
+// one line further down, so "removed from current steps" was describing a deletion
+// that never happened. Append-only has no delete.
 check(
-  '7g. and it says what became of each step',
-  screen.includes('focusing on') && screen.includes('done') && screen.includes('removed'),
+  '7g. and it says what became of each step, without claiming any of it was removed',
+  screen.includes('working on this') &&
+    screen.includes('done') &&
+    screen.includes('set aside') &&
+    !/removed from/.test(screen),
+  /removed from/.test(screen) ? 'still claims removal' : 'working on this / done / set aside',
 )
 
 // --- 8. forget everything --------------------------------------------------
@@ -1234,6 +1282,7 @@ check(
 // One level deeper, and still in memory mode: their words are there to see even
 // though the device holds nothing.
 await click(EN.dataShow)
+await expandAll()
 screen = await text()
 check(
   '5f2. and the stored view still shows their words, from memory alone',
@@ -1286,6 +1335,7 @@ check(
 )
 
 await goto('/data/stored/')
+await expandAll()
 screen = await text()
 check(
   '6e. the stored view is German too, including the life-area labels',
@@ -1679,12 +1729,63 @@ check(
 await click(EN.dataShow)
 await sleep(400)
 screen = await text()
+
+// Each area folds away, so this is now two claims rather than one, and both matter.
+//
+// Closed, the summary still has to be worth not opening: which area, which goal, and
+// that there is history behind it. If folding hid *that anything is there*, the page
+// would stop being the thing that makes `/data/` checkable.
 check(
-  '28c. and the stored view shows what is actually there, in their own words',
-  screen.includes(EN.storedTitle) &&
-    screen.includes('Sleep better') &&
-    screen.includes('Walk after dinner'),
-  screen.replace(/\n/g, ' / ').slice(0, 160),
+  '28c. a folded area still says which area, which goal, and how much is behind it',
+  screen.includes(EN.storedTitle) && screen.includes('Sleep better') && screen.includes('1 entry'),
+  screen.replace(/\n/g, ' / ').slice(0, 200),
+)
+
+// Native `<details>`, not a hand-rolled disclosure. `components/menu.tsx` explains
+// why this project will not claim a role it has not implemented; here the element
+// supplies the state, the keyboard and find-in-page, so there is nothing to claim.
+const disclosures = await evaluate(
+  `(() => {
+     const all = [...document.querySelectorAll('main details')];
+     return {
+       count: all.length,
+       open: all.filter((d) => d.open).length,
+       withSummary: all.filter((d) => d.querySelector(':scope > summary')).length,
+       headings: all.filter((d) => d.querySelector(':scope > summary h2')).length,
+     };
+   })()`,
+)
+check(
+  '28c2. it is a real disclosure, and each one still carries its section heading',
+  disclosures.count > 0 &&
+    disclosures.count === disclosures.withSummary &&
+    disclosures.count === disclosures.headings,
+  JSON.stringify(disclosures),
+)
+
+// The words themselves are one interaction away, and that interaction is what the
+// person's own entries live behind now. 28c used to assert them directly; asserting
+// that expanding reveals them is strictly more than that, because it proves the
+// disclosure works as well as that the data is there.
+await clickSummary('Body & Health')
+screen = await text()
+check(
+  '28c3. and expanding one reveals the entries in the person’s own words',
+  screen.includes('Walk after dinner') && screen.includes('added '),
+  screen.replace(/\n/g, ' / ').slice(0, 200),
+)
+
+// Provenance, which is the other half of this section's rework. "You said / Yes" said
+// nothing, because the question it answered was not on the page. And nothing may
+// claim removal: the words are still here, which is exactly what append-only means.
+check(
+  '28c4. a review answer reads as a sentence rather than as a stored token',
+  screen.includes('You wanted to change or try something here') && !/\bYou said\b/.test(screen),
+  screen.includes('You wanted to change or try something here') ? 'sentence' : 'still a bare token',
+)
+check(
+  '28c5. and the page says plainly that nothing here is removed',
+  screen.includes('Nothing here is removed'),
 )
 
 // --- 33. the second way into deleting, and the back link's position ---------
@@ -1796,12 +1897,25 @@ check(
 
 for (const route of ['/', '/areas/', '/areas/body/', '/data/', '/data/stored/']) {
   await goto(route)
+  // Everything folded has to be unfolded first, or this sweep silently stops looking
+  // at it: `innerText` cannot see inside a closed `<details>`, so the areas on
+  // `/data/stored/` — the very surface where a step's id sits next to its words —
+  // would pass by being invisible rather than by being clean.
+  const unfolded = await evaluate(
+    `(() => {
+       const all = [...document.querySelectorAll('details:not([open])')];
+       all.forEach((d) => { d.open = true; });
+       return all.length;
+     })()`,
+  )
+  await sleep(150)
   const spoken = await ariaLabels()
   const seen = await text()
   check(
     `30. no id reaches ${route} — not on screen, not in an accessible name`,
     !UUID.test([seen, ...spoken].join(' ')),
-    UUID.exec([seen, ...spoken].join(' '))?.[0] ?? `clean (${spoken.length} names)`,
+    UUID.exec([seen, ...spoken].join(' '))?.[0] ??
+      `clean (${spoken.length} names, ${unfolded} section(s) unfolded first)`,
   )
 }
 

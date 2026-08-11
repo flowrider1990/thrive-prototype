@@ -168,6 +168,67 @@ Three things worth remembering from doing it:
   centre-aligned children of different heights have different tops on the same
   line. Comparing vertical *centres* is the measure that actually works.
 
+## Supabase: paused deliberately after the proposal (2026-08-11)
+
+**This is a deliberate deferral, not a blocked task.** The approved plan's Phase 1
+turned out to be more infrastructure than this stage of the project warrants, so
+runtime work stops after the documentation and decisions.
+
+Kept, so this resumes without redoing setup:
+
+- the `supabase` CLI devDependency and `supabase/config.toml`,
+- the linked project `oejjomqrugsgpunzmhnd`,
+- `docs/supabase-migration.md`, including decisions **D1–D10** and open points
+  **O1–O4** (O1–O4 were since decided: persistent sessions, no per-fact deletion,
+  custom SMTP deferred until external testers, and the `/you` copy naming Supabase,
+  describing hosting broadly as EU, and stating plainly that the operator could
+  technically access cloud data — without implying RLS prevents that),
+- the official Supabase agent skill (below).
+
+**Not started:** local Supabase, schema, RLS, isolation tests, Edge Functions,
+Auth, sync, and any database application code.
+
+### When it resumes, in small steps
+
+1. one basic table,
+2. basic Auth,
+3. basic RLS,
+4. one authenticated read/write flow,
+5. only then sync, migrations, Edge Functions, and advanced security testing.
+
+The seven-phase plan in `docs/supabase-migration.md` stays as the destination, not
+as the next action.
+
+### Context for whoever resumes
+
+This machine has **no container runtime**: no Docker, no Podman, and WSL is not
+installed (Windows 10 Home, where Docker Desktop requires WSL2). There is no local
+Postgres either. So step 1 above needs either a container runtime installed first,
+or a decision to work directly against the hosted project. Recorded as context, not
+as a task.
+
+### The Supabase agent skill
+
+Installed with `npx skills add supabase/agent-skills --skill supabase` (v0.1.2).
+Nothing was duplicated: no Supabase plugin was installed, and `~/.claude/skills`
+held none of these.
+
+It landed **inside the repository** at `.agents/skills/supabase/`, symlinked into
+`.claude/skills/supabase`, with `skills-lock.json` at the root. Of those, **only
+`skills-lock.json` is committed** — see `.gitignore` for why.
+
+Three things the skill flags that our own proposal does not yet cover, worth
+folding in when work resumes:
+
+- **Data API exposure is separate from RLS.** A newly created table may not be
+  reachable at all until `anon`/`authenticated` are granted access, and that is a
+  different question from which rows RLS permits.
+- **`user_metadata` is user-editable** and must never be used in authorization
+  decisions; `app_metadata` is the safe side.
+- **Deleting a user does not invalidate their existing access tokens.** This bears
+  directly on the D9/D10 delete-account design: sessions should be revoked as part
+  of deletion, not assumed dead.
+
 ## Supabase CLI: installed and linked (tooling only)
 
 `supabase` is a **devDependency** (`pnpm add -D supabase`, currently 2.113.0),

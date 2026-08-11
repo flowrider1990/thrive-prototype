@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Installed agent skills (third-party content, reinstallable from skills-lock.json).
+# The lockfile IS committed; the content is not — vendoring docs that drift, and
+# committing .claude/skills/supabase (a symlink, which does not survive a clone on
+# every platform), would both cost more than they are worth.
+.agents/
+.claude/skills/

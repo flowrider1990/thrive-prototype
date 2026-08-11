@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { AreaManage } from '@/components/area-manage'
+import { BackLink } from '@/components/back-link'
 import { PageShell } from '@/components/page-shell'
 import type { AreaId } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
@@ -15,16 +16,35 @@ import { useI18n } from '@/lib/i18n'
  * "done" goes.
  */
 export function AreaScreen({ area }: { area: AreaId }) {
-  const { status } = useI18n()
+  const { m, status } = useI18n()
   const router = useRouter()
 
   if (status !== 'ready') return <PageShell>{null}</PageShell>
 
   return (
     <PageShell>
-      {/* `key` so that following a link from one area to another remounts rather
-          than carrying the previous area's sub-view across. */}
-      <AreaManage key={area} area={area} onDone={() => router.push('/areas')} />
+      {/**
+       * The back link lives here rather than inside `AreaManage`, and that is the
+       * point: it is chrome belonging to the *route*, not content belonging to one of
+       * the eight views `AreaManage` can be in. Put inside, it would have to be
+       * repeated in each of them and would go missing from whichever was added next.
+       *
+       * So it is present on every view, including the questions. Three of those —
+       * changing the goal, adding something, choosing what to work on — offered no way
+       * out at all, and someone who opened one by mistake had only the browser's back
+       * button. Nothing here is written until an answer is submitted, so leaving costs
+       * only what has been typed, which is what any Cancel would cost.
+       *
+       * "Done" stays. It means "I have finished with this area" and happens to land in
+       * the same place; this answers "take me up a level", which is a different
+       * question and needs to be answerable without reading to the bottom of the page.
+       */}
+      <div className="space-y-4">
+        <BackLink href="/areas" label={m.manage.back} />
+        {/* `key` so that following a link from one area to another remounts rather
+            than carrying the previous area's sub-view across. */}
+        <AreaManage key={area} area={area} onDone={() => router.push('/areas')} />
+      </div>
     </PageShell>
   )
 }

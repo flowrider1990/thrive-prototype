@@ -151,6 +151,7 @@ export const de: Messages = {
   },
 
   manage: {
+    back: 'Zurück zu deinen Lebensbereichen',
     pickerTitle: 'Deine Lebensbereiche',
     pickerNote: 'Öffne einen, um sein Ziel zu ändern — oder was du ausprobieren willst.',
     noGoal: 'Noch kein Ziel',

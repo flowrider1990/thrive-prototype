@@ -1,8 +1,7 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft } from '@/components/icons'
+import { BackLink } from '@/components/back-link'
 import { PageShell } from '@/components/page-shell'
 import { StoredAreas } from '@/components/stored-areas'
 import { formatWhen, useI18n } from '@/lib/i18n'
@@ -78,20 +77,10 @@ export default function StoredPage() {
     <PageShell>
       <div className="space-y-10">
         <header className="space-y-4">
-          {/* Above the title rather than at the foot of the page. This page is as
-              long as the person's history, so a back link at the bottom is only
-              reachable by reading or scrolling past everything — which is the one
-              thing someone who took a wrong turn does not want to do. Quiet, and
-              still a plain link: it navigates and changes nothing. */}
-          <p>
-            <Link
-              href="/data"
-              className="nav-link inline-flex items-center gap-x-1.5 text-sm"
-            >
-              <ArrowLeft />
-              {m.stored.back}
-            </Link>
-          </p>
+          {/* Above the title rather than at the foot of the page: this page is as long
+              as the person's history, and a way back you have to scroll to is not one.
+              Shared with `/areas/<id>/` through `BackLink`, so the two cannot drift. */}
+          <BackLink href="/data" label={m.stored.back} />
           <h1 className="heading">{m.stored.title}</h1>
           <p className="max-w-prose leading-relaxed text-muted">{intro}</p>
           {mode === 'local' && consentAt && (

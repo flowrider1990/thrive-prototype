@@ -506,6 +506,23 @@ async function expandAll() {
   return opened
 }
 /**
+ * Clicks the first element matching a selector.
+ *
+ * For controls whose text is not their only content: `__clickText` insists on a leaf
+ * element, and a back link holds an arrow as well as its label.
+ */
+async function clickSelector(selector) {
+  await evaluate(
+    `(() => {
+       const el = document.querySelector(${JSON.stringify(selector)});
+       if (!el) throw new Error('nothing matching: ' + ${JSON.stringify(selector)});
+       el.click();
+       return true;
+     })()`,
+  )
+  await sleep(250)
+}
+/**
  * Opens one folded section the way a person would: by clicking its summary.
  *
  * `__clickText` cannot do it — it only clicks leaf elements, and these summaries
@@ -1887,6 +1904,106 @@ check(
   '34b. and the goal is still the person’s words in full ink, only smaller',
   rowType?.goalIsInk === true,
   `goal is ink: ${rowType?.goalIsInk}`,
+)
+
+// --- 35. every nested page has the same way back ----------------------------
+//
+// One pattern, not two. `BackLink` is shared, so the assertion worth making is that
+// both nested routes actually use it and that they render identically — a second
+// hand-rolled copy would look right and drift on the next change.
+//
+// It goes to an explicit parent route rather than to `history.back()`, which is a
+// different question: arriving at an area from the start page and pressing this
+// should still offer the life areas.
+
+/** The back link on whatever page is loaded: where it goes, and how it is drawn. */
+const backLinkOn = async () =>
+  evaluate(
+    `(() => {
+       const first = document.querySelector('main a[href]');
+       if (!first) return null;
+       const heading = document.querySelector('main h1, main h2, main p');
+       const style = getComputedStyle(first);
+       return {
+         tag: first.tagName,
+         href: new URL(first.href).pathname,
+         text: first.textContent.trim(),
+         hasArrow: Boolean(first.querySelector('svg')),
+         fontSize: style.fontSize,
+         colour: style.color,
+         // The back link must come first in the page, above whatever titles it.
+         beforeHeading: heading ? Boolean(first.compareDocumentPosition(heading) & 4) : false,
+       };
+     })()`,
+  )
+
+await seedOnboarded()
+await goto('/areas/body/')
+const areaBack = await backLinkOn()
+check(
+  '35a. an area page offers a way back to the areas list, above its own heading',
+  areaBack?.tag === 'A' &&
+    areaBack.href === '/areas/' &&
+    areaBack.hasArrow === true &&
+    areaBack.beforeHeading === true,
+  JSON.stringify(areaBack),
+)
+
+// Reachable by Tab, and painting a real focus ring when it gets there. `tabTo` presses
+// keys for real, because `:focus-visible` is a judgement about how focus arrived.
+await tabTo('main a[href]')
+const backFocus = await evaluate(
+  `(() => {
+     const el = document.activeElement;
+     const style = getComputedStyle(el);
+     return {
+       text: el?.textContent?.trim() ?? null,
+       matches: el?.matches(':focus-visible') ?? false,
+       width: style.outlineWidth,
+     };
+   })()`,
+)
+check(
+  '35b. and it is reachable by keyboard with a visible focus ring',
+  backFocus.matches === true && backFocus.width !== '0px',
+  JSON.stringify(backFocus),
+)
+
+// Following it writes nothing. It is navigation, and a nested page's way out must
+// never be a control that also decides something.
+const beforeBack = await raw()
+await clickSelector('main a[href]')
+await sleep(500)
+check(
+  '35c. following it reaches the parent and changes nothing',
+  (await text()).includes(EN.picker) && (await raw()) === beforeBack,
+  (await raw()) === beforeBack ? 'store untouched' : 'STORE CHANGED',
+)
+
+// The three question views that had no way out at all. Opening one by mistake used to
+// leave only the browser's back button; the page-level link now covers all of them.
+await goto('/areas/body/')
+await click(EN.changeGoal)
+screen = await text()
+check(
+  '35d. even the question views have it — they had no way out before',
+  screen.includes('What is your goal now?') &&
+    (await visible('Back to your life areas')) &&
+    (await raw()) === beforeBack,
+  screen.includes('What is your goal now?') ? 'present on the goal question' : 'wrong view',
+)
+
+// Both nested pages, drawn the same. Consistency is the requirement, so it is measured
+// rather than assumed from a shared import.
+await goto('/data/stored/')
+const dataBack = await backLinkOn()
+check(
+  '35e. the two nested pages render the same back link, not two lookalikes',
+  dataBack?.fontSize === areaBack.fontSize &&
+    dataBack.colour === areaBack.colour &&
+    dataBack.hasArrow === areaBack.hasArrow &&
+    dataBack.beforeHeading === areaBack.beforeHeading,
+  `areas: ${areaBack.fontSize}/${areaBack.colour} — data: ${dataBack?.fontSize}/${dataBack?.colour}`,
 )
 
 // --- 30. no internal id reaches any screen, seen or spoken -----------------

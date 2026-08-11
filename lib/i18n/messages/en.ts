@@ -219,6 +219,12 @@ export const en = {
   },
 
   manage: {
+    /**
+     * The way up from one area. Names the destination rather than saying "Back", so
+     * it still means something read on its own — and it matches `pickerTitle`, which
+     * is what the page it lands on is called.
+     */
+    back: 'Back to your life areas',
     pickerTitle: 'Your life areas',
     pickerNote: 'Open one to change its goal, or what you want to try.',
     noGoal: 'No goal yet',

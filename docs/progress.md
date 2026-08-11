@@ -37,9 +37,10 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 78/78** (it was 25 at the
-foundation and 39 after the header controls); the script itself is the only
-authority on that number, so treat any count written in prose as a snapshot.
+the two the plan singles out. **The current count is 123/123** (25 at the
+foundation, 39 after the header controls, 78 after the first product loop); the
+script itself is the only authority on that number, so treat any count written in
+prose as a snapshot.
 
 - **no flash on reload** (item 4) — sampled from `requestAnimationFrame` starting
   before the app's own scripts run, so a wrong-state frame would be caught rather

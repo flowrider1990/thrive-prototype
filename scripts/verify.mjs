@@ -129,8 +129,12 @@ await send('Network.enable')
 await send('Page.addScriptToEvaluateOnNewDocument', {
   source: `
     window.__frames = [];
+    window.__bgFrames = [];
     const tick = () => {
-      if (document.body) window.__frames.push(document.body.innerText);
+      if (document.body) {
+        window.__frames.push(document.body.innerText);
+        window.__bgFrames.push(getComputedStyle(document.body).backgroundColor);
+      }
       if (window.__frames.length < 150) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
@@ -159,6 +163,43 @@ const HELPERS = `
   window.__text = () => document.body.innerText;
   window.__keys = () => Object.keys(localStorage);
   window.__raw = () => localStorage.getItem(${JSON.stringify(STORAGE_KEY)});
+  /** Opens a dropdown by its accessible name — the trigger shows an icon or a code. */
+  window.__open = (label) => {
+    const el = document.querySelector('button[aria-label="' + label + '"]');
+    if (!el) throw new Error('no dropdown trigger: ' + label + ' | seen: ' +
+      [...document.querySelectorAll('button[aria-label]')].map(e => e.getAttribute('aria-label')).join(' / '));
+    if (el.getAttribute('aria-expanded') !== 'true') el.click();
+    return true;
+  };
+  window.__visible = (text) => [...document.querySelectorAll('button, a')]
+    .some((e) => e.textContent.trim() === text && e.offsetParent !== null);
+  /**
+   * Header children all on one line: the wrap this change exists to prevent.
+   * Only laid-out children count — a display:none child (the inline nav on a
+   * phone) reports offsetTop 0 and would look like a second row.
+   */
+  window.__headerRows = () => {
+    const row = document.querySelector('header > div');
+    // Vertical centres, not tops: the items have different heights and are
+    // centre-aligned, so on one line their tops differ while their centres agree.
+    const centres = [...row.children]
+      .filter((c) => c.getClientRects().length > 0)
+      .map((c) => {
+        const box = c.getBoundingClientRect();
+        return Math.round(box.top + box.height / 2);
+      });
+    return new Set(centres).size;
+  };
+  window.__theme = () => document.documentElement.dataset.theme || null;
+  window.__bg = () => getComputedStyle(document.body).backgroundColor;
+  /** For icon-only controls, whose accessible name is the only stable handle. */
+  window.__clickAria = (label) => {
+    const el = document.querySelector('[aria-label="' + label + '"]');
+    if (!el) throw new Error('no [aria-label="' + label + '"] | seen: ' +
+      [...document.querySelectorAll('[aria-label]')].map(e => e.getAttribute('aria-label')).join(' / '));
+    el.click();
+    return true;
+  };
   true;
 `
 
@@ -171,6 +212,51 @@ async function type(value) {
   await evaluate(HELPERS)
   await evaluate(`__type(${JSON.stringify(value)})`)
   await sleep(120)
+}
+/** Opens a dropdown, then clicks something inside it. */
+async function chooseIn(triggerLabel, itemText) {
+  await evaluate(HELPERS)
+  await evaluate(`__open(${JSON.stringify(triggerLabel)})`)
+  await sleep(150)
+  await click(itemText)
+}
+/**
+ * Clicks a nav link whether it is inline or collapsed behind the menu, so the
+ * checks do not have to care about the viewport they happen to run at.
+ */
+async function clickNav(label, menuLabel = 'Menu') {
+  await evaluate(HELPERS)
+  const inline = await evaluate(`__visible(${JSON.stringify(label)})`)
+  if (inline) await click(label)
+  else await chooseIn(menuLabel, label)
+}
+async function clickAria(label) {
+  await evaluate(HELPERS)
+  await evaluate(`__clickAria(${JSON.stringify(label)})`)
+  await sleep(220)
+}
+const headerRows = async () => {
+  await evaluate(HELPERS)
+  return evaluate('__headerRows()')
+}
+const visible = async (label) => {
+  await evaluate(HELPERS)
+  return evaluate(`__visible(${JSON.stringify(label)})`)
+}
+const dataTheme = () => evaluate('document.documentElement.dataset.theme || null')
+const background = () => evaluate('getComputedStyle(document.body).backgroundColor')
+async function setViewport(width, height = 844) {
+  await send('Emulation.setDeviceMetricsOverride', {
+    width,
+    height,
+    deviceScaleFactor: 1,
+    mobile: width < 640,
+  })
+}
+async function setScheme(scheme) {
+  await send('Emulation.setEmulatedMedia', {
+    features: [{ name: 'prefers-color-scheme', value: scheme }],
+  })
 }
 const text = () => evaluate('document.body.innerText')
 const keys = () => evaluate('Object.keys(localStorage)')
@@ -295,7 +381,7 @@ check(
 
 // Via the in-app link, not a fresh page load: memory mode is meant to die with
 // the tab, so a hard navigation losing it is the design, not a defect.
-await click('You')
+await clickNav('You')
 screen = await text()
 check(
   '5f. /you says this list lives in the tab only, and still shows their words',
@@ -307,7 +393,8 @@ check('5g. reloading starts over, since the decision itself was not stored', (aw
 
 // --- 6. language ----------------------------------------------------------
 
-await click('Deutsch')
+// The language switch is a dropdown now, so the option has to be opened first.
+await chooseIn('Language', 'Deutsch')
 screen = await text()
 check('6a. German works on the consent screen itself', screen.includes('Ist das okay für dich?'))
 await click('Ja, das ist okay')
@@ -344,6 +431,107 @@ check(
   '10. a corrupt key degrades to "nothing known yet" instead of a white screen',
   screen.includes(EN.consent) || screen.includes('Ist das okay für dich?'),
   screen.slice(0, 60).replace(/\n/g, ' '),
+)
+
+// --- 11. the header at phone width — the wrap this change exists to fix ----
+
+await setScheme('light')
+await clearStorage()
+await setViewport(390)
+await goto('/')
+check('11. the header stays on one row at 390px', (await headerRows()) === 1, `${await headerRows()} row(s)`)
+
+check(
+  '12a. the nav links are not in the bar at 390px',
+  !(await visible('You')) && !(await visible('About')),
+)
+await chooseIn('Menu', 'About')
+await sleep(500)
+check('12b. the collapsed menu still navigates', (await text()).includes('About thrive'))
+
+await setViewport(1200, 800)
+await goto('/')
+check(
+  '13. the links sit inline at desktop width, with no menu trigger',
+  (await visible('You')) && (await visible('About')) && !(await visible('Menu')),
+)
+
+// --- 14. the language dropdown --------------------------------------------
+
+const langTrigger = () =>
+  evaluate(
+    `(document.querySelector('button[aria-label="Language"], button[aria-label="Sprache"]') || {}).textContent`,
+  )
+check('14a. the trigger shows the current language as a code', (await langTrigger()).trim() === 'EN')
+await chooseIn('Language', 'Deutsch')
+check(
+  '14b. choosing from the dropdown switches the language and the trigger',
+  (await langTrigger()).trim() === 'DE' && (await text()).includes('Ist das okay für dich?'),
+)
+await chooseIn('Sprache', 'English')
+
+// --- 15. the theme toggle -------------------------------------------------
+
+await click(EN.yes) // consent, so a choice has somewhere to live
+const lightBackground = await background()
+check('15a. no data-theme while the OS decides', (await dataTheme()) === null)
+
+await clickAria('Switch to Dark')
+const darkBackground = await background()
+check(
+  '15b. toggling sets data-theme and actually repaints',
+  (await dataTheme()) === 'dark' && darkBackground !== lightBackground,
+  `${lightBackground} → ${darkBackground}`,
+)
+check('15c. the choice is in the store', JSON.parse(await raw()).theme === 'dark')
+
+await clickAria('Switch to Light')
+check(
+  '15d. toggling back returns to light',
+  (await dataTheme()) === 'light' && (await background()) === lightBackground,
+)
+await clickAria('Switch to Dark')
+
+// --- 16. no flash of the wrong theme on reload ----------------------------
+
+await goto('/')
+const paintedBackgrounds = await evaluate('window.__bgFrames || []')
+const lightFrames = paintedBackgrounds.filter((bg) => bg === lightBackground)
+check(
+  '16. a stored dark theme is applied before the first paint, on a light OS',
+  lightFrames.length === 0 && (await dataTheme()) === 'dark',
+  lightFrames.length
+    ? `${lightFrames.length} light frame(s) of ${paintedBackgrounds.length}`
+    : `${paintedBackgrounds.length} frames sampled, none light`,
+)
+
+// --- 17. the theme is consent-gated, like everything else -----------------
+
+await clearStorage()
+await goto('/')
+await click(EN.no)
+await click(EN.cont)
+await click(EN.contYes)
+await clickAria('Switch to Dark')
+check('17a. the theme still applies in memory mode', (await dataTheme()) === 'dark')
+check(
+  '17b. but nothing was written — still no key at all',
+  (await keys()).length === 0,
+  JSON.stringify(await keys()),
+)
+
+// --- 18. a store written before the theme existed still loads -------------
+
+await evaluate(`localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, JSON.stringify({
+  version: 1,
+  consentAt: '2026-01-01T00:00:00.000Z',
+  locale: 'en',
+  facts: [{ id: 'a', key: 'preferred_name', value: 'Ada', source: 'onboarding', learnedAt: '2026-01-01T00:00:00.000Z' }],
+}))`)
+await goto('/')
+check(
+  '18. a v1 store with no theme field loads and follows the OS',
+  (await text()).includes('Hello Ada.') && (await dataTheme()) === null,
 )
 
 // --- 9. nothing leaves the browser ---------------------------------------

@@ -120,6 +120,43 @@ The rest by hand or by build:
   closes a gap that had been assumption-only: the shell was previously only ever
   checked at a default headless viewport.
 
+## Header controls (branch `feature/creating-subagents`)
+
+Language dropdown, theme toggle, and a nav that collapses instead of wrapping.
+`pnpm verify` now runs **39 checks**, all passing.
+
+- **The language switch is a dropdown** showing the current language as a code
+  (`EN ▾`), not a flag. Emoji flags were not an option: Windows has no
+  country-flag glyphs, so `🇩🇪` renders as boxed letters. It is also the more
+  accurate choice — flags are countries, and English is not only British.
+- **A theme toggle** cycles light ↔ dark. Three states exist even though the
+  button has two: until it is pressed nothing is stored and the OS decides, which
+  is why the icon shows the *effective* theme. `Forget everything` is the way back
+  to following the OS.
+- **The theme is consent-gated** like everything else, through the store's
+  `commit()`. Declining means the choice lasts the visit and no key is written —
+  asserted by check 17b.
+- **A pre-paint bootstrap script** (`lib/theme.ts`, first in `<body>`) applies a
+  stored theme before anything is painted. Without it, a dark choice on a
+  light-preference OS flashes white on every load. Check 16 samples the background
+  every frame from before the app's own scripts run and asserts no light frame.
+- **The nav collapses at `sm`**, and the header no longer wraps. Links are defined
+  once and rendered twice, so a future entry costs nothing on a phone — the reason
+  to collapse rather than shrink.
+- **`components/menu.tsx`** is one shared disclosure dropdown, deliberately not
+  `role="menu"`: a real menu owes the user arrow-key roving focus, and claiming
+  the role without it tells screen reader users to expect keys that do nothing.
+
+Two things worth remembering from doing it:
+
+- **`theme` is optional, not `version: 2`.** A version bump would make `parse()`
+  reject every existing store and discard real answers. Check 18 guards this by
+  loading a store with no `theme` field.
+- **Measuring "did the header wrap" is subtler than it looks.** Comparing child
+  `offsetTop` fails twice over: `display:none` children report `0`, and
+  centre-aligned children of different heights have different tops on the same
+  line. Comparing vertical *centres* is the measure that actually works.
+
 ## The repository
 
 Pushed to <https://github.com/flowrider1990/thrive-prototype>, **private** for

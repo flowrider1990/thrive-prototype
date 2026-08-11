@@ -5,6 +5,8 @@ import type { ReactNode } from 'react'
 import { APP_NAME } from '@/lib/app'
 import { useI18n } from '@/lib/i18n'
 import { LanguageSwitch } from './language-switch'
+import { Menu, menuItemClass } from './menu'
+import { ThemeSwitch } from './theme-switch'
 
 /**
  * The frame every page sits in. Its chrome waits for `status === 'ready'` for
@@ -15,10 +17,19 @@ export function PageShell({ children }: { children: ReactNode }) {
   const { m, status } = useI18n()
   const ready = status === 'ready'
 
+  // Defined once and rendered twice — inline on wide screens, inside the dropdown
+  // on narrow ones — so a new entry never has to be added in two places.
+  const navLinks = [
+    { href: '/you', label: m.nav.you },
+    { href: '/about', label: m.nav.about },
+  ]
+
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="border-b border-line">
-        <div className="mx-auto flex w-full max-w-2xl flex-wrap items-center gap-x-6 gap-y-3 px-6 py-5">
+        {/* No `flex-wrap`: the nav collapsing below `sm` is what keeps this to one
+            row now, and wrapping was the thing that looked broken on a phone. */}
+        <div className="mx-auto flex w-full max-w-2xl items-center gap-x-4 px-6 py-5 sm:gap-x-6">
           {ready && (
             <>
               <Link
@@ -27,16 +38,38 @@ export function PageShell({ children }: { children: ReactNode }) {
               >
                 {APP_NAME}
               </Link>
-              <nav className="flex items-center gap-5 text-sm text-muted">
-                <Link href="/you" className="transition-colors hover:text-ink">
-                  {m.nav.you}
-                </Link>
-                <Link href="/about" className="transition-colors hover:text-ink">
-                  {m.nav.about}
-                </Link>
+
+              <nav className="hidden items-center gap-5 text-sm text-muted sm:flex">
+                {navLinks.map((link) => (
+                  <Link key={link.href} href={link.href} className="transition-colors hover:text-ink">
+                    {link.label}
+                  </Link>
+                ))}
               </nav>
-              <div className="ms-auto">
+
+              {/* Same links, collapsed. Future entries land here at no cost to the
+                  header's width, which is the point of collapsing rather than
+                  shrinking. */}
+              <div className="sm:hidden">
+                <Menu label={m.nav.menu} align="start" trigger={<MenuIcon />}>
+                  {(close) =>
+                    navLinks.map((link) => (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        onClick={close}
+                        className={menuItemClass}
+                      >
+                        {link.label}
+                      </Link>
+                    ))
+                  }
+                </Menu>
+              </div>
+
+              <div className="ms-auto flex items-center gap-2">
                 <LanguageSwitch />
+                <ThemeSwitch />
               </div>
             </>
           )}
@@ -51,5 +84,21 @@ export function PageShell({ children }: { children: ReactNode }) {
         </div>
       </footer>
     </div>
+  )
+}
+
+function MenuIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+    >
+      <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" />
+    </svg>
   )
 }

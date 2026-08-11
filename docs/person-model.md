@@ -11,14 +11,29 @@ type PersonFact = {
 
 type PersonStore = {
   version: 1
-  consentAt: string   // only ever written when consent was given
+  consentAt: string       // only ever written when consent was given
   locale: 'de' | 'en'
+  theme?: 'light' | 'dark' // absent = follow the operating system
   facts: PersonFact[]
 }
 ```
 
-Defined in `lib/person/store.ts`, which is the only module in the app that
-touches storage.
+The shape and the storage key live in `lib/person/schema.ts`, a leaf module with
+no React so server code can import the key — `app/layout.tsx` needs it for the
+theme bootstrap script. `lib/person/store.ts` re-exports both and remains the only
+module in the app that *touches* storage.
+
+### Preferences are data too
+
+`locale` and `theme` are stored under the same rule as anything else: persisted
+when consent was given, session-only when it was not. A theme choice is still
+something written to someone's device.
+
+`theme` is **optional rather than a `version: 2`**. Absent or invalid reads as
+"follow the operating system", so a store written before the theme existed keeps
+loading. Bumping the version would have made `parse()` reject every existing
+store and silently discard real answers — the version number is there for changes
+that genuinely cannot be read the old way, not for additions.
 
 ## Append-only
 

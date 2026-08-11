@@ -271,7 +271,8 @@ Preserve the existing rendering guarantees:
 - no user-facing copy should render before the app is ready if doing so would cause an incorrect-state flash,
 - do not read browser storage during server/prerender execution,
 - do not reintroduce page-level mount-effect loading that causes flashes,
-- preserve the existing `useSyncExternalStore` approach unless there is a demonstrated reason to replace it.
+- preserve the existing `useSyncExternalStore` approach unless there is a demonstrated reason to replace it,
+- the one sanctioned exception is the theme bootstrap script (`lib/theme.ts`, rendered by `app/layout.tsx`): it must stay synchronous and first in `<body>`, because applying a stored theme after mount *is* the flash. It only reads storage, which is not writing it.
 
 Do not “simplify” this architecture by reintroducing hydration mismatches or incorrect first-frame content.
 

@@ -139,6 +139,12 @@ It also has an `:active` state. A tap on a phone gets no `:hover`, so without on
 there was no feedback at all between pressing an option and the screen changing.
 Background and border colour only, so it cannot move anything.
 
+`.btn-sm` is a size, not a variant: `px-3 py-1 text-xs`, composing with `.btn-quiet`
+and inheriting the border rule. It exists for a control subordinate to the thing
+beside it — the per-entry Edit in `components/action-entry.tsx`. At full size, three
+of them in a three-item list read as peers of "Add another" and "That is enough", and
+the list became a stack of pills.
+
 Two rules that are load-bearing rather than stylistic:
 
 - **`.btn` carries a transparent border always.** The disabled and quiet variants

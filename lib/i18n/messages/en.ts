@@ -111,27 +111,48 @@ export const en = {
     goalPlaceholder: 'In your own words',
     goalSubmit: 'Continue',
 
-    stepsQuestion: 'What could be your next steps toward this goal?',
-    stepsNote: 'One is enough. You can note up to three.',
+    /**
+     * Deliberately no noun for the thing being asked for.
+     *
+     * "Next step" leaned task: a step is something you finish, and half of what
+     * belongs here — "eat lower-carb most days", "use less screen time in the
+     * evening" — is not finishable. Rather than pick one universal word (task,
+     * habit, tactic, experiment) and be wrong for the others, the question does
+     * the work and the concept stays unnamed. `docs/goals-and-areas.md`.
+     */
+    stepsQuestion: 'What could help you move toward this goal?',
+    /** The cap, stated before the first entry rather than discovered at the third. */
+    stepsNote: 'One is enough. You can add up to three.',
     stepsPlaceholder: 'Something small and concrete',
-    stepsSoFar: 'So far',
+    /** Heads the numbered list once there is something in it. */
+    entriesLabel: 'What you want to try',
     stepsAdd: 'Add',
+    /** From the second entry on, so the button itself says more is allowed. */
+    stepsAddAnother: 'Add another',
     stepsEnough: 'That is enough',
     stepsFull: 'Three is plenty to start with.',
     stepsContinue: 'Continue',
+    /**
+     * Names what is being edited. Three Edit buttons that all just say "Edit" are
+     * three identical controls to a screen reader, and unclickable by name to the
+     * verification suite.
+     */
+    stepsEdit: 'Edit: {text}',
+    stepsEditQuestion: 'What should it say instead?',
+    stepsEditSubmit: 'Save',
+    stepsEditCancel: 'Cancel',
 
     focusQuestion: 'Which one would you like to focus on first?',
   },
 
   complete: {
-    title: 'That is the whole introduction.',
-    body: 'Your next steps are on the start page. When you have done one, mark it as done — then you can choose another, or leave it for later.',
-    note: 'Goals and next steps can be changed whenever you like, from the start page or from a life area.',
+    title: 'That is it for now.',
+    body: 'What you want to try is on the start page.',
     submit: 'Go to the start page',
   },
 
   home: {
-    title: 'Your next steps',
+    title: 'What you are working on',
     empty: 'Nothing is active right now. That is a fine place to be.',
     /**
      * Shown only when an area holds a goal that never got a next step — that is,
@@ -139,14 +160,30 @@ export const en = {
      * not shown after "Later": leaving an area quiet is a real answer, and
      * pointing at it would be nagging.
      */
-    unfinished: 'One of your life areas has a goal but no next step yet.',
-    /** Says the action, not just the content — the same rule as `theme.switchTo`. */
-    markDone: 'Mark as done: {step}',
-    done: 'Done.',
-    chooseNextQuestion: 'Would you like to choose your next step?',
-    chooseNext: 'Choose next step',
+    unfinished: 'One of your life areas has a goal but nothing to try yet.',
+    /**
+     * The control that opens the outcomes, and the question *is* the control.
+     *
+     * It replaces "Mark as done: {step}" on a full-width button that completed the
+     * thing on any tap. Done was the only outcome available, which quietly made
+     * finishing the model — wrong for anything ongoing. Asking instead means the
+     * four answers below cover both, and it is the same affordance a future
+     * check-in reuses: later it gets *asked* rather than only offered.
+     */
+    check: 'How is it going?',
+    /** The accessible name, so the control says which thing it is about. */
+    checkOn: 'How is it going with: {text}',
+    /** Answers, not commands. Nothing here counts, scores or congratulates. */
+    outcomeDone: 'I have done this',
+    outcomeOngoing: 'Still on it',
+    outcomeSwap: 'I would rather do something else',
+    outcomeAside: 'This does not fit anymore',
+    cancel: 'Cancel',
+    done: 'Noted.',
+    chooseNextQuestion: 'Would you like to choose what to try next?',
+    chooseNext: 'Choose something',
     later: 'Later',
-    newStepQuestion: 'What could be your next step?',
+    newStepQuestion: 'What could help you move toward this goal?',
     newStepPlaceholder: 'Something small and concrete',
     newStepSubmit: 'Save',
     toAreas: 'Review your life areas',
@@ -165,7 +202,7 @@ export const en = {
     pickerNote: 'Open one to change its goal or its next steps.',
     noGoal: 'No goal yet',
     notNow: 'Not right now',
-    noStep: 'No next step yet',
+    noStep: 'Nothing to try yet',
     back: 'Back to the start page',
 
     reconsiderQuestion: 'Would you like to change or explore something here now?',
@@ -177,7 +214,7 @@ export const en = {
     preparedLabel: 'Also prepared',
     changeGoal: 'Change goal',
     changeStep: 'Focus on something else',
-    addStep: 'Add a next step',
+    addStep: 'Add something to try',
     done: 'Done',
 
     goalQuestion: 'What is your goal now?',

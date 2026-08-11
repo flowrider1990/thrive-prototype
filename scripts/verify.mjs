@@ -326,6 +326,28 @@ const HELPERS = `
   };
   window.__count = (selector) => document.querySelectorAll(selector).length;
   /**
+   * Clicks whatever element holds exactly this text, button or not.
+   *
+   * Every other click helper refuses to click a non-control, which is usually the
+   * right instinct and useless here: the assertion is precisely that clicking the
+   * words is inert, and that cannot be tested by a helper that will not click them.
+   */
+  window.__clickText = (text) => {
+    const el = [...document.querySelectorAll('*')]
+      .filter((e) => e.children.length === 0 && e.textContent.trim() === text)[0];
+    if (!el) throw new Error('no element with text: ' + text);
+    el.click();
+    return true;
+  };
+  /** Where focus is, and whether it is inside the given selector. */
+  window.__focus = (selector) => {
+    const el = document.activeElement;
+    return {
+      label: el?.getAttribute('aria-label') || el?.textContent?.trim()?.slice(0, 60) || null,
+      inside: Boolean(selector && el?.closest(selector)),
+    };
+  };
+  /**
    * Every accessible name on the page. innerText cannot see these, and they are
    * where a step's own words now live — so they are also where an id could leak
    * without any visible symptom.
@@ -416,6 +438,15 @@ const contrast = async (a, b) => {
   await evaluate(HELPERS)
   return evaluate(`__contrast(${JSON.stringify(a)}, ${JSON.stringify(b)})`)
 }
+async function clickText(text) {
+  await evaluate(HELPERS)
+  await evaluate(`__clickText(${JSON.stringify(text)})`)
+  await sleep(220)
+}
+const focused = async (selector) => {
+  await evaluate(HELPERS)
+  return evaluate(`__focus(${JSON.stringify(selector)})`)
+}
 /**
  * Presses Tab for real, until the wanted element has focus. Real key events
  * rather than `.focus()`, because `:focus-visible` is precisely a judgement about
@@ -477,28 +508,38 @@ const EN = {
   reviewNo: 'Not right now',
   goal: 'What is your goal?',
   cont: 'Continue',
-  steps: 'What could be your next steps toward this goal?',
+  steps: 'What could help you move toward this goal?',
+  entries: 'What you want to try',
+  entriesNote: 'One is enough. You can add up to three.',
   add: 'Add',
+  addMore: 'Add another',
+  full: 'Three is plenty to start with.',
+  edit: 'Edit',
+  editSubmit: 'Save',
   enough: 'That is enough',
   focus: 'Which one would you like to focus on first?',
-  complete: 'That is the whole introduction.',
+  complete: 'That is it for now.',
   toHome: 'Go to the start page',
-  home: 'Your next steps',
-  chooseNext: 'Choose next step',
+  home: 'What you are working on',
+  check: 'How is it going?',
+  outcomeDone: 'I have done this',
+  outcomeOngoing: 'Still on it',
+  outcomeSwap: 'I would rather do something else',
+  outcomeAside: 'This does not fit anymore',
+  cancel: 'Cancel',
+  noted: 'Noted.',
+  chooseNext: 'Choose something',
   later: 'Later',
   save: 'Save',
   toAreas: 'Review your life areas',
   picker: 'Your life areas',
   changeGoal: 'Change goal',
-  addStep: 'Add a next step',
+  addStep: 'Add something to try',
   manageDone: 'Done',
   goalChanged: 'Your goal changed. Is this still useful?',
   keep: 'Keep',
   removeStep: 'Remove from current steps',
-  reconsider: 'Would you like to change or explore something here now?',
-  leaveIt: 'Leave it for now',
   contYes: 'Yes, let us go on',
-  contNo: 'No, that is it for now',
   forget: 'Forget everything',
   forgetConfirm: 'Yes, forget everything',
 }
@@ -522,12 +563,24 @@ async function runArea(goal, steps, focusOn) {
   await click(EN.reviewYes)
   await type(goal)
   await click(EN.cont)
-  for (const step of steps) {
-    await type(step)
-    await click(EN.add)
-  }
+  await enterEntries(steps)
   await click(steps.length >= 3 ? EN.cont : EN.enough)
   if (steps.length > 1) await click(focusOn ?? steps[0])
+}
+
+/**
+ * Types the entries in, one at a time. Extracted from `runArea` so §29 can stop
+ * part-way through the list and exercise editing.
+ *
+ * The button label differs for the first entry, and that is deliberate rather than
+ * incidental: the change from "Add" to "Add another" is what tells someone more
+ * than one is allowed. §29 asserts the two really are different.
+ */
+async function enterEntries(steps) {
+  for (const [index, step] of steps.entries()) {
+    await type(step)
+    await click(index === 0 ? EN.add : EN.addMore)
+  }
 }
 
 // --- 4. consent yes: the whole introduction, then reload with no flash ------
@@ -662,19 +715,95 @@ check(
   flashed.length ? `flashed ${flashed.length} frame(s)` : `${painted.length} frames sampled`,
 )
 
-// --- 24. next steps: identity, completion, and the caps -------------------
+// --- 24. what you are working on: outcomes, identity, and the caps ---------
 
-await clickAria('Mark as done: Walk for 20 minutes')
+// The guarantee this whole rework exists to establish, and the reason it is first:
+// the words on the home screen are *text*. Previously they were a full-width button
+// whose only content was those words, and any tap on it completed the thing — no
+// confirmation, no undo, and looking exactly like the rows elsewhere that merely
+// select. Two assertions, because the markup and the behaviour are separate claims.
+const actionText = await evaluate(`(() => {
+  const walk = [...document.querySelectorAll('*')]
+    .filter((e) => e.children.length === 0 && e.textContent.trim() === 'Walk for 20 minutes')[0];
+  if (!walk) return { found: false };
+  return { found: true, tag: walk.tagName, inClickable: Boolean(walk.closest('button, a')) };
+})()`)
+check(
+  '24a. what you are working on is text, not a control that acts when touched',
+  actionText.found && !actionText.inClickable,
+  JSON.stringify(actionText),
+)
+
+// The behavioural half. The markup check above says it is not inside a control;
+// this says that clicking it changes nothing — which is the defect as a person
+// experienced it, and the one assertion that would have failed before this rework.
+const beforeIdle = JSON.parse(await raw()).facts.length
+await clickText('Walk for 20 minutes')
+check(
+  '24a2. and clicking those words does nothing at all',
+  JSON.parse(await raw()).facts.length === beforeIdle && (await text()).includes(EN.check),
+  `${JSON.parse(await raw()).facts.length} facts vs ${beforeIdle}`,
+)
+
+await clickAria(`How is it going with: Walk for 20 minutes`)
+// Focus location after a scripted click is a fair test — where focus *lands* is not
+// a judgement about how it arrived, unlike `:focus-visible`, which 23b covers with
+// real key events.
+let where = await focused('ul')
 screen = await text()
 check(
-  '24a. completing a step offers another one rather than creating one',
-  screen.includes('Done.') && screen.includes(EN.chooseNext) && screen.includes(EN.later),
+  '24b. an explicit control asks how it is going, and offers answers for both kinds',
+  screen.includes(EN.outcomeDone) &&
+    screen.includes(EN.outcomeOngoing) &&
+    screen.includes(EN.outcomeSwap) &&
+    screen.includes(EN.outcomeAside) &&
+    JSON.parse(await raw()).facts.length === beforeIdle,
+  `${JSON.parse(await raw()).facts.length} facts vs ${beforeIdle} before opening`,
+)
+
+check(
+  '24b2. opening the answers moves focus into them',
+  where.inside && where.label === EN.outcomeDone,
+  JSON.stringify(where),
+)
+
+// Cancelling returns focus to the control that opened them, rather than dropping a
+// keyboard user back at the top of the page. Both halves have to happen after the
+// render that changes the DOM, because the answers *replace* the trigger.
+await click(EN.cancel)
+where = await focused('button')
+check(
+  '24b3. and cancelling gives it back to the control that opened them',
+  where.label === `How is it going with: Walk for 20 minutes`,
+  JSON.stringify(where),
+)
+
+// "Still on it" is the one outcome whose entire contract is that nothing is
+// written: the person confirmed nothing changed, and the active pointer already
+// says so. Easiest of the four to implement as a stray `chooseStep`.
+await clickAria(`How is it going with: Walk for 20 minutes`)
+await clickOption(EN.outcomeOngoing)
+screen = await text()
+check(
+  '24c. "Still on it" writes nothing at all, and closes the answers',
+  JSON.parse(await raw()).facts.length === beforeIdle &&
+    !screen.includes(EN.outcomeDone) &&
+    screen.includes('Walk for 20 minutes'),
+  `${JSON.parse(await raw()).facts.length} facts vs ${beforeIdle}`,
+)
+
+await clickAria(`How is it going with: Walk for 20 minutes`)
+await clickOption(EN.outcomeDone)
+screen = await text()
+check(
+  '24d. "I have done this" offers something next rather than creating one',
+  screen.includes(EN.noted) && screen.includes(EN.chooseNext) && screen.includes(EN.later),
 )
 
 let store = JSON.parse(await raw())
 const doneFacts = store.facts.filter((f) => f.key.endsWith('.state') && f.value === 'done')
 check(
-  '24b. the completed step is kept, not removed: its text is still there',
+  '24e. what was done is kept, not removed: its words are still there',
   doneFacts.length === 1 &&
     store.facts.some((f) => f.value === 'Walk for 20 minutes') &&
     // the state key names the same step the pointer named
@@ -682,32 +811,47 @@ check(
   `${doneFacts.length} done`,
 )
 
-// "Later" is a real answer and costs nothing: the area already has no active
-// step, so there is nothing left to record.
+// "Later" is a real answer and costs nothing: the area already has nothing active,
+// so there is nothing left to record.
 const beforeLater = JSON.parse(await raw()).facts.length
 await click(EN.later)
 screen = await text()
 store = JSON.parse(await raw())
 check(
-  '24c. "Later" writes nothing and leaves the area with no active step',
+  '24f. "Later" writes nothing and leaves the area with nothing active',
   store.facts.length === beforeLater && !screen.includes('Walk for 20 minutes'),
   `${store.facts.length} facts vs ${beforeLater}`,
 )
 
-await clickAria('Mark as done: Finish the case study')
+// The fourth outcome. It is the second path from this screen that writes to the
+// store, which is why §5 has to exercise it in memory mode too.
+const beforeAside = JSON.parse(await raw()).facts.length
+await clickAria(`How is it going with: Finish the case study`)
+await clickOption(EN.outcomeAside)
+store = JSON.parse(await raw())
+const retired = store.facts.filter((f) => f.key.endsWith('.state') && f.value === 'retired')
+check(
+  '24g. "This does not fit anymore" retires it — one fact appended, nothing deleted',
+  retired.length === 1 &&
+    store.facts.length === beforeAside + 1 &&
+    store.facts.some((f) => f.value === 'Finish the case study'),
+  `${store.facts.length} facts vs ${beforeAside}, ${retired.length} retired`,
+)
+
 await click(EN.chooseNext)
 screen = await text()
 check(
-  '24d. with no prepared steps left, a new one is asked for instead of offered',
-  screen.includes('What could be your next step?'),
+  '24h. with nothing else prepared, a new one is asked for instead of invented',
+  screen.includes(EN.steps),
 )
 await type('Write the intro')
 await click(EN.save)
-check('24e. and the new step becomes the active one', (await text()).includes('Write the intro'))
+check('24i. and the new one becomes what is being worked on', (await text()).includes('Write the intro'))
 
-// The same words at two points in time are two different steps. Doing something
+// The same words at two points in time are two different things. Doing something
 // useful again later is a new thing to do, not a repeat of the old one.
-await clickOption('Write the intro')
+await clickAria(`How is it going with: Write the intro`)
+await clickOption(EN.outcomeDone)
 await click(EN.chooseNext)
 await type('Write the intro')
 await click(EN.save)
@@ -715,24 +859,31 @@ store = JSON.parse(await raw())
 const written = store.facts.filter((f) => f.value === 'Write the intro')
 const ids = new Set(written.map((f) => f.key))
 check(
-  '24f. the same text twice is two steps with different ids, not one reused',
+  '24j. the same text twice is two entries with different ids, not one reused',
   written.length === 2 && ids.size === 2,
   `${written.length} facts, ${ids.size} distinct keys`,
 )
+// Two done and one set aside, which is the point: the three outcomes that write
+// anything each wrote once, and none of them replaced an earlier one.
 check(
-  '24g. and the first is still done while the second is active',
-  store.facts.filter((f) => f.key.endsWith('.state') && f.value === 'done').length === 3,
+  '24k. and the first is still done while the second is active',
+  store.facts.filter((f) => f.key.endsWith('.state') && f.value === 'done').length === 2 &&
+    store.facts.filter((f) => f.key.endsWith('.state') && f.value === 'retired').length === 1,
+  store.facts
+    .filter((f) => f.key.endsWith('.state'))
+    .map((f) => f.value)
+    .join(', '),
 )
 
 await goto('/')
 check(
-  '24h. the active step survives a reload — it is derived, not held in the page',
+  '24l. what is being worked on survives a reload — it is derived, not held in the page',
   (await text()).includes('Write the intro'),
 )
 
 // The cap: three open at a time, counting the one being worked on.
 await click(EN.toAreas)
-check('24i. the picker lists all five areas with their state', (await text()).includes(EN.picker))
+check('24m. the picker lists all five areas with their state', (await text()).includes(EN.picker))
 await clickOption('Work & Career')
 await click(EN.addStep)
 await type('Ask Sam for feedback')
@@ -741,7 +892,7 @@ await click(EN.addStep)
 await type('Pick the three best pieces')
 await click(EN.save)
 check(
-  '24j. at three open steps there is no way to add a fourth',
+  '24n. at three open entries there is no way to add a fourth',
   !(await visible(EN.addStep)),
   (await text()).replace(/\n/g, ' / ').slice(0, 140),
 )
@@ -761,15 +912,20 @@ await click(EN.keep)
 screen = await text()
 check('7b. Keep moves to the next open step without writing anything', screen.includes(EN.goalChanged))
 
-const beforeRemove = JSON.parse(await raw()).facts.length
+const retiredCount = (s) =>
+  s.facts.filter((f) => f.key.endsWith('.state') && f.value === 'retired').length
+const beforeRemoveStore = JSON.parse(await raw())
+const beforeRemove = beforeRemoveStore.facts.length
 await click(EN.removeStep)
 await click(EN.keep)
 store = JSON.parse(await raw())
 check(
   '7c. Remove retires the step — one fact added, nothing deleted',
+  // A delta, not a total: setting something aside from the home screen also
+  // retires, so a global count of 1 would only hold while that path went untested.
   store.facts.length === beforeRemove + 1 &&
-    store.facts.filter((f) => f.key.endsWith('.state') && f.value === 'retired').length === 1,
-  `${store.facts.length} facts vs ${beforeRemove}`,
+    retiredCount(store) === retiredCount(beforeRemoveStore) + 1,
+  `${store.facts.length} facts vs ${beforeRemove}, retired ${retiredCount(beforeRemoveStore)} → ${retiredCount(store)}`,
 )
 check(
   '7d. both goals are kept, and the newer one is the current one',
@@ -787,8 +943,8 @@ check(
     /noted /.test(screen),
 )
 // `screen` is `innerText`, which cannot see an accessible name — and a step's own
-// words increasingly live in one ("Mark as done: {step}" today, more of them after
-// the rework). A bug interpolating a step's *id* there produces a control that reads
+// words live in one ("How is it going with: {text}", "Edit: {text}"). A bug
+// interpolating a step's *id* there produces a control that reads
 // a UUID aloud and leaves the visible page spotless, so the visible sweep alone
 // would call it clean. Both surfaces, one assertion.
 const named = await ariaLabels()
@@ -809,6 +965,76 @@ await click(EN.forgetConfirm)
 check('8a. forgetting removes the key entirely', (await keys()).length === 0, JSON.stringify(await keys()))
 await goto('/')
 check('8b. after a reload it starts over', (await text()).includes(EN.consent))
+
+// --- 29. writing down what to try: the cap is visible, entries are editable -
+//
+// Three things were not obvious on the old screen: that more than one is allowed,
+// that the cap is three, and that what you typed can be changed. Each has its own
+// assertion, because each was its own complaint.
+
+await clearStorage()
+await goto('/')
+await click(EN.yes)
+await click(EN.introOk)
+await click(EN.reviewYes)
+await type('Sleep better')
+await click(EN.cont)
+
+screen = await text()
+check(
+  '29a. the cap is stated before the first entry, not discovered at the third',
+  screen.includes(EN.entriesNote) && (await count('ol li')) === 0,
+  `${await count('ol li')} entries listed`,
+)
+
+// The label really has to differ, or the change from "Add" to "Add another" — the
+// thing that says more is allowed — could be absent while every click still lands.
+const addFirst = (await visible(EN.add)) && !(await visible(EN.addMore))
+await type('Walk after dinner')
+await click(EN.add)
+const addNext = (await visible(EN.addMore)) && !(await visible(EN.add))
+check(
+  '29b. the add control says "Add" for the first entry and "Add another" after it',
+  addFirst && addNext,
+  `first: ${addFirst}, after one: ${addNext}`,
+)
+
+check(
+  '29c. entries are a numbered list under a heading, and offer their own Edit',
+  (await count('ol li')) === 1 &&
+    (await text()).includes(EN.entries) &&
+    (await ariaLabels()).includes('Edit: Walk after dinner'),
+  (await ariaLabels()).join(' / '),
+)
+
+await type('Read before bed')
+await click(EN.addMore)
+await type('Stretch in the morning')
+await click(EN.addMore)
+screen = await text()
+check(
+  '29d. the third entry fills the list and the field gives way',
+  (await count('ol li')) === 3 && (await count('input')) === 0 && screen.includes(EN.full),
+  `${await count('ol li')} entries, ${await count('input')} field(s)`,
+)
+
+// Editing appends the new wording. The old one is not overwritten — it stays in
+// history, which is what /you can show and what makes this append-only rather than
+// a mutable list wearing append-only's clothes.
+await clickAria('Edit: Read before bed')
+await type('Read before bed instead of scrolling')
+await click(EN.editSubmit)
+screen = await text()
+store = JSON.parse(await raw())
+const rewordings = store.facts.filter((f) => f.key.endsWith('.text') && /Read before bed/.test(f.value))
+check(
+  '29e. an entry can be reworded: the list shows the new words, the store keeps both',
+  screen.includes('Read before bed instead of scrolling') &&
+    (await count('ol li')) === 3 &&
+    rewordings.length === 2 &&
+    new Set(rewordings.map((f) => f.key)).size === 1,
+  `${rewordings.length} wordings under ${new Set(rewordings.map((f) => f.key)).size} key(s)`,
+)
 
 // --- 5. consent no — the critical one --------------------------------------
 
@@ -835,9 +1061,19 @@ screen = await text()
 check('5c. the whole introduction works in memory-only mode', screen.includes('Walk after lunch'))
 check('5d. and it says nothing is being saved', screen.includes('Nothing is being saved'))
 
-// Not "no goal facts": no key. The whole area flow ran, including completing a
-// step, and the device still knows nothing.
-await clickAria('Mark as done: Walk after lunch')
+// Not "no goal facts": no key. The whole area flow ran, and then **both** paths
+// from the home screen that write to the store — completing something and setting
+// it aside — and the device still knows nothing.
+//
+// Exercising both matters: `retireStep` is new to this screen, and "it goes through
+// `remember()` so it must be gated" is an argument, not a check.
+await clickAria(`How is it going with: Walk after lunch`)
+await clickOption(EN.outcomeDone)
+await click(EN.chooseNext)
+await type('Ring Ada')
+await click(EN.save)
+await clickAria(`How is it going with: Ring Ada`)
+await clickOption(EN.outcomeAside)
 await click(EN.later)
 const keysAfterDecline = await keys()
 check(
@@ -890,10 +1126,12 @@ for (let area = 0; area < 4; area++) await click('Gerade nicht')
 await click('Zur Startseite')
 screen = await text()
 check(
-  '6d. the whole flow reads in German and the step comes back verbatim',
-  screen.includes('Deine nächsten Schritte') &&
+  '6d. the whole flow reads in German and what was typed comes back verbatim',
+  screen.includes('Woran du gerade dran bist') &&
     screen.includes('20 Minuten spazieren gehen') &&
-    !screen.includes('Your next steps'),
+    // The English-leak guard, stated against the fixture rather than a literal, so
+    // renaming the home title cannot quietly make it vacuous.
+    !screen.includes(EN.home),
 )
 
 await goto('/you/')
@@ -947,14 +1185,14 @@ check(
 )
 check(
   '25b. and home says so, rather than reporting that everything is settled',
-  screen.includes('has a goal but no next step yet'),
+  screen.includes('has a goal but nothing to try yet'),
 )
 
 await click(EN.toAreas)
 screen = await text()
 check(
   '25c. the unfinished area is reachable and says what is missing',
-  screen.includes('Hobbies & Creativity') && screen.includes('No next step yet'),
+  screen.includes('Hobbies & Creativity') && screen.includes('Nothing to try yet'),
 )
 await clickOption('Hobbies & Creativity')
 screen = await text()
@@ -968,23 +1206,24 @@ await click(EN.save)
 await click(EN.manageDone)
 screen = await text()
 check(
-  '25e. adding the missing step makes it the active one, with nothing else asked',
-  screen.includes('Sketch on Sunday morning') && !screen.includes('has a goal but no next step'),
+  '25e. adding the missing entry makes it the active one, with nothing else asked',
+  screen.includes('Sketch on Sunday morning') && !screen.includes('has a goal but nothing to try'),
 )
 
-// The guard: an area with no active step must never be read as "not onboarded".
-await clickAria('Mark as done: Sketch on Sunday morning')
+// The guard: an area with nothing active must never be read as "not onboarded".
+await clickAria(`How is it going with: Sketch on Sunday morning`)
+await clickOption(EN.outcomeDone)
 await click(EN.later)
 await goto('/')
 screen = await text()
 check(
-  '25f. after completing a step and choosing "Later", a reload still lands on home',
+  '25f. after finishing something and choosing "Later", a reload still lands on home',
   screen.includes(EN.home) && !screen.includes(EN.review) && !screen.includes(EN.intro),
   screen.replace(/\n/g, ' / ').slice(0, 100),
 )
 check(
   '25g. and "Later" is not reported as unfinished setup — it is a real answer',
-  !screen.includes('has a goal but no next step'),
+  !screen.includes('has a goal but nothing to try'),
 )
 
 // --- 31. the progress marks are painted distinguishably, in both themes -----

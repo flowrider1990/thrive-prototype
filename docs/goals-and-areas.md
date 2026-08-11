@@ -1,10 +1,42 @@
-# Life areas, goals, and next steps
+# Life areas, goals, and what to try
 
 Five fixed life areas. In each, at most one current goal, at most three prepared
-next steps, and at most one being worked on. That is the whole feature.
+things to try, and at most one being worked on. That is the whole feature.
 
 This file holds the parts that are not self-evident from the code: why the keys
 are shaped the way they are, and how current state is derived from them.
+
+## `step` is the internal name for something the UI does not name
+
+The code says `step`, `Step`, `addStep`, `completeStep`, `MAX_OPEN_STEPS`, and the
+persisted keys say `area.<a>.step.<sid>.*`. **The user interface never says "step".**
+
+That is deliberate, and the gap is worth understanding rather than closing.
+
+The long-term model is `Life Area → Goal → Action → current focus`, where an Action
+may be a one-off task, a habit-like behaviour, an experiment, a routine, a tactic, or
+something else entirely. "Next step" leaned task: a step is something you finish, and
+half of what belongs here is not finishable — "eat lower-carb most days", "use less
+screen time in the evening". So the copy stopped naming the concept at all. The
+questions do the work instead:
+
+> What could help you move toward this goal?
+> What you want to try
+> Which one would you like to focus on first?
+> How is it going?
+
+Picking one universal noun would have been wrong for the other kinds, and choosing
+per person is personalisation this stage of the product has not earned.
+
+**The keys were not renamed, and should not be.** `docs/person-model.md` divides
+fact values into *utterances* (rendered as themselves) and *tokens* (never
+rendered). `state` and `step_active` are tokens — `'done'` never reaches a screen,
+so it is an internal enum the interface is free to describe however it likes. The
+word that was locking the product into task semantics was in the copy, not in the
+store. Renaming the identifiers would touch every component and leave the code
+saying `action` while the keys say `step`, which is a worse mismatch than this one.
+
+A code-level rename stays cheap and available. A **key** rename is a migration.
 
 ## The five areas
 
@@ -94,6 +126,47 @@ mints a new `sid`.
 
 None of these is a stored constraint. They fall out of the derivation, which is
 why a hand-edited store degrades rather than becoming invalid.
+
+## The four outcomes
+
+The home screen asks **"How is it going?"** about whatever is being worked on, and
+offers four answers. They map onto the existing writers with no new fact values:
+
+| answer | writer | what is stored |
+| --- | --- | --- |
+| I have done this | `completeStep` | `state = 'done'` |
+| Still on it | — | **nothing** — see below |
+| I would rather do something else | `chooseStep`, or `addStep` + `chooseStep` | a newer `step_active` |
+| This does not fit anymore | `retireStep` | `state = 'retired'` |
+
+**Why a question rather than a Done button.** Completion used to be the only
+outcome, and it was reached by tapping the row — the whole row, which was a
+full-width button whose only content was the person's own words, with no
+confirmation and no undo. Two problems in one control: *done* is not the only way
+this goes, and nothing said that touching the words would end it. The words are now
+plain text and the control is explicit.
+
+Framing it as a question is also what keeps the door open. A future check-in asks
+the same thing on its own initiative and can offer the same four answers — the
+affordance already exists, so building check-ins does not mean redesigning this.
+That is the compatibility this stage was asked for, and none of it is built:
+no timestamps, no frequency setting, no prompt, no resurfacing.
+
+### "Still on it" writes nothing — for now
+
+Today it is the honest answer. The person confirmed that nothing changed, the active
+pointer already says so, and a fact with no consumer is clutter. The same reasoning
+already covers "Later".
+
+**This is a decision about the current, non-check-in UI, not a rule about the
+model.** Once the app checks in periodically, persisting the answer *and its
+timestamp* stops being redundant and becomes the signal that resurfacing and
+reflection would need — "when did they last confirm they were still on this" cannot
+be reconstructed after the fact. The append-only model already supports it with no
+schema change: a key like `area.<a>.step.<sid>.checkin` whose value is the answer and
+whose `learnedAt` is the timestamp.
+
+So: not stored now, because nothing reads it. Stored later, when something does.
 
 ## Changing a goal
 

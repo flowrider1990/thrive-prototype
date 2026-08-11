@@ -294,6 +294,61 @@ Also: four dead `EN` fixture entries were left in place for now (`focus`,
 `reconsider`, `leaveIt`, `contNo`) — they are cleaned up in the stage that rewrites
 their sections.
 
+### Stage 2: the app stopped being a to-do list
+
+`pnpm verify` is **97 checks**, passing against both the export and `pnpm dev`.
+
+- **The copy no longer names the concept.** "Next step" leaned task — a step is
+  something you finish, and half of what belongs here is not finishable. Rather than
+  pick one universal noun (task, habit, tactic, experiment) and be wrong for the
+  others, the questions carry it: *What could help you move toward this goal?* /
+  *What you want to try* / *How is it going?* The reasoning and the internal-vs-UI
+  naming gap are in `docs/goals-and-areas.md`.
+- **The persisted keys did not change**, and should not. `state` and `step_active`
+  are *tokens* in the `docs/person-model.md` sense — never rendered — so `'done'` is
+  an internal enum the interface can describe however it likes. The word locking the
+  product into task semantics was in the copy, not the store.
+- **Home's row was a trap.** The person's own words were a full-width button whose
+  only content was those words; any tap completed the thing, with no confirmation, no
+  undo, and looking exactly like the `.option` rows elsewhere that merely select.
+  The words are now plain text and the control is explicit. §24a asserts the markup,
+  §24a2 asserts that clicking the words changes nothing — **that pair is the rework**,
+  and 24a2 is the one assertion that would have failed before it.
+- **"How is it going?" instead of "Done".** Four answers cover both one-off and
+  ongoing things, and map onto existing writers with no new fact values. Framing it
+  as a question is also what keeps a future check-in from being a redesign: it asks
+  the same thing on its own initiative and can offer the same four answers.
+- **"Still on it" writes nothing — for now.** Recorded in
+  `docs/goals-and-areas.md` as a decision with a stated expiry rather than a
+  principle: once check-ins exist, the answer *and its timestamp* become the signal
+  resurfacing needs, and the append-only model already supports it with no schema
+  change.
+- **Entries are a numbered `<ol>` with a per-entry Edit.** They used to render
+  read-only with no affordance at all. The cap is now stated before the first entry
+  instead of discovered at the third, and the add button changes from "Add" to
+  "Add another" — §29b asserts the two labels really differ, because a bug rendering
+  one label in both states would otherwise pass, `__click` finding it either way.
+- **Focus management, which the codebase had nowhere.** Opening the answers moves
+  focus into them; cancelling gives it back to the control that opened them. Both
+  halves have to run *after* the render that changes the DOM, because the answers
+  replace the trigger rather than appearing beside it — an inline `.focus()` on the
+  way out is a no-op on a node React has not created yet.
+
+Three things worth remembering from doing it:
+
+- **Two assertions failed on the first run, and both were the assertion's fault.**
+  7c counted retired facts *globally* and expected 1, which only held while setting
+  something aside from Home went untested; it now measures a delta. 24k expected
+  three `done` facts, from a flow that now produces two done and one retired.
+- **Screenshots earned their place again.** The Edit pills wrapped onto their own
+  line and read as peers of "Add another" — a stack of pills, which is exactly the
+  "heavy and overly boxed" the visual direction rules out. Fixed with a `.btn-sm`
+  size. And opening the answers *replaced* the row, so the question was about
+  something no longer on screen; the text now stays. Neither was visible in 97
+  passing checks.
+- **A dropped view survived only because the suite caught it.** Restructuring
+  `AreaManage` deleted its whole `add` view; check 25e failed immediately.
+
 ## Supabase: paused deliberately after the proposal (2026-08-11)
 
 **This is a deliberate deferral, not a blocked task.** The approved plan's Phase 1

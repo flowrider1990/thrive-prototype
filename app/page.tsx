@@ -216,12 +216,13 @@ export default function Home() {
         />
       )}
 
+      {/* Three elements, down from four. It used to explain how to mark something
+          done and where goals can be changed — a manual, at the one moment someone
+          has just finished answering questions and wants to leave. It now says the
+          introduction is over and where to go. */}
       {step === 'complete' && (
         <QuestionCard question={m.complete.title} note={m.complete.body}>
-          <div className="space-y-6">
-            <p className="max-w-prose text-sm leading-relaxed text-muted">{m.complete.note}</p>
-            <Choice options={[{ label: m.complete.submit, onSelect: toHome }]} />
-          </div>
+          <Choice options={[{ label: m.complete.submit, onSelect: toHome }]} />
         </QuestionCard>
       )}
 

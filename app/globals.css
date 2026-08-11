@@ -258,6 +258,19 @@
     @apply opacity-90;
   }
 
+  /**
+   * A button subordinate to the thing beside it, rather than to the page.
+   *
+   * The per-entry Edit control needs this. At `.btn`'s size, three of them in a
+   * three-item list read as peers of "Add another" and "That is enough" — the list
+   * became a stack of pills, which is the "heavy and overly boxed" the visual
+   * direction rules out. Only the metrics change; the border rule and every
+   * variant still apply.
+   */
+  .btn-sm {
+    @apply px-3 py-1 text-xs;
+  }
+
   .btn-quiet {
     @apply border-line-strong bg-transparent text-muted;
   }

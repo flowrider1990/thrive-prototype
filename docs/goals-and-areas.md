@@ -123,9 +123,46 @@ mints a new `sid`.
 | one current goal per area | newest wins on one key |
 | three prepared steps | the UI refuses to add when `open(a).length >= 3` — the active step counts as one of the three |
 | zero or one active step | one pointer key, and it resolves only while its target is open |
+| zero steps against a goal | no step facts exist — nothing has to be written to mean it |
 
 None of these is a stored constraint. They fall out of the derivation, which is
 why a hand-edited store degrades rather than becoming invalid.
+
+### A goal with nothing to try yet is a valid resting state
+
+Wanting something to change in an area, having a goal, and **not yet knowing what would
+help** is an ordinary place to be. The model represents it with nothing at all: a
+`review` fact, a `goal` fact, and no step facts. `open(a)` is empty because no step
+exists, not because something was written to say so.
+
+Onboarding used to be unable to express it. The steps screen offered only "Add", so the
+only way past was to invent something — and an invented action is worse than none,
+because the app then treats it as a real intention the person never had. It now offers
+**"I do not know yet"** / **"Ich weiß es noch nicht"** as a quiet second action, and
+taking it writes nothing. §38c asserts that: no step key appears, and no fact value
+contains the words.
+
+Two consequences worth knowing:
+
+- **No placeholder, ever.** There is deliberately no `'unknown'` step, no empty-string
+  `text` fact and no `step_none` key. The absence *is* the representation, which is the
+  same reasoning that makes "Later" write nothing.
+- **`finishSteps()` has to handle zero.** Without that branch the flow fell through to
+  the "which one first" question with an empty list — a dead screen. Zero means there is
+  nothing to choose between, so the area is simply left as it is.
+
+Downstream this state was already handled, and the copy already existed:
+`manage.noStep` on `/areas/` ("You have not decided yet what could help") and
+`home.unfinished` on the start page say the same thing in the same words. Neither treats
+it as invalid or incomplete data. §38f–§38h assert all three surfaces.
+
+One rough edge, recorded rather than fixed: `isSettled()` still requires an active step,
+so a **reload in the middle of the introduction** resumes at the steps question of an
+area that was skipped this way, re-offering a question already answered. It is not a
+trap — the same answer works again and nothing fake is written — and `isSettled` is used
+for nothing but choosing where to resume. Making the skip stick across a reload means
+letting a goal alone count as settled, which changes that derivation and was left out of
+a UI-only change.
 
 ### One goal per area is a first-iteration constraint, not a domain rule
 
@@ -157,17 +194,24 @@ The lesson from doing it once already applies here: the id belongs in the **key*
 not in the value, because a fact carries one string and the value has to stay free
 for the person's own words.
 
-## The four outcomes
+## The three outcomes
 
 The home screen asks **"How is it going?"** about whatever is being worked on, and
-offers four answers. They map onto the existing writers with no new fact values:
+offers three answers. They map onto the existing writers with no new fact values:
 
 | answer | writer | what is stored |
 | --- | --- | --- |
 | I have done this | `completeStep` | `state = 'done'` |
 | Still on it | — | **nothing** — see below |
-| I would rather do something else | `chooseStep`, or `addStep` + `chooseStep` | a newer `step_active` |
-| This does not fit anymore | `retireStep` | `state = 'retired'` |
+| This does not fit me anymore | `retireStep` | `state = 'retired'` |
+
+**It was four.** "I would rather do something else" and "This does not fit anymore"
+were two labels for one state — *this is not right for me now* — and offering both made
+the person classify their own dissatisfaction before the app would act on it. They
+barely differed in effect either: one set the entry aside and then offered another, the
+other kept it open and offered another. The surviving answer sets the entry aside and
+then offers to choose something else, which is where both used to end up. Choosing
+another is still reachable, from "Choose something" on the step that follows.
 
 **Why a question rather than a Done button.** Completion used to be the only
 outcome, and it was reached by tapping the row — the whole row, which was a
@@ -177,7 +221,7 @@ this goes, and nothing said that touching the words would end it. The words are 
 plain text and the control is explicit.
 
 Framing it as a question is also what keeps the door open. A future check-in asks
-the same thing on its own initiative and can offer the same four answers — the
+the same thing on its own initiative and can offer the same answers — the
 affordance already exists, so building check-ins does not mean redesigning this.
 That is the compatibility this stage was asked for, and none of it is built:
 no timestamps, no frequency setting, no prompt, no resurfacing.

@@ -44,6 +44,18 @@ export function AreaFlow({
   const sub = chosenSub ?? resume(state)
 
   function finishSteps() {
+    // Nothing written down at all — "I do not know yet". There is nothing to choose
+    // between and nothing to make active, so the area simply keeps its goal with no
+    // entry against it. **No placeholder is written**: that state is already
+    // representable, and inventing an entry to satisfy the flow would turn "I do not
+    // know" into a stored intention the person never had.
+    //
+    // Without this branch the flow fell through to `focus`, which would have rendered
+    // an empty list of things to choose from — a dead screen.
+    if (state.open.length === 0) {
+      onDone()
+      return
+    }
     // One step needs no choosing: asking someone to pick between one thing is
     // noise, so it simply becomes the one being worked on.
     if (state.open.length === 1) {

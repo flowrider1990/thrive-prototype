@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 167/167** (25 at the
+the two the plan singles out. **The current count is 176/176** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework); the script itself is the only authority on that number, so treat
 any count written in prose as a snapshot.
@@ -627,7 +627,7 @@ Three requests were **documented instead of implemented**, in
 
 ### Fine-tuning pass
 
-`pnpm verify` is **167 checks**, passing against both the export and `pnpm dev`.
+`pnpm verify` is **176 checks**, passing against both the export and `pnpm dev`.
 
 - **Three outcomes, not four.** "I would rather do something else" and "This does not
   fit anymore" were two labels for one state — *this is not right for me now* — and
@@ -669,6 +669,33 @@ Three requests were **documented instead of implemented**, in
   the irreversibility. What still prevents an accident is unchanged: deleting is never
   the first tap, the consequence is in the same breath as the question, and the safe
   choice is the emphasised one. §8a2 asserts exactly one confirming click.
+
+### Onboarding stopped requiring an invented action
+
+The steps screen — "What could help you move toward this goal?" — offered only "Add", so
+someone who wanted something to change here and had a goal but did not yet know what
+would help had no way past except to make something up. An invented action is worse than
+none: the app then treats it as a real intention.
+
+It now offers **"I do not know yet"** / **"Ich weiß es noch nicht"** as a quiet second
+action beside Add, and taking it writes nothing at all.
+
+**The model already supported the resulting state** — a `review` fact, a `goal` fact, and
+no step facts — so nothing was added: no key, no placeholder entry, no schema change, no
+`version` bump. The absence is the representation, the same way "Later" writes nothing.
+Downstream the copy already existed too: `manage.noStep` and `home.unfinished` describe
+it in the same words, and neither surface treats it as incomplete data.
+
+One real bug this exposed: `finishSteps()` had no zero case, so the flow would have fallen
+through to "which one would you like to focus on first?" with an empty list — a dead
+screen. §38e asserts the introduction moves on instead.
+
+Recorded rather than fixed: `isSettled()` still requires an active step, so a reload
+*during* the introduction resumes at the steps question of an area skipped this way and
+re-offers it. Not a trap — the same answer works again, nothing fake is written — and
+`isSettled` feeds nothing but the resume position. Making the skip survive a reload means
+letting a goal alone count as settled, which changes a domain derivation and was out of
+scope for a UI change. Details in `docs/goals-and-areas.md`.
 
 One approximation worth knowing: the count beside "Show what is stored" is
 `facts.length`, the number of stored facts. `/data/stored/` renders slightly fewer rows

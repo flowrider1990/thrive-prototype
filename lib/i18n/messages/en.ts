@@ -135,6 +135,23 @@ export const en = {
     /** From the second entry on, so the button itself says more is allowed. */
     stepsAddAnother: 'Add another',
     stepsEnough: 'That is enough',
+    /**
+     * The answer this screen was missing.
+     *
+     * Wanting something to change, having a goal, and not yet knowing what would help
+     * is a perfectly ordinary place to be — and the screen used to have no way to say
+     * it. The only way past was to invent something, which is the one outcome worth
+     * preventing: a made-up action is worse than none, because the app would then treat
+     * it as a real intention.
+     *
+     * It writes **nothing**. No placeholder entry, no "I don't know yet" masquerading
+     * as a step. The area keeps its goal with no entry against it, which the model
+     * already represents and which `manage.noStep` already describes.
+     *
+     * Uncontracted to match the rest of this catalog ("That is enough", "Not right
+     * now", "You do not need a goal in every one").
+     */
+    stepsUnknown: 'I do not know yet',
     stepsFull: 'Three is plenty to start with.',
     stepsContinue: 'Continue',
     /**

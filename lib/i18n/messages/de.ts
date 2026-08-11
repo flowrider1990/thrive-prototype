@@ -107,6 +107,7 @@ export const de: Messages = {
     stepsAdd: 'Hinzufügen',
     stepsAddAnother: 'Noch etwas hinzufügen',
     stepsEnough: 'Das reicht',
+    stepsUnknown: 'Ich weiß es noch nicht',
     stepsFull: 'Drei sind für den Anfang genug.',
     stepsContinue: 'Weiter',
     stepsEdit: 'Ändern: {text}',

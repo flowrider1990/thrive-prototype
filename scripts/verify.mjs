@@ -664,6 +664,7 @@ const EN = {
   edit: 'Edit',
   editSubmit: 'Save',
   enough: 'That is enough',
+  stepsUnknown: 'I do not know yet',
   focus: 'Which one would you like to focus on first?',
   complete: 'That is it for now.',
   toHome: 'Go to the start page',
@@ -1551,6 +1552,114 @@ check(
   '25g. and "Later" is not reported as unfinished setup — it is a real answer',
   !screen.includes('has a goal, but you have not'),
 )
+
+// --- 38. a goal with nothing to try yet is a real answer, not a blocked screen -
+//
+// Wanting something to change here, having a goal, and not yet knowing what would help
+// is an ordinary place to be. The steps screen used to have no way to say it: the only
+// way past was to invent something, and an invented action is worse than none because
+// the app would then treat it as a real intention.
+//
+// The state needs no new keys — a `review` fact plus a `goal` fact and no step facts
+// already means exactly this — so the assertions below are about the flow and about
+// **nothing fake being written**.
+
+await clearStorage()
+await goto('/')
+await click(EN.yes)
+await click(EN.introOk)
+
+// Area 1: yes, a goal, then "I do not know yet".
+await click(EN.reviewYes)
+await type('Sleep better')
+await click(EN.cont)
+screen = await text()
+check(
+  '38a. the steps screen offers a way on without inventing something',
+  screen.includes(EN.steps) && (await visible(EN.stepsUnknown)) && !(await visible(EN.enough)),
+  `"${EN.stepsUnknown}" offered: ${await visible(EN.stepsUnknown)}`,
+)
+
+// Secondary, and it must not compete with entering something concrete. `.btn-primary`
+// on the way out would invite skipping.
+const stepsButtons = await evaluate(
+  `(() => {
+     const b = [...document.querySelectorAll('main form button')];
+     return b.map((x) => ({ label: x.textContent.trim(), primary: x.classList.contains('btn-primary'), quiet: x.classList.contains('btn-quiet') }));
+   })()`,
+)
+check(
+  '38b. adding stays the primary action and the way out is quiet',
+  stepsButtons.find((b) => b.label === EN.add)?.primary === true &&
+    stepsButtons.find((b) => b.label === EN.stepsUnknown)?.quiet === true &&
+    stepsButtons.find((b) => b.label === EN.stepsUnknown)?.primary === false,
+  JSON.stringify(stepsButtons),
+)
+
+const beforeUnknown = JSON.parse(await raw()).facts.length
+await click(EN.stepsUnknown)
+await sleep(300)
+const afterUnknown = JSON.parse(await raw()).facts
+check(
+  '38c. taking it writes nothing at all — no placeholder entry, no fake step',
+  afterUnknown.length === beforeUnknown &&
+    !afterUnknown.some((fact) => /\.step\./.test(fact.key)) &&
+    !afterUnknown.some((fact) => /know/i.test(fact.value)),
+  `${afterUnknown.length} facts (was ${beforeUnknown}); keys: ${afterUnknown.map((f) => f.key).join(', ')}`,
+)
+check(
+  '38d. and the goal is still stored, which is the whole point of the state',
+  afterUnknown.some((fact) => fact.key === 'area.body.goal' && fact.value === 'Sleep better'),
+  afterUnknown.filter((f) => f.key.endsWith('.goal')).map((f) => f.value).join(' | '),
+)
+
+// The flow has to have moved on rather than stalled on an empty list of things to pick
+// between, which is where it would have landed without the zero case handled.
+screen = await text()
+check(
+  '38e. the introduction moved on to the next area instead of a dead screen',
+  screen.includes(EN.review) && !screen.includes(EN.focus) && !screen.includes(EN.steps),
+  screen.replace(/\n/g, ' / ').slice(0, 120),
+)
+
+// Finish the remaining four the quick way, so the downstream views can be checked.
+for (let area = 0; area < 4; area++) await click(EN.reviewNo)
+await click(EN.toHome)
+screen = await text()
+check(
+  '38f. home renders goal-with-no-entry as guidance, not as broken data',
+  screen.includes('has a goal, but you have not decided yet') && screen.includes(EN.home),
+  screen.replace(/\n/g, ' / ').slice(0, 140),
+)
+
+await clickNav(EN.navAreas)
+screen = await text()
+check(
+  '38g. and the areas list says the same thing in the same words',
+  screen.includes('Sleep better') && screen.includes('not decided yet what could help'),
+  screen.replace(/\n/g, ' / ').slice(0, 160),
+)
+
+// Opening it must offer adding something without re-asking for the goal.
+await clickOption('Body & Health')
+await waitForText(EN.addStep)
+screen = await text()
+check(
+  '38h. opening the area offers adding something, with the goal intact',
+  screen.includes('Sleep better') && (await visible(EN.addStep)),
+  screen.replace(/\n/g, ' / ').slice(0, 140),
+)
+
+// And the state is reachable in German too, where the copy is a full sentence.
+await goto('/')
+await chooseIn('Language', 'Deutsch')
+await sleep(400)
+check(
+  '38i. the same state reads correctly in German',
+  (await text()).includes('noch nicht festgelegt'),
+  (await text()).replace(/\n/g, ' / ').slice(0, 160),
+)
+await chooseIn('Sprache', 'English')
 
 // --- 31. the progress marks are painted distinguishably, in both themes -----
 //

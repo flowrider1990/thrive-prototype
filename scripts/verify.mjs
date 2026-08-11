@@ -144,9 +144,19 @@ await send('Page.addScriptToEvaluateOnNewDocument', {
 // --- page helpers -----------------------------------------------------------
 
 const HELPERS = `
+  /**
+   * Prefers a match a person could actually reach.
+   *
+   * The nav is rendered twice — inline above sm, inside the collapsed menu below —
+   * so at phone width the *first* DOM match for a nav label is the hidden inline
+   * copy. Clicking it still navigates, which meant "the collapsed menu still
+   * navigates" passed without the panel being involved at all. Laid-out matches win;
+   * the fallback keeps the old behaviour for anything intentionally offscreen.
+   */
   window.__click = (text) => {
-    const el = [...document.querySelectorAll('button, a')]
-      .find((e) => e.textContent.trim() === text);
+    const all = [...document.querySelectorAll('button, a')]
+      .filter((e) => e.textContent.trim() === text);
+    const el = all.find((e) => e.offsetParent !== null) ?? all[0];
     if (!el) throw new Error('no clickable: ' + text + ' | seen: ' +
       [...document.querySelectorAll('button, a')].map(e => e.textContent.trim()).join(' / '));
     el.click();
@@ -1403,6 +1413,31 @@ for (const scheme of ['light', 'dark']) {
     `31c. an upcoming mark is actually visible against the page (${scheme})`,
     ratio >= 3,
     `${ratio}:1 (${upcoming.borderColor} on ${trio.background}) — was 1.22:1`,
+  )
+
+  /**
+   * The same floor, on the surface rather than the page — and it is a separate
+   * assertion because it is a separate background.
+   *
+   * `.field`, `.option` and the menu panel all sit on `--color-surface`, which in
+   * dark mode is *lighter* than the ground. A border tuned against the ground alone
+   * therefore comes out too dark on every control that has one, and 31c cannot see
+   * it: it measures a progress mark, which sits on the page. The first
+   * `--dark-line-strong` was 3.05 against the ground and **2.77** against the
+   * surface, which is what this check is here to stop.
+   */
+  await click(EN.reviewYes)
+  const edge = await evaluate(`(() => {
+    const field = document.querySelector('.field');
+    if (!field) return null;
+    const style = getComputedStyle(field);
+    return { border: style.borderTopColor, background: style.backgroundColor };
+  })()`)
+  const edgeRatio = await contrast(edge.border, edge.background)
+  check(
+    `31d. and a control's edge is visible against the surface it sits on (${scheme})`,
+    edgeRatio >= 3,
+    `${edgeRatio}:1 (${edge.border} on ${edge.background})`,
   )
 }
 await setScheme('light')

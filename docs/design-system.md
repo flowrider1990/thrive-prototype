@@ -26,8 +26,19 @@ a colour.** That is what makes a new theme or skin a change to one file.
 ### Why there are two border tokens
 
 `--color-line-strong` is the only colour token pinned to a **number** rather than to
-taste: at least **3:1 against `--color-ground`**, which is WCAG 1.4.11 for the
-boundary of a non-text UI component. Both themes currently measure 3.05:1.
+taste: at least **3:1 against every background it is drawn on**, which is WCAG 1.4.11
+for the boundary of a non-text UI component.
+
+"Every background" means two, and that is the part that is easy to get wrong. A
+control edge sits on `--color-surface`, not on the page — and in dark mode the surface
+is *lighter* than the ground, so a value tuned against the ground alone comes out too
+dark on every control that has a border. The first `--dark-line-strong` did exactly
+that: 3.05 against the ground, **2.77** against the surface. Current figures:
+
+| | ground | surface |
+| --- | --- | --- |
+| light `#948f86` | 3.06 | 3.21 |
+| dark `#6b6b75` | 3.39 | 3.08 |
 
 One token could not do both jobs. A hairline between sections is decorative and
 explicitly exempt from any contrast floor; the edge of a field or an option is the
@@ -41,7 +52,7 @@ being faint:
 
 ```
   --color-line          separators              (no floor — decorative)
-  --color-line-strong   a control at rest       (≥ 3:1 against the ground)
+  --color-line-strong   a control at rest       (≥ 3:1 on ground *and* surface)
   --color-muted         that control on :hover  (darker again)
 ```
 
@@ -50,9 +61,13 @@ triggers and the menu panel are on `line-strong`. Every `border-t` / `border-s-2
 rule stays on `line`.
 
 **Do not "simplify" this by collapsing the two.** `scripts/verify.mjs` §31c asserts
-the ratio in both themes, so the floor cannot drift back — and it is asserted as a
-*ratio*, not as an inequality against the background, because an inequality passed
-happily at 1.22:1.
+the ratio against the page and §31d against the surface, both in both themes, so the
+floor cannot drift back on either. They are asserted as *ratios*, not as inequalities
+against the background, because an inequality passed happily at 1.22:1.
+
+Two checks rather than one because one could not see it: §31c measures a progress
+mark, which sits on the page, and was green while every field and option in dark mode
+was below the floor.
 
 `--color-focus` is deliberately **not** an alias of `--color-accent`. They looked
 interchangeable while both were near-ink, but they answer different questions —
@@ -73,9 +88,9 @@ rather than shared. **Adding a colour token means adding it in three places**;
 the file says so at each one.
 
 Missing one of the two mappings is close to invisible in review: the token silently
-falls back to its light value in that one path only. §31c runs its contrast
-assertion in **both** themes for exactly this reason — a forgotten
-`--dark-line-strong` fails there rather than shipping.
+falls back to its light value in that one path only. §31c and §31d both run in
+**both** themes for exactly this reason — a forgotten `--dark-line-strong` fails
+there rather than shipping.
 
 ## Type
 

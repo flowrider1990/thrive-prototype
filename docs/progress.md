@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 123/123** (25 at the
+the two the plan singles out. **The current count is 125/125** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop); the
 script itself is the only authority on that number, so treat any count written in
 prose as a snapshot.
@@ -435,6 +435,38 @@ New §30 sweeps every route for internal ids in both `innerText` **and** accessi
 names. §7f had done this for one page; the rework added four more surfaces where an
 entry's own words sit next to its id, and moved those words into `aria-label`s, which
 `innerText` cannot see at all.
+
+### What the code review caught (PR #3)
+
+Six findings, all of them real, all fixed before merge. Worth recording because four
+of the six are the same shape: **a claim that was asserted in one place and false in
+another.**
+
+- **`--dark-line-strong` was below its own floor.** 3.05:1 against the ground and
+  **2.77:1 against `--color-surface`** — and `.field`, `.option` and the menu panel are
+  all `bg-surface`, which in dark mode is *lighter* than the page. §31c could not see
+  it: it measures a progress mark, which sits on the page. Fixed to `#6b6b75`
+  (3.39 ground / 3.08 surface), and **§31d now measures the surface path**. Proven able
+  to fail by restoring the old value first — it reported exactly 2.77:1.
+- **Arriving on `/data/stored/` put focus on "Delete everything".** The focus effect's
+  returning branch also ran on mount, so the page scrolled past everything it exists to
+  show and landed on its one destructive control. `next-steps.tsx` already guarded this
+  with an `opened` ref; this effect did not.
+- **The swap answer led to a dead end.** "I would rather do something else" with
+  nothing else prepared dropped the person into a mandatory field with no way back
+  except leaving the page. It was survivable before only because that state was
+  previously reachable only *after* "Later" had been offered.
+- **Both `role="status"` regions announced nothing.** A live region inserted together
+  with its text is not a change to an existing region, which is what assistive tech
+  watches for. Both are now mounted once, visually hidden, with the visible
+  confirmation kept separate.
+- **Check 12b was passing without the menu.** The nav renders twice, so at phone width
+  the first DOM match for a nav label is the *hidden* inline copy, and `__click` had no
+  visibility filter — "the collapsed menu still navigates" would have passed with the
+  panel broken. `__click` now prefers laid-out matches.
+- **`introductionFinished`'s doc named a caller that was not one.** `app/page.tsx` kept
+  its own inline `reviewed === areas.length`, so the two definitions the function exists
+  to unify could have drifted apart. Now actually wired.
 
 ## Supabase: paused deliberately after the proposal (2026-08-11)
 

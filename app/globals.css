@@ -26,8 +26,8 @@
   --color-line: #ddd9d1;
   /* The rung between `--color-line` and `--color-muted`, and the only colour token
      pinned to a number rather than to taste: **at least 3:1 against
-     `--color-ground`**, which is WCAG 1.4.11 for the boundary of a non-text UI
-     component. This one measures 3.05:1.
+     both backgrounds a control edge is drawn on**, which is WCAG 1.4.11 for the
+     boundary of a non-text UI component.
 
      It exists because one token cannot do both jobs. `--color-line` draws
      hairlines and separators, which are decorative and exempt; a control's edge is
@@ -35,6 +35,9 @@
      only be as strong as the quietest rule on the page — and it was: `#e6e3dd` on
      `#faf9f7` measured **1.22:1**, which is why inactive progress marks and field
      borders were effectively invisible.
+
+     The floor has to hold against **both** backgrounds a control edge is drawn on:
+     3.06:1 on `--color-ground`, 3.21:1 on `--color-surface`.
 
      `:hover` still goes to `--color-muted`, which is darker again, so a control
      has three distinct states without any of them being faint. */
@@ -71,8 +74,14 @@
   --dark-ink: #eae7e2;
   --dark-muted: #9d9a94;
   --dark-line: #34343c;
-  /* 3.05:1 against `--dark-ground`, the same floor as its light counterpart. */
-  --dark-line-strong: #64646d;
+  /* Clears 3:1 against **both** backgrounds it is drawn on: 3.39:1 on
+     `--dark-ground`, 3.08:1 on `--dark-surface`.
+     Surface is the binding one and it is easy to miss — `.field`, `.option` and the
+     menu panel are all `bg-surface`, which in dark mode is *lighter* than the page,
+     so a border tuned against the ground alone comes out too dark on every control
+     that has one. The first value here did exactly that: 3.05 on the ground and
+     2.77 on the surface. §31d measures the surface path. */
+  --dark-line-strong: #6b6b75;
   --dark-accent: #e5e2dd;
   --dark-focus: #eae7e2;
 }

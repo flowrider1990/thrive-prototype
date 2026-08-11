@@ -73,6 +73,19 @@ export function NextSteps() {
       {unfinished && (
         <p className="max-w-prose text-sm leading-relaxed text-muted">{m.home.unfinished}</p>
       )}
+      {/**
+       * The live region is here, mounted once and never unmounted, rather than
+       * inside the row that has something to say.
+       *
+       * A `role="status"` element inserted *together with* its text generally
+       * announces nothing: assistive technology watches an existing region for
+       * changes, so the region has to be there first. Visually hidden, because the
+       * rows say the same thing in their own layout.
+       */}
+      <p role="status" className="sr-only">
+        {busy?.phase === 'offer' ? m.home.done : ''}
+      </p>
+
       <ul className="space-y-8">
         {rows.map((state) => (
           <li key={state.area} className="space-y-3">
@@ -170,9 +183,8 @@ function Row({
   if (busy?.phase === 'offer') {
     return (
       <div className="space-y-4">
-        <p role="status" className="text-sm text-accent">
-          {m.home.done}
-        </p>
+        {/* Seen here; announced by the persistent region in `NextSteps`. */}
+        <p className="text-sm text-accent">{m.home.done}</p>
         <p className="leading-relaxed text-ink">{m.home.chooseNextQuestion}</p>
         <Choice
           options={[
@@ -195,24 +207,40 @@ function Row({
 
   if (busy?.phase === 'pick') {
     const others = state.open.filter((step) => step.id !== active?.id)
+    // Every branch offers a way out, and taking it writes nothing.
+    //
+    // This used to be reachable only after "Later" had already been offered and
+    // declined, so a dead end was survivable. The swap answer reaches it directly,
+    // and someone who picks "I would rather do something else" and then changes
+    // their mind must not be stuck in a mandatory field with only the page's
+    // navigation to escape through.
+    const back = <Choice options={[{ label: m.home.cancel, tone: 'quiet', onSelect: close }]} />
+
     return others.length > 0 ? (
-      <OptionList
-        options={others.map((step) => ({ id: step.id, label: step.text }))}
-        onSelect={(id) => {
-          chooseStep(state.area, id)
-          onBusy(null)
-        }}
-      />
+      <div className="space-y-4">
+        <OptionList
+          options={others.map((step) => ({ id: step.id, label: step.text }))}
+          onSelect={(id) => {
+            chooseStep(state.area, id)
+            onBusy(null)
+          }}
+        />
+        {back}
+      </div>
     ) : (
       <div className="space-y-4">
         <p className="leading-relaxed text-ink">{m.home.newStepQuestion}</p>
+        {/* The way out rides in the field's own skip slot rather than below it, so it
+            shares a row with Save instead of stacking under it. */}
         <TextAnswer
           placeholder={m.home.newStepPlaceholder}
           submitLabel={m.home.newStepSubmit}
+          skipLabel={m.home.cancel}
           onSubmit={(value) => {
             chooseStep(state.area, addStep(state.area, value))
             onBusy(null)
           }}
+          onSkip={close}
         />
       </div>
     )

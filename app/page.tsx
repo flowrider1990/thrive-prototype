@@ -10,7 +10,7 @@ import { QuestionCard } from '@/components/question-card'
 import { TextAnswer } from '@/components/text-answer'
 import { areas, type AreaId } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
-import { isSettled, readArea } from '@/lib/person/goals'
+import { introductionFinished, isSettled, readArea } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
 type Step =
@@ -46,10 +46,14 @@ export default function Home() {
 
   const states = areas.map((area) => readArea(person, area))
 
-  // What decides the introduction is over is the *count of areas asked about*,
-  // because a review answer is never taken away. `isSettled` is not usable for
-  // this: completing a step and choosing "Later" would make an area unsettled
-  // again, and the app would drop back into onboarding months later.
+  // Whether the introduction is over comes from the shared derivation, not from a
+  // comparison written out here. The navigation asks the same question in
+  // `components/page-shell.tsx`, and the two must never disagree — a nav appearing
+  // while this page still shows the introduction would offer empty pages.
+  //
+  // `isSettled` is deliberately not what decides it: completing something and
+  // choosing "Later" un-settles an area, and the app would drop back into onboarding
+  // months later. It decides only *where an interrupted pass resumes*.
   const reviewed = states.filter((state) => state.review).length
   const resumeArea = states.find((state) => !isSettled(state))?.area ?? areas[0]
 
@@ -59,7 +63,7 @@ export default function Home() {
       ? 'greeting'
       : reviewed === 0
         ? 'intro'
-        : reviewed === areas.length
+        : introductionFinished(person)
           ? 'home'
           : 'area')
 

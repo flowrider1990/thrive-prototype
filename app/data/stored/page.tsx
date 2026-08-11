@@ -33,13 +33,25 @@ export default function StoredPage() {
   const [deleted, setDeleted] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
   const panel = useRef<HTMLDivElement>(null)
+  const opened = useRef(false)
 
-  // Focus follows the steps, and comes back if they are abandoned. Each step
-  // replaces the one before it, so both directions have to wait for the render that
-  // changes the DOM — an inline `.focus()` would land on a node React has not made.
+  // Focus follows the steps, and comes back if they are abandoned. Each step replaces
+  // the one before it, so both directions have to wait for the render that changes
+  // the DOM — an inline `.focus()` would land on a node React has not made yet.
+  //
+  // The `opened` guard is load-bearing rather than tidiness: without it the
+  // returning branch also runs on **mount**, so arriving on this page put focus on
+  // "Delete everything" and scrolled past everything the page exists to show.
   useEffect(() => {
-    if (deleting !== 'no') panel.current?.querySelector('button')?.focus()
-    else trigger.current?.focus()
+    if (deleting !== 'no') {
+      opened.current = true
+      panel.current?.querySelector('button')?.focus()
+      return
+    }
+    if (opened.current) {
+      opened.current = false
+      trigger.current?.focus()
+    }
   }, [deleting])
 
   if (status !== 'ready') return <PageShell>{null}</PageShell>
@@ -99,13 +111,16 @@ export default function StoredPage() {
         <StoredAreas />
 
         <section className="space-y-4 border-t border-line pt-6">
-          {/* Announced where it happened, not from the top of the page — and in a
-              live region, because "it worked" is otherwise only visible. */}
-          {deleted && (
-            <p role="status" className="text-sm text-accent">
-              {m.data.delete.done}
-            </p>
-          )}
+          {/* Mounted from the start and never removed. A `role="status"` inserted
+              together with its text announces nothing — the region has to exist for
+              the change to be a change. Visually hidden; the visible confirmation is
+              the line below. */}
+          <p role="status" className="sr-only">
+            {deleted ? m.data.delete.done : ''}
+          </p>
+
+          {/* Said where it happened, rather than from the top of the page. */}
+          {deleted && <p className="text-sm text-accent">{m.data.delete.done}</p>}
 
           {facts.length > 0 && deleting === 'no' && (
             <button

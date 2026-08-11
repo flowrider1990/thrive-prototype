@@ -123,9 +123,46 @@ mints a new `sid`.
 | one current goal per area | newest wins on one key |
 | three prepared steps | the UI refuses to add when `open(a).length >= 3` — the active step counts as one of the three |
 | zero or one active step | one pointer key, and it resolves only while its target is open |
+| zero steps against a goal | no step facts exist — nothing has to be written to mean it |
 
 None of these is a stored constraint. They fall out of the derivation, which is
 why a hand-edited store degrades rather than becoming invalid.
+
+### A goal with nothing to try yet is a valid resting state
+
+Wanting something to change in an area, having a goal, and **not yet knowing what would
+help** is an ordinary place to be. The model represents it with nothing at all: a
+`review` fact, a `goal` fact, and no step facts. `open(a)` is empty because no step
+exists, not because something was written to say so.
+
+Onboarding used to be unable to express it. The steps screen offered only "Add", so the
+only way past was to invent something — and an invented action is worse than none,
+because the app then treats it as a real intention the person never had. It now offers
+**"I do not know yet"** / **"Ich weiß es noch nicht"** as a quiet second action, and
+taking it writes nothing. §38c asserts that: no step key appears, and no fact value
+contains the words.
+
+Two consequences worth knowing:
+
+- **No placeholder, ever.** There is deliberately no `'unknown'` step, no empty-string
+  `text` fact and no `step_none` key. The absence *is* the representation, which is the
+  same reasoning that makes "Later" write nothing.
+- **`finishSteps()` has to handle zero.** Without that branch the flow fell through to
+  the "which one first" question with an empty list — a dead screen. Zero means there is
+  nothing to choose between, so the area is simply left as it is.
+
+Downstream this state was already handled, and the copy already existed:
+`manage.noStep` on `/areas/` ("You have not decided yet what could help") and
+`home.unfinished` on the start page say the same thing in the same words. Neither treats
+it as invalid or incomplete data. §38f–§38h assert all three surfaces.
+
+One rough edge, recorded rather than fixed: `isSettled()` still requires an active step,
+so a **reload in the middle of the introduction** resumes at the steps question of an
+area that was skipped this way, re-offering a question already answered. It is not a
+trap — the same answer works again and nothing fake is written — and `isSettled` is used
+for nothing but choosing where to resume. Making the skip stick across a reload means
+letting a goal alone count as settled, which changes that derivation and was left out of
+a UI-only change.
 
 ### One goal per area is a first-iteration constraint, not a domain rule
 
@@ -157,17 +194,24 @@ The lesson from doing it once already applies here: the id belongs in the **key*
 not in the value, because a fact carries one string and the value has to stay free
 for the person's own words.
 
-## The four outcomes
+## The three outcomes
 
 The home screen asks **"How is it going?"** about whatever is being worked on, and
-offers four answers. They map onto the existing writers with no new fact values:
+offers three answers. They map onto the existing writers with no new fact values:
 
 | answer | writer | what is stored |
 | --- | --- | --- |
 | I have done this | `completeStep` | `state = 'done'` |
 | Still on it | — | **nothing** — see below |
-| I would rather do something else | `chooseStep`, or `addStep` + `chooseStep` | a newer `step_active` |
-| This does not fit anymore | `retireStep` | `state = 'retired'` |
+| This does not fit me anymore | `retireStep` | `state = 'retired'` |
+
+**It was four.** "I would rather do something else" and "This does not fit anymore"
+were two labels for one state — *this is not right for me now* — and offering both made
+the person classify their own dissatisfaction before the app would act on it. They
+barely differed in effect either: one set the entry aside and then offered another, the
+other kept it open and offered another. The surviving answer sets the entry aside and
+then offers to choose something else, which is where both used to end up. Choosing
+another is still reachable, from "Choose something" on the step that follows.
 
 **Why a question rather than a Done button.** Completion used to be the only
 outcome, and it was reached by tapping the row — the whole row, which was a
@@ -177,7 +221,7 @@ this goes, and nothing said that touching the words would end it. The words are 
 plain text and the control is explicit.
 
 Framing it as a question is also what keeps the door open. A future check-in asks
-the same thing on its own initiative and can offer the same four answers — the
+the same thing on its own initiative and can offer the same answers — the
 affordance already exists, so building check-ins does not mean redesigning this.
 That is the compatibility this stage was asked for, and none of it is built:
 no timestamps, no frequency setting, no prompt, no resurfacing.
@@ -317,3 +361,77 @@ Deliberately absent: check-ins, reminders, resurfacing, difficulty and helpfulne
 ratings, streaks, points, urgency, celebration, priorities, recurrence, due dates,
 and any history browser. The behavioural layer that would ask "how is this going?"
 or "does this still matter to you?" belongs to a later iteration.
+
+## Product follow-ups: asked for, and deliberately not built
+
+Three things were requested during the UI sprint and are recorded here instead of
+implemented, because each needs a domain concept rather than a screen. **None of them
+should be attempted as a UI change.**
+
+### A visible status per life area on the start page
+
+The intent: the start page shows, for each life area, a visible status.
+
+- The status **replaces** the "How is everything going?" button once one has been
+  chosen — the button is not shown alongside it.
+- Clicking the status **reopens the existing selection**, so it can be changed.
+- The status should be compact and scannable, so the start page communicates the state
+  of the life areas at a glance.
+
+**This needs its own domain concept, not just UI.** There is no per-area status in the
+model today. The four answers behind "How is it going?" are *actions*, not a state:
+they write `area.<a>.step.<sid>.state` or move `area.<a>.step_active`, and "Still on
+it" deliberately writes nothing at all (see "Still on it writes nothing" above). So
+there is nothing for a chip to read, and nothing that could make the button disappear
+— after "Still on it" the app would have to show the button again, which contradicts
+the intent directly.
+
+Open questions, to be decided before any implementation:
+
+- **A status of its own** (`area.<a>.status`) — a real fact, explicitly chosen and
+  stored. Needs a value set, and every value becomes a promise the UI has to keep.
+- **Or a derived status**, computed from the facts that already exist — is there a
+  goal, is something active, was the last thing set aside, has anything been done. Adds
+  no keys, but can only ever say what the existing facts happen to imply, and cannot
+  represent "I checked in and things are fine".
+- **When it updates, and when it goes stale.** A status shown without a notion of age
+  will eventually assert something that stopped being true months ago, which is worse
+  than showing nothing. If it can go stale, the rules for that are part of the concept,
+  not an afterthought.
+
+Note the interaction with a second decision already parked: once check-ins exist,
+"Still on it" is expected to start writing the answer *and its timestamp*, because that
+pair is the signal resurfacing needs. Whichever way status goes, it should be decided
+together with that, not before it.
+
+### Ordering and priority instead of interchangeable items
+
+"Work on something else" was **removed** from the area page in this sprint. Freely
+swapping between prepared items implied they are equally interchangeable, which is the
+opposite of what the list should communicate.
+
+The intended direction, to be worked out later:
+
+- someone should be able to **mark items as priorities**;
+- there should also be an **explicit ranking** — an order, not just a flag;
+- that ranking may later be **editable by dragging**;
+- **marking and ranking are related but not the same thing**, and the difference has to
+  be decided rather than assumed;
+- the UI should eventually use the ordering to say **what matters most now**, so
+  relevance is communicated by position rather than by offering an equal switch between
+  peers.
+
+Final semantics are deliberately not invented here. Note that swapping is still
+reachable where it makes sense — from the "How is it going?" answers on the start page,
+which ask about one specific thing rather than presenting a flat set of equals.
+
+### Satisfaction check-ins per life area
+
+Later, the app should periodically ask how satisfied someone is, or how things are
+going, **within an individual life area** rather than about one entry.
+
+This belongs to the future check-in and problem-solving flow, and should build on the
+model that already exists — areas, goals, and the things someone wanted to try — rather
+than introducing a parallel structure beside it. It is also the most likely consumer of
+whatever status concept is settled above, which is a further reason not to fix status
+first and discover the mismatch afterwards.

@@ -37,10 +37,16 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 125/125** (25 at the
-foundation, 39 after the header controls, 78 after the first product loop); the
-script itself is the only authority on that number, so treat any count written in
-prose as a snapshot.
+the two the plan singles out. **The current count is 181/181** (25 at the
+foundation, 39 after the header controls, 78 after the first product loop, 123 after
+the UX/UI rework); the script itself is the only authority on that number, so treat
+any count written in prose as a snapshot.
+
+**Pass the base URL explicitly.** The default is `http://localhost:4321`, which is
+not safe on a machine running a second worktree — a stale or foreign server there
+produces failures that look like defects. This worktree serves the export on
+**4410** and `pnpm dev` on **4411**, and a dev run needs its routes warmed with curl
+first or Turbopack's on-demand compile outruns the script's settle time.
 
 - **no flash on reload** (item 4) — sampled from `requestAnimationFrame` starting
   before the app's own scripts run, so a wrong-state frame would be caught rather
@@ -418,7 +424,8 @@ And one genuine platform finding, from the new check 9b (no response ≥ 400):
   the explanation would have buried the explanation under the thing it explains.
   §28b asserts the split from the other direction: the plain page must **not**
   contain the person's goal.
-- **Deleting takes two confirmations, and the first only explains.** §8a and §8b
+- **Deleting took two confirmations, and the first only explained.** *(Reduced to one
+  later in the sprint — see the fine-tuning pass below.)* §8a and §8b
   assert `raw()` is **byte-identical** after each — "the key still exists" would not
   notice it being rewritten — and §8c asserts backing out at the last moment leaves
   everything. `forgetEverything()` itself is untouched.
@@ -474,6 +481,262 @@ another.**
 - **`introductionFinished`'s doc named a caller that was not one.** `app/page.tsx` kept
   its own inline `reviewed === areas.length`, so the two definitions the function exists
   to unify could have drifted apart. Now actually wired.
+
+## UI refinement (branch `feature/ui-refinement-2`)
+
+`pnpm verify` is **154 checks**, up from 125, passing against both the export and
+`pnpm dev`. Frontend only: no store, schema, key, consent-semantics or dependency
+change.
+
+- **Privacy copy now scopes itself to the current storage mode.** `data.p1`, `data.p2`,
+  `stored.introSaved` and the footer description stated "there is no server, no
+  account, no cloud" as timeless facts. They would have quietly become false the day
+  anything syncs, and a privacy page that has to be retracted is worse than one
+  accurate about its own scope. None of them implies a cloud is coming.
+- **Home names the unfinished area and links to it.** "One of your life areas has a
+  goal but nothing to try yet" left the reader to work out which. The link text is the
+  area's own name, which is what makes it useful out of context. Only the first one is
+  named — listing five would be a list of things you have not done.
+- **The storage choice is reopenable on `/data/`,** reusing onboarding's own question
+  verbatim rather than a toggle. See the finding below; this was the one item with a
+  real trap in it.
+- **`/data/stored/` folds per area** as a native `<details>`, and says what actually
+  happened to each entry: added, reworded, working on, done, set aside.
+- **Three levels of hierarchy on `/areas/`,** where the area name had been the quietest
+  thing in its own row.
+- **One shared back link** on both nested routes, replacing "no way back at all" on the
+  area pages.
+
+### The one real trap: turning saving off does not clear the key
+
+`declineConsent()` alone leaves `localStorage` untouched. `commit()` writes only when
+the mode is `local`, and nothing in it removes anything — so a "change storage
+settings" control that simply called it would have left the stored key on disk while
+the page said nothing was being saved. That is the §8 guarantee inverted, on a path
+that had never existed because consent had only ever been decided once, at the start.
+
+Leaving `local` is therefore `forgetEverything()` (which removes the key) and then
+`declineConsent()` (which carries the visit on in memory), in that order. Both already
+existed, so no store semantics changed — but it makes **turning saving off
+necessarily destructive**, which is why the cost is on its own confirmation step with
+"Keep it" as the filled button. §36f asserts `Object.keys(localStorage)` is empty
+afterwards: not "no facts", no key.
+
+Two consequences worth knowing before this is built on:
+
+- **`forgetEverything()` also resets the theme preference**, since it returns the whole
+  snapshot to "nothing known yet". Nobody asked for their theme to be forgotten; it is
+  collateral from the only available way to clear the key. Written up as debt in
+  `docs/persistence-decision.md` — the fix is to stop one key holding both personal
+  data and UI preferences, and it belongs to a persistence-layer change, **not** to a
+  UI change. Deliberately not fixed here.
+- If keeping in-memory facts while clearing the key is ever wanted, that needs a new
+  store function (`stopPersisting()` or similar) and belongs to whoever owns the
+  persistence boundary — not to a UI change.
+
+### Deliberately not done
+
+- **No destructive colour on the final delete action.** The palette is monochrome by
+  intent and there is no danger token; adding one would be the system's first hue and
+  needs approval (`CLAUDE.md` §7). Emphasis and step count carry the weight instead.
+  Recorded in `docs/design-system.md` so the next person does not re-litigate it.
+- The `About` page's "there is no server, no account" wording was left alone. It is
+  the same class of claim as the copy that was rescoped, but it was outside the pages
+  this pass covered.
+
+### Checks that would have kept passing while proving nothing
+
+- **Six content checks read `/data/stored/` as text**, and `innerText` cannot see
+  inside a closed `<details>`. Folding would have answered them instead of the content
+  — "not there" and "hidden" are indistinguishable from outside. They unfold first now.
+  §30 is the sharp one: it sweeps for leaked internal ids on the one surface where an
+  entry's id sits beside its words, and it reports how many sections it opened.
+- **Check 12a asked the whole document** whether "Data protection" was laid out at
+  390px, in order to prove the header had collapsed. The new storage link on home
+  carries that exact label, so a correct header started failing. It is scoped to
+  `header` now, which is the region the claim was always about.
+- **`__clickText` only clicks leaf elements**, which silently excludes every control
+  holding an icon beside its label — the new back links and the disclosure summaries.
+  `clickSelector` and `clickSummary` exist for those; without them the new checks
+  would have thrown rather than asserted.
+- **§7g asserted the word "removed"** in the stored record, which is precisely the
+  claim this pass set out to stop making: an entry taken out of current use is still on
+  the page one line down. It now asserts the new vocabulary *and* that "removed from"
+  is gone.
+
+### The closing polish pass
+
+`pnpm verify` is **159 checks**. No new product behaviour; consistency only.
+
+- **The storage state is a label, not a sentence.** "Currently: saved on this device" /
+  "Aktuell: Nur für diesen Tab", directly under the title where someone who came to
+  check one thing will read it. It used to restate what the four paragraphs below
+  already say, which was most of why the section felt dense.
+- **The two storage modes are named and the active one is marked** — a tick in an
+  always-present slot plus `aria-current`. Yes and no could not do this: they answer a
+  question, and neither is a thing that can be "the one you are already on". The
+  question is now short and neutral rather than onboarding's, which asserts one of the
+  options as settled fact; **onboarding itself is unchanged.** This deliberately
+  softens the earlier "reuse onboarding's wording verbatim" instruction, and it is one
+  message key to revert.
+- **The destructive confirmation only appears when the change is destructive.** With
+  nothing stored there is nothing to lose, so switching off happens directly — and
+  still clears the key, because a consented store with no answers is still a key on
+  the device. §36k and §36l pin both halves. A confirmation for a change with no
+  consequence is the ceremony that teaches people to click through the ones that
+  matter.
+- **Page rhythm is one set of numbers** rather than five pages guessing. The table is
+  in `docs/design-system.md`; the visible offenders were a title-to-intro gap that was
+  2.5rem on one page, 1rem on another and 2rem on a third, and two nested pages whose
+  back links sat at different distances from their content.
+- **Three weights of action on `/data/`**: primary, secondary, quiet link. "Change
+  storage settings" had been `.btn-sm`, which means "subordinate to the thing beside
+  me" and made it look like it belonged to the button above it.
+- **Empty states are all `text-sm text-muted`.** Guidance, not warnings — home's was at
+  body size and read as more consequential than it is.
+- **About no longer makes architectural promises.** "There is no server, no account, no
+  cloud" became "at the moment there is…", matching the `data` group.
+
+### Closing changes, and three follow-ups that were not built
+
+Last in: leaving is now the emphasised action at the foot of the delete flow, with
+"Delete everything" quiet beneath it — that section can be arrived at directly from
+"delete my data", and for a while the destructive control was the only thing on it.
+
+The storage-change flow was cut back to the change itself. It had been reprinting
+onboarding's framing plus both modes with a line of explanation each, on a page whose
+four paragraphs had just explained all of it; with two modes and the current one stated
+above, the whole decision is "switch to the other, or do not". Only the mode you are not
+on is offered.
+
+**"Work on something else" is gone** from the area page, along with the view it was the
+only entry into and its catalog key. Swapping freely between prepared items implied they
+are interchangeable, which is the opposite of what the list should say.
+
+Three requests were **documented instead of implemented**, in
+`docs/goals-and-areas.md` under "Product follow-ups":
+
+- **a visible status per life area on the start page** — needs its own domain concept.
+  The four "How is it going?" answers are actions, not a state, and "Still on it" writes
+  nothing, so nothing exists for a chip to read or for the button to disappear behind.
+  Open: a real `area_status` fact versus a derived one, and the rules for when a status
+  updates and when it goes stale;
+- **priority marking and explicit ranking**, which is what should replace free swapping;
+- **satisfaction check-ins per life area**, which will most likely consume whatever
+  status concept is settled — a reason not to decide status first.
+
+### Fine-tuning pass
+
+`pnpm verify` is **176 checks**, passing against both the export and `pnpm dev`.
+
+- **Three outcomes, not four.** "I would rather do something else" and "This does not
+  fit anymore" were two labels for one state — *this is not right for me now* — and
+  offering both asked the person to classify their own dissatisfaction before the app
+  would act on it. They barely differed in effect either. The single answer, "This does
+  not fit me anymore" / "Das passt für mich nicht mehr", sets the entry aside (still
+  kept — `retireStep` never deletes) and then offers to choose another, which is where
+  both old paths ended up. §24b1 asserts the count, so the distinction cannot creep back.
+- **An area's name on the start page opens that area.** It is a sibling of the row's
+  controls, never a wrapper: a link containing "How is it going?" would navigate on
+  every answer, and the entry's own words have to stay inert.
+- **Back on `/areas/<id>/` is no longer hard-coded.** The page has two ways in now, so
+  the origin travels in the URL as `?from=home`, with `/areas` as the fallback for a
+  deep link, a shared URL or an unrecognised value. Mechanism and reasoning in
+  `docs/design-system.md`; the short version is that a URL parameter survives a reload
+  where remembered state would go stale, and `history.back()` would leave the app when
+  this page was the first one opened.
+
+  **The first implementation of this was wrong in a way worth recording.** It read
+  `window.location.search` during render, which is not reactive — and on a client-side
+  navigation Next renders the new route *before* committing the URL, so the one render
+  that mattered saw an empty search string and nothing re-ran. The back link said "Back
+  to your life areas" on a page opened from the start page while the URL was correct the
+  whole time, which is exactly what makes a bug look like a broken test. Fixed by using
+  `useSearchParams()`, which is subscribed to the router.
+
+  That costs a `Suspense` boundary in `app/areas/[area]/page.tsx` — mandatory, because on
+  a prerendered route the hook bails the client tree out of prerendering and `next build`
+  fails without one. Note it passes in `pnpm dev` either way, since development renders
+  on demand: a defect class that only shows up in a production build. It also makes the
+  area route's content client-rendered after the navigation commits, ~340ms against ~220
+  before, which is why two checks now wait for the destination via `waitForText()` rather
+  than sleeping a fixed delay. Nothing incorrect is shown in the gap — the fallback is
+  `null`, so it is empty rather than wrong.
+- **Deleting asks once, not twice.** The flow had three asks over: the button, "this
+  removes everything, continue?", then "delete everything now, really?". The middle two
+  said the same thing, and a step that adds no information is what teaches someone to
+  click through the step that does. One confirmation now carries the consequence *and*
+  the irreversibility. What still prevents an accident is unchanged: deleting is never
+  the first tap, the consequence is in the same breath as the question, and the safe
+  choice is the emphasised one. §8a2 asserts exactly one confirming click.
+
+### Onboarding stopped requiring an invented action
+
+The steps screen — "What could help you move toward this goal?" — offered only "Add", so
+someone who wanted something to change here and had a goal but did not yet know what
+would help had no way past except to make something up. An invented action is worse than
+none: the app then treats it as a real intention.
+
+It now offers **"I do not know yet"** / **"Ich weiß es noch nicht"** as a quiet second
+action beside Add, and taking it writes nothing at all.
+
+**The model already supported the resulting state** — a `review` fact, a `goal` fact, and
+no step facts — so nothing was added: no key, no placeholder entry, no schema change, no
+`version` bump. The absence is the representation, the same way "Later" writes nothing.
+Downstream the copy already existed too: `manage.noStep` and `home.unfinished` describe
+it in the same words, and neither surface treats it as incomplete data.
+
+One real bug this exposed: `finishSteps()` had no zero case, so the flow would have fallen
+through to "which one would you like to focus on first?" with an empty list — a dead
+screen. §38e asserts the introduction moves on instead.
+
+Recorded rather than fixed: `isSettled()` still requires an active step, so a reload
+*during* the introduction resumes at the steps question of an area skipped this way and
+re-offers it. Not a trap — the same answer works again, nothing fake is written — and
+`isSettled` feeds nothing but the resume position. Making the skip survive a reload means
+letting a goal alone count as settled, which changes a domain derivation and was out of
+scope for a UI change. Details in `docs/goals-and-areas.md`.
+
+One approximation worth knowing: the count beside "Show what is stored" is
+`facts.length`, the number of stored facts. `/data/stored/` renders slightly fewer rows
+than that, because an active-step pointer resolves into the words it points at rather
+than appearing as its own entry. The number is truthful about the store; it is not a
+count of visible rows.
+
+Also: `serve` fell over mid-run twice, and checks failed in a way that looked like
+a UI defect until the port was checked. Verification ports and the ownership check are
+recorded in the session memory, not here — but the habit is worth repeating: confirm
+the server before believing a failure.
+
+### The concern could reach the device, and now cannot
+
+`pnpm verify` is **181 checks**, passing against both the export and `pnpm dev`.
+
+Found in cross-review of PR #4. `consent_concern` — what someone says when they decline
+saving — is documented as memory-only, and that promise rested on nothing more than the
+mode never changing after it was written. Reopening the storage choice changes it:
+`grantConsent()` persists the in-memory snapshot as it stands, on purpose, so decline →
+say why → finish the introduction → `/data/` → turn saving on wrote the objection to
+disk. The one write the person had just refused.
+
+**Fixed in `write()`, not at the call site that grants consent.** `write()` is the only
+function that touches the device, so filtering there is the whole guarantee, for every
+path that reaches local mode including ones not written yet. Scrubbing inside
+`grantConsent()` would have worked today and quietly stopped working the next time
+something set the mode.
+
+Two things it deliberately does not do. It does not drop everything gathered before
+consent — that would keep the concern off the device by throwing away the answers
+turning saving on exists to keep (§39c fails on that over-correction, and passed
+against the bug, which is the point of having it). And it does not remove the fact from
+the snapshot: the concern stays visible for the rest of the visit, as it was meant to
+be, and is simply gone on the next load. §39 walks that whole path, and §39b/§39e were
+confirmed to fail against the unfixed store before the fix was restored.
+
+One consequence worth knowing, left alone: the `facts.length` count above now counts
+one more than the device holds, for a visit that took this path. It is honest about the
+session's record, which is what it labels, and the store is the thing that had to be
+right.
 
 ## Supabase: paused deliberately after the proposal (2026-08-11)
 

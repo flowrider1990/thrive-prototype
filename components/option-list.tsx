@@ -8,6 +8,16 @@ export type Option = {
   /** A quieter second line: the area's state, or what a step is currently doing. */
   note?: string
   icon?: ReactNode
+  /**
+   * Whether this option is the one already in force.
+   *
+   * Renders as `aria-current`, which is the same hook `.nav-link` uses: one source of
+   * truth for the visible mark and for the accessibility tree, rather than a tick that
+   * says one thing and the accessibility tree saying nothing. A caller marking an
+   * option visually **must** set this, or the mark is silent — the tick is
+   * `aria-hidden`, and §17 does not allow a state carried by appearance alone.
+   */
+  current?: boolean
 }
 
 /**
@@ -31,6 +41,7 @@ export function OptionList({
         <li key={option.id}>
           <button
             type="button"
+            aria-current={option.current ? 'true' : undefined}
             className="option flex items-start gap-x-3"
             onClick={() => onSelect(option.id)}
           >

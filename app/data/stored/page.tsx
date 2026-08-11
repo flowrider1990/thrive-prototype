@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
+import { BackLink } from '@/components/back-link'
 import { PageShell } from '@/components/page-shell'
 import { StoredAreas } from '@/components/stored-areas'
 import { formatWhen, useI18n } from '@/lib/i18n'
@@ -17,8 +18,8 @@ import { usePerson } from '@/lib/person/store'
  */
 const KEY_ORDER = ['preferred_name', 'opening_intent', 'consent_concern']
 
-/** Nothing → explain → confirm. Deleting is never one tap away. */
-type Deleting = 'no' | 'warned' | 'confirming'
+/** Nothing → one confirmation → gone. Deleting is never one tap away. */
+type Deleting = 'no' | 'confirming'
 
 /**
  * Everything the app holds, in the person's own words, and the way to end it.
@@ -76,17 +77,28 @@ export default function StoredPage() {
   return (
     <PageShell>
       <div className="space-y-10">
-        <header className="space-y-4">
-          <h1 className="heading">{m.stored.title}</h1>
-          <p className="max-w-prose leading-relaxed text-muted">{intro}</p>
-          {mode === 'local' && consentAt && (
-            <p className="text-sm text-muted">
-              {t(m.stored.consentAt, { when: formatWhen(consentAt, locale) })}
-            </p>
-          )}
+        {/* `space-y-6` between the back link and the content, matching `AreaScreen`, so
+            the way back sits the same distance from the page on both nested routes. */}
+        <header className="space-y-6">
+          {/* Above the title rather than at the foot of the page: this page is as long
+              as the person's history, and a way back you have to scroll to is not one.
+              Shared with `/areas/<id>/` through `BackLink`, so the two cannot drift. */}
+          <BackLink href="/data" label={m.stored.back} />
+          {/* Title and its intro as one group, as on `/areas/`. */}
+          <div className="space-y-2">
+            <h1 className="heading">{m.stored.title}</h1>
+            <p className="max-w-prose leading-relaxed text-muted">{intro}</p>
+            {mode === 'local' && consentAt && (
+              <p className="text-sm text-muted">
+                {t(m.stored.consentAt, { when: formatWhen(consentAt, locale) })}
+              </p>
+            )}
+          </div>
         </header>
 
-        {facts.length === 0 && <p className="text-muted">{m.stored.empty}</p>}
+        {/* Empty states are guidance, not a problem report: `text-sm text-muted`, the
+            same weight as every other one in the app. */}
+        {facts.length === 0 && <p className="text-sm text-muted">{m.stored.empty}</p>}
 
         {groups.length > 0 && (
           <dl className="space-y-10">
@@ -110,7 +122,16 @@ export default function StoredPage() {
 
         <StoredAreas />
 
-        <section className="space-y-4 border-t border-line pt-6">
+        {/* `id` so that `/data/` can offer "delete my data" as its own entry point
+            and land here, on the one control that does it. Naming the section rather
+            than the button because the button is conditional — nothing to delete
+            means no button — and a fragment pointing at an element that is sometimes
+            absent silently does nothing.
+
+            It scrolls to the control; it does not arm it. Arriving via a link must not
+            put anyone one tap from deleting everything, which is why the confirmation
+            is still closed on arrival — §33c asserts exactly that. */}
+        <section id="delete" className="space-y-4 border-t border-line pt-6">
           {/* Mounted from the start and never removed. A `role="status"` inserted
               together with its text announces nothing — the region has to exist for
               the change to be a change. Visually hidden; the visible confirmation is
@@ -122,89 +143,84 @@ export default function StoredPage() {
           {/* Said where it happened, rather than from the top of the page. */}
           {deleted && <p className="text-sm text-accent">{m.data.delete.done}</p>}
 
-          {facts.length > 0 && deleting === 'no' && (
-            <button
-              ref={trigger}
-              type="button"
-              className="btn btn-quiet"
-              onClick={() => setDeleting('warned')}
-            >
-              {m.data.delete.button}
-            </button>
+          {/**
+           * Leaving is the main action here, and deleting is the one underneath it.
+           *
+           * This is the foot of a page someone can arrive at by following "delete my
+           * data", and the only control on it used to be the destructive one — so the
+           * bottom of the page read as though deletion were the expected next step.
+           * It is not: the expected next step is going back, and everything about the
+           * weighting should say so.
+           *
+           * A link, not a button, and the same wording as the one at the top: two
+           * different weights of the same navigation, not two competing patterns.
+           */}
+          {deleting === 'no' && (
+            <div className="space-y-4">
+              <div>
+                <Link href="/data" className="btn btn-primary">
+                  {m.stored.back}
+                </Link>
+              </div>
+              {facts.length > 0 && (
+                <div>
+                  <button
+                    ref={trigger}
+                    type="button"
+                    className="btn btn-quiet"
+                    onClick={() => setDeleting('confirming')}
+                  >
+                    {m.data.delete.button}
+                  </button>
+                </div>
+              )}
+            </div>
           )}
 
           {/**
-           * Two confirmations, and the first one only explains: what goes, and that
-           * it would have to be typed again. In-page steps rather than a browser
-           * `confirm()`, so the sentences saying what happens are part of the page.
+           * **One** confirmation, which is a reduction from two.
            *
-           * Nothing is written or removed until the second. Verification §8a asserts
-           * that the stored data is still there — byte-identical — after the first,
-           * because "the key still exists" would not notice it being rewritten.
+           * The flow used to ask three times over: the button, then "this removes
+           * everything, continue?", then "delete everything now, really?". The middle
+           * two said the same thing, and a step that adds no information is what
+           * teaches someone to click through the step that does.
+           *
+           * What prevents an accident is not repetition. It is that deleting is never
+           * the first tap, that the consequence is spelled out in the same breath as
+           * the question, and that the safe choice carries the emphasis. All three are
+           * still here.
+           *
+           * In-page rather than a browser `confirm()`, so the sentences saying what
+           * happens are part of the page. Nothing is written or removed until the
+           * confirm — §8a asserts the stored data is still byte-identical while this is
+           * on screen, because "the key still exists" would not notice a rewrite.
            */}
           {deleting !== 'no' && (
             <div ref={panel} className="space-y-4">
-              {deleting === 'warned' ? (
-                <>
-                  <p className="max-w-prose leading-relaxed text-ink">
-                    {m.data.delete.warnTitle}
-                  </p>
-                  <p className="max-w-prose text-sm leading-relaxed text-muted">
-                    {m.data.delete.warnBody}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-                    <button
-                      type="button"
-                      className="btn btn-quiet"
-                      onClick={() => setDeleting('confirming')}
-                    >
-                      {m.data.delete.warnContinue}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => setDeleting('no')}
-                    >
-                      {m.data.delete.cancel}
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="max-w-prose leading-relaxed text-ink">
-                    {m.data.delete.finalTitle}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-                    <button
-                      type="button"
-                      className="btn btn-quiet"
-                      onClick={() => {
-                        forgetEverything()
-                        setDeleting('no')
-                        setDeleted(true)
-                      }}
-                    >
-                      {m.data.delete.finalConfirm}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => setDeleting('no')}
-                    >
-                      {m.data.delete.cancel}
-                    </button>
-                  </div>
-                </>
-              )}
+              <p className="max-w-prose leading-relaxed text-ink">{m.data.delete.warnTitle}</p>
+              <p className="max-w-prose text-sm leading-relaxed text-muted">
+                {m.data.delete.warnBody}
+              </p>
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+                <button
+                  type="button"
+                  className="btn btn-quiet"
+                  onClick={() => {
+                    forgetEverything()
+                    setDeleting('no')
+                    setDeleted(true)
+                  }}
+                >
+                  {m.data.delete.finalConfirm}
+                </button>
+                <button type="button" className="btn btn-primary" onClick={() => setDeleting('no')}>
+                  {m.data.delete.cancel}
+                </button>
+              </div>
             </div>
           )}
         </section>
 
-        <p>
-          <Link href="/data" className="nav-link text-sm">
-            {m.stored.back}
-          </Link>
-        </p>
       </div>
     </PageShell>
   )

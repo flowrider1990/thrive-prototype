@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { AreaIcon } from '@/components/area-icon'
 import type { AreaId } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
@@ -26,11 +27,34 @@ import { useI18n } from '@/lib/i18n'
  *   from the size alone.
  * - `row` labels an area inside a list, where the surrounding text already
  *   supplies the context and the label should recede.
+ * - `card` titles an area on `/areas/`, where it is the *subject* of the row
+ *   rather than a label on one. There the name and its state were within a step
+ *   of each other in size and both muted, so a list of five read as ten equally
+ *   weighted lines and the eye had nothing to land on. It is the one place the
+ *   name has to win.
  *
- * Neither renders a heading element: the eyebrow sits above an `h1` that owns the
- * question, and an `h2` before it would put the outline in the wrong order.
+ * None of them renders a heading element: the eyebrow sits above an `h1` that owns
+ * the question, and an `h2` before it would put the outline in the wrong order. On
+ * `/areas/` the whole row is a link, and a heading inside a link is worse again.
  */
-export function AreaLabel({ area, size = 'row' }: { area: AreaId; size?: 'eyebrow' | 'row' }) {
+export function AreaLabel({
+  area,
+  size = 'row',
+  href,
+}: {
+  area: AreaId
+  size?: 'eyebrow' | 'row' | 'card'
+  /**
+   * Makes the label a link to the area, for the `row` size only.
+   *
+   * It lives here rather than being wrapped at the call site so the icon-and-name line
+   * stays owned by one component — that line was duplicated at four call sites once,
+   * which is exactly what let it drift. The name takes `.link-inline` while the icon
+   * does not: an underlined emoji reads as a mistake, and the underline is what keeps
+   * "this is a link" from resting on colour alone (§17).
+   */
+  href?: string
+}) {
   const { m } = useI18n()
 
   if (size === 'eyebrow') {
@@ -39,6 +63,24 @@ export function AreaLabel({ area, size = 'row' }: { area: AreaId; size?: 'eyebro
         <AreaIcon area={area} size="eyebrow" />
         {m.areas[area]}
       </p>
+    )
+  }
+
+  if (size === 'card') {
+    return (
+      <p className="flex items-center gap-x-2.5 text-lg font-medium leading-snug text-ink">
+        <AreaIcon area={area} size="eyebrow" />
+        {m.areas[area]}
+      </p>
+    )
+  }
+
+  if (href) {
+    return (
+      <Link href={href} className="flex items-center gap-x-2 text-sm text-muted">
+        <AreaIcon area={area} />
+        <span className="link-inline">{m.areas[area]}</span>
+      </Link>
     )
   }
 

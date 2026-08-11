@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { PageShell } from '@/components/page-shell'
+import { StorageChoice, StorageStatus } from '@/components/storage-choice'
 import { useI18n } from '@/lib/i18n'
 import { usePerson } from '@/lib/person/store'
 
@@ -17,15 +18,29 @@ import { usePerson } from '@/lib/person/store'
  * software works should be able to read this once and know where their words are.
  */
 export default function DataPage() {
-  const { m, status } = useI18n()
-  const { mode } = usePerson()
+  const { m, t, status } = useI18n()
+  const { mode, facts } = usePerson()
 
   if (status !== 'ready') return <PageShell>{null}</PageShell>
 
+  // Same phrasing as a folded area's summary on `/data/stored/`, because both answer
+  // the same question: how much is behind this.
+  const entryCount =
+    facts.length === 1
+      ? m.stored.entryCountOne
+      : t(m.stored.entryCount, { count: String(facts.length) })
+
   return (
     <PageShell>
-      <div className="space-y-8">
-        <h1 className="heading">{m.data.title}</h1>
+      <div className="space-y-10">
+        {/* The title and the current state are one tight group. The state is the thing
+            someone arrives to check, so it belongs to the title rather than sitting as
+            a third item further down — the same proximity argument as the area eyebrow
+            inside `QuestionCard`. */}
+        <div className="space-y-2">
+          <h1 className="heading">{m.data.title}</h1>
+          <StorageStatus />
+        </div>
 
         <div className="space-y-4">
           {[m.data.p1, m.data.p2, m.data.p3, m.data.p4].map((paragraph) => (
@@ -36,17 +51,50 @@ export default function DataPage() {
         </div>
 
         {/* Someone who declined saving is told so here rather than being left to
-            infer it from four paragraphs about storage that do not apply to them. */}
+            infer it from four paragraphs about storage that do not apply to them. The
+            block below says which mode is in force; this says what it means for them. */}
         {mode === 'memory' && (
           <p className="max-w-prose border-t border-line pt-6 text-sm leading-relaxed text-muted">
             {m.data.memoryNote}
           </p>
         )}
 
-        <div className="border-t border-line pt-6">
-          <Link href="/data/stored" className="btn btn-primary">
-            {m.data.show}
-          </Link>
+        {/**
+         * Three actions in three weights, so the page says what it expects you to do.
+         *
+         * Looking is primary and carries the count, because "how much is in there" is
+         * what decides whether it is worth opening. Changing the storage mode is a
+         * full-size quiet button — secondary, not subordinate to something beside it,
+         * which is what `.btn-sm` had wrongly implied. Deleting is a quiet link, last:
+         * the emphasis on this page belongs with looking rather than with the
+         * irreversible thing.
+         *
+         * Both links go to `/data/stored/`. The delete one only jumps further down it,
+         * to the control already there — no second confirmation flow lives here, and
+         * nothing is armed by following it.
+         */}
+        <div className="space-y-6 border-t border-line pt-6">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link href="/data/stored" className="btn btn-primary">
+              {m.data.show}
+            </Link>
+            {/* Beside the action rather than inside its label: the count changes, and a
+                control whose accessible name changes with the data is a control that
+                cannot be found by name twice. */}
+            {facts.length > 0 && <span className="text-sm text-muted">{entryCount}</span>}
+          </div>
+
+          {/* Reads the mode from the store and calls the store to change it, so there
+              is no second copy of the setting here. */}
+          <StorageChoice />
+
+          {facts.length > 0 && (
+            <p>
+              <Link href="/data/stored#delete" className="link-inline text-sm">
+                {m.data.deleteEntry}
+              </Link>
+            </p>
+          )}
         </div>
       </div>
     </PageShell>

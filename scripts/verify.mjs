@@ -183,6 +183,20 @@ const HELPERS = `
   };
   window.__visible = (text) => [...document.querySelectorAll('button, a')]
     .some((e) => e.textContent.trim() === text && e.offsetParent !== null);
+  /*
+   * The same question, asked inside one region.
+   *
+   * __visible searches the whole document, which is right for "can the person act
+   * on this anywhere" and wrong for any claim about a *particular* region. Check 12a
+   * needs the second kind: it asserts the nav labels are not laid out in the header
+   * bar at phone width, and a link elsewhere on the page carrying the same words —
+   * the storage note on home links to "Data protection" — would otherwise read as
+   * the header having failed to collapse.
+   *
+   * (No backticks in here: this whole block is a template literal.)
+   */
+  window.__visibleIn = (selector, text) => [...document.querySelectorAll(selector + ' a, ' + selector + ' button')]
+    .some((e) => e.textContent.trim() === text && e.offsetParent !== null);
   /**
    * Header children all on one line: the wrap this change exists to prevent.
    * Only laid-out children count — a display:none child (the inline nav on a
@@ -425,6 +439,23 @@ async function clickAria(label) {
   await evaluate(`__clickAria(${JSON.stringify(label)})`)
   await sleep(220)
 }
+/**
+ * Waits until the page contains some text, instead of sleeping a guessed number of ms.
+ *
+ * Navigating into `/areas/<id>/` is measurably slower than it was: that route now has a
+ * `Suspense` boundary, so its content is client-rendered after the navigation commits —
+ * ~340ms in headless Chrome, against the 220ms a click helper waits. That difference
+ * turned a correct app into two failing checks, and a bigger fixed sleep would only move
+ * the guess. Waiting for the thing being asserted removes the guess.
+ */
+async function waitForText(needle, timeout = 5000) {
+  const started = Date.now()
+  while (Date.now() - started < timeout) {
+    if (String(await evaluate('document.body.innerText')).includes(needle)) return true
+    await sleep(60)
+  }
+  return false
+}
 async function clickOption(text) {
   await evaluate(HELPERS)
   await evaluate(`__clickOption(${JSON.stringify(text)})`)
@@ -471,6 +502,62 @@ async function clickText(text) {
   await evaluate(`__clickText(${JSON.stringify(text)})`)
   await sleep(220)
 }
+/**
+ * Opens every folded section on the page.
+ *
+ * `innerText` cannot see inside a closed `<details>`, so any check that asserts
+ * content is present has to unfold first or it is answered by the fold rather than
+ * by the content — "the words are not there" and "the words are hidden" look
+ * identical from the outside. Returns how many it opened, so a caller can tell the
+ * difference between "nothing folded" and "nothing on the page".
+ */
+async function expandAll() {
+  const opened = await evaluate(
+    `(() => {
+       const all = [...document.querySelectorAll('details:not([open])')];
+       all.forEach((d) => { d.open = true; });
+       return all.length;
+     })()`,
+  )
+  await sleep(200)
+  return opened
+}
+/**
+ * Clicks the first element matching a selector.
+ *
+ * For controls whose text is not their only content: `__clickText` insists on a leaf
+ * element, and a back link holds an arrow as well as its label.
+ */
+async function clickSelector(selector) {
+  await evaluate(
+    `(() => {
+       const el = document.querySelector(${JSON.stringify(selector)});
+       if (!el) throw new Error('nothing matching: ' + ${JSON.stringify(selector)});
+       el.click();
+       return true;
+     })()`,
+  )
+  await sleep(250)
+}
+/**
+ * Opens one folded section the way a person would: by clicking its summary.
+ *
+ * `__clickText` cannot do it — it only clicks leaf elements, and these summaries
+ * hold a heading with an icon inside it.
+ */
+async function clickSummary(text) {
+  await evaluate(HELPERS)
+  await evaluate(
+    `(() => {
+       const summary = [...document.querySelectorAll('details > summary')]
+         .find((s) => s.innerText.includes(${JSON.stringify(text)}));
+       if (!summary) throw new Error('no summary containing: ' + ${JSON.stringify(text)});
+       summary.click();
+       return true;
+     })()`,
+  )
+  await sleep(250)
+}
 const focused = async (selector) => {
   await evaluate(HELPERS)
   return evaluate(`__focus(${JSON.stringify(selector)})`)
@@ -482,6 +569,30 @@ const navLinks = async () => {
 const shown = async (selector) => {
   await evaluate(HELPERS)
   return evaluate(`__shown(${JSON.stringify(selector)})`)
+}
+/** The back link on whatever page is loaded: where it goes, and how it is drawn. */
+const backLinkOn = async () =>
+  evaluate(
+    `(() => {
+       const first = document.querySelector('main a[href]');
+       if (!first) return null;
+       const heading = document.querySelector('main h1, main h2, main p');
+       const style = getComputedStyle(first);
+       return {
+         tag: first.tagName,
+         href: new URL(first.href).pathname,
+         text: first.textContent.trim(),
+         hasArrow: Boolean(first.querySelector('svg')),
+         fontSize: style.fontSize,
+         colour: style.color,
+         // The back link must come first in the page, above whatever titles it.
+         beforeHeading: heading ? Boolean(first.compareDocumentPosition(heading) & 4) : false,
+       };
+     })()`,
+  )
+const visibleIn = async (selector, text) => {
+  await evaluate(HELPERS)
+  return evaluate(`__visibleIn(${JSON.stringify(selector)}, ${JSON.stringify(text)})`)
 }
 /**
  * Presses Tab for real, until the wanted element has focus. Real key events
@@ -553,6 +664,7 @@ const EN = {
   edit: 'Edit',
   editSubmit: 'Save',
   enough: 'That is enough',
+  stepsUnknown: 'I do not know yet',
   focus: 'Which one would you like to focus on first?',
   complete: 'That is it for now.',
   toHome: 'Go to the start page',
@@ -560,8 +672,7 @@ const EN = {
   check: 'How is it going?',
   outcomeDone: 'I have done this',
   outcomeOngoing: 'Still on it',
-  outcomeSwap: 'I would rather do something else',
-  outcomeAside: 'This does not fit anymore',
+  outcomeAside: 'This does not fit me anymore',
   cancel: 'Cancel',
   noted: 'Noted.',
   chooseNext: 'Choose something',
@@ -581,12 +692,17 @@ const EN = {
   dataShow: 'Show what is stored',
   storedTitle: 'What is stored',
   del: 'Delete everything',
-  delWarn: 'This removes everything you have entered.',
-  delContinue: 'Continue',
+  delWarn: 'Delete all data?',
   delKeep: 'Keep it',
-  delFinal: 'Delete everything now? This cannot be undone.',
   delConfirm: 'Yes, delete everything',
   delDone: 'Deleted. Nothing is left.',
+  storageChange: 'Change storage settings',
+  storageLocal: 'Currently: saved on this device',
+  storageMemory: 'Currently: this tab only',
+  storageOptionLocal: 'Save on this device',
+  storageOptionMemory: 'This tab only',
+  storageOffTitle: 'Turn saving off?',
+  storageOffConfirm: 'Turn saving off and delete',
 }
 
 /** The collapsed-nav trigger, which is icon-only and so has to be found by name. */
@@ -842,10 +958,20 @@ check(
   '24b. an explicit control asks how it is going, and offers answers for both kinds',
   screen.includes(EN.outcomeDone) &&
     screen.includes(EN.outcomeOngoing) &&
-    screen.includes(EN.outcomeSwap) &&
     screen.includes(EN.outcomeAside) &&
     JSON.parse(await raw()).facts.length === beforeIdle,
   `${JSON.parse(await raw()).facts.length} facts vs ${beforeIdle} before opening`,
+)
+
+// Three answers, not four. "I would rather do something else" and "this does not fit
+// anymore" were two labels for one state, and offering both asked the person to
+// classify their own dissatisfaction before the app would act on it. A fourth option
+// reappearing here means that distinction crept back.
+check(
+  '24b1. and there are exactly three of them, with no second way to say the same thing',
+  (await count('main li button.option')) === 3 &&
+    !screen.includes('rather do something else'),
+  `${await count('main li button.option')} answer(s)`,
 )
 
 check(
@@ -972,6 +1098,8 @@ check(
 await clickNav(EN.navAreas)
 check('24m. Life areas lists all five with their state', (await text()).includes(EN.picker))
 await clickOption('Work & Career')
+// Navigation, not a selection: wait for the destination rather than for a fixed delay.
+await waitForText(EN.addStep)
 await click(EN.addStep)
 await type('Ask Sam for feedback')
 await click(EN.save)
@@ -1022,6 +1150,7 @@ check(
 
 await click(EN.manageDone)
 await goto('/data/stored/')
+await expandAll()
 screen = await text()
 check(
   '7e. /you shows the current goal and the one it replaced, with dates',
@@ -1040,35 +1169,57 @@ check(
   !UUID.test([screen, ...named].join(' ')),
   UUID.exec([screen, ...named].join(' '))?.[0] ?? `clean (${named.length} accessible names)`,
 )
+// The three outcomes, in the words the record now uses. The negative half is the
+// point of that rewording: an entry taken out of current use is still on this page,
+// one line further down, so "removed from current steps" was describing a deletion
+// that never happened. Append-only has no delete.
 check(
-  '7g. and it says what became of each step',
-  screen.includes('focusing on') && screen.includes('done') && screen.includes('removed'),
+  '7g. and it says what became of each step, without claiming any of it was removed',
+  screen.includes('working on this') &&
+    screen.includes('done') &&
+    screen.includes('set aside') &&
+    !/removed from/.test(screen),
+  /removed from/.test(screen) ? 'still claims removal' : 'working on this / done / set aside',
 )
 
 // --- 8. forget everything --------------------------------------------------
 
-// Deleting is deliberate: two confirmations, and the first one only explains.
+// **One** confirmation, down from two. The flow used to ask three times over — the
+// button, then "this removes everything, continue?", then "delete everything now,
+// really?" — and the middle two said the same thing. A step that adds no information
+// is what teaches someone to click through the step that does.
+//
+// What still prevents an accident: deleting is never the first tap, the consequence is
+// spelled out in the same breath as the question, and the safe choice is emphasised.
 const beforeDelete = await raw()
 await click(EN.del)
 screen = await text()
 check(
-  '8a. the first step explains what goes, and deletes nothing',
+  '8a. one confirmation, and it states the consequence and the irreversibility',
   screen.includes(EN.delWarn) &&
+    screen.includes('cannot be undone') &&
+    screen.includes('would have to enter it all again') &&
     // Byte-identical, not merely present: "the key still exists" would not notice it
     // being rewritten, which is the failure mode a presence check misses.
     (await raw()) === beforeDelete,
   (await raw()) === beforeDelete ? 'store untouched' : 'STORE CHANGED',
 )
 
-await click(EN.delContinue)
-screen = await text()
+// The count itself, asserted. Two steps between the button and deletion would pass
+// every other check here while being the thing this change removed.
+const deleteSteps = await evaluate(
+  `(() => {
+     const labels = [...document.querySelectorAll('#delete button')].map((b) => b.textContent.trim());
+     return { labels, confirms: labels.filter((l) => l === 'Yes, delete everything').length };
+   })()`,
+)
 check(
-  '8b. the second step asks once more, and still deletes nothing',
-  screen.includes(EN.delFinal) && (await raw()) === beforeDelete,
-  (await raw()) === beforeDelete ? 'store untouched' : 'STORE CHANGED',
+  '8a2. and reaching deletion takes exactly one confirming click from here',
+  deleteSteps.confirms === 1 && !deleteSteps.labels.includes('Continue'),
+  JSON.stringify(deleteSteps.labels),
 )
 
-// Backing out at the last moment has to be possible, and has to leave everything.
+// Backing out has to be possible, and has to leave everything.
 await click(EN.delKeep)
 check(
   '8c. and backing out leaves it all in place',
@@ -1077,10 +1228,9 @@ check(
 )
 
 await click(EN.del)
-await click(EN.delContinue)
 await click(EN.delConfirm)
 check(
-  '8d. only the second confirmation deletes, and it removes the key entirely',
+  '8d. confirming deletes, and it removes the key entirely',
   (await keys()).length === 0 && (await text()).includes(EN.delDone),
   JSON.stringify(await keys()),
 )
@@ -1216,6 +1366,7 @@ check(
 // One level deeper, and still in memory mode: their words are there to see even
 // though the device holds nothing.
 await click(EN.dataShow)
+await expandAll()
 screen = await text()
 check(
   '5f2. and the stored view still shows their words, from memory alone',
@@ -1226,6 +1377,98 @@ check(
 
 await goto('/')
 check('5g. reloading starts over, since the decision itself was not stored', (await text()).includes(EN.consent))
+
+// --- 39. turning saving on keeps the answers and leaves the concern behind ---
+//
+// One key is promised never to reach the device: `consent_concern`, what someone said
+// when they declined saving. Until this section existed that promise rested on the mode
+// never changing — and `/data/` exists to change it. `grantConsent()` persists the
+// in-memory snapshot as it stands, deliberately, so answers given this visit are kept
+// rather than asked for again; but that snapshot can hold an objection given precisely
+// because nothing was being written. Declining, saying why, and later turning saving on
+// wrote it to disk.
+//
+// §39c is the other half of the fix and not a formality. Dropping everything gathered
+// before consent would also keep the concern off the device, and would be the wrong
+// repair: what was said this visit is exactly what turning saving on is meant to keep.
+//
+// The whole flow is one tab. A reload would drop the memory snapshot and the section
+// would pass without ever testing anything.
+
+const CONCERN = 'Because I do not trust apps with this.'
+
+await clearStorage()
+await goto('/')
+await click(EN.no)
+await type(CONCERN)
+await click(EN.cont)
+await click(EN.contYes)
+await click(EN.introOk)
+await runArea('Move more', ['Walk after lunch'])
+await click(EN.reviewNo)
+await click(EN.reviewNo)
+await click(EN.reviewNo)
+await click(EN.reviewNo)
+await click(EN.toHome)
+
+// The precondition, stated rather than assumed: in memory mode the concern and a real
+// answer are held exactly alike, and the device holds neither. Without this, §39b would
+// pass just as well against a concern that was never recorded.
+await clickNav(EN.navData)
+await click(EN.dataShow)
+await expandAll()
+screen = await text()
+check(
+  '39a. before consent, the concern and a real answer are both held, with nothing on the device',
+  screen.includes(CONCERN) && screen.includes('Walk after lunch') && (await keys()).length === 0,
+  `concern ${screen.includes(CONCERN) ? 'held' : 'MISSING'}, answer ${screen.includes('Walk after lunch') ? 'held' : 'MISSING'}, keys ${JSON.stringify(await keys())}`,
+)
+
+await clickNav(EN.navData)
+await click(EN.storageChange)
+await clickOption(EN.storageOptionLocal)
+await sleep(300)
+const afterOn = JSON.parse(await raw())
+check(
+  '39b. turning saving on does not write the concern to the device',
+  !afterOn.facts.some((fact) => fact.key === 'consent_concern') && !(await raw()).includes(CONCERN),
+  afterOn.facts.some((fact) => fact.key === 'consent_concern')
+    ? 'THE CONCERN WAS PERSISTED'
+    : `${afterOn.facts.length} facts written, none of them the concern`,
+)
+check(
+  '39c. and the answers given before consent are kept, not thrown away with it',
+  afterOn.facts.some((fact) => fact.value === 'Move more') &&
+    afterOn.facts.some((fact) => fact.value === 'Walk after lunch'),
+  JSON.stringify(afterOn.facts.map((fact) => fact.value)),
+)
+
+// Not persisted is not the same as taken away: it stays for the visit, which is what it
+// was kept for. This is also what separates the fix from clearing the snapshot.
+await click(EN.dataShow)
+await expandAll()
+check(
+  '39d. the concern is still there for the rest of the visit',
+  (await text()).includes(CONCERN),
+  (await text()).includes(CONCERN) ? 'still shown' : 'the visit lost it',
+)
+
+// The guarantee as the person meets it: it was never on the device, so a reload cannot
+// bring it back — while everything that was legitimately saved survives.
+await goto('/data/stored/')
+await expandAll()
+screen = await text()
+check(
+  '39e. and after a reload it is gone, while what was saved survives',
+  !screen.includes(CONCERN) && screen.includes('Walk after lunch'),
+  `concern ${screen.includes(CONCERN) ? 'CAME BACK FROM THE DEVICE' : 'gone'}, answer ${screen.includes('Walk after lunch') ? 'survived' : 'MISSING'}`,
+)
+
+// This section is spliced into a chain that runs in order, and unlike §5 it ends
+// consented, onboarded and on a nested page. §6 opens on the consent screen, so hand
+// back the state this borrowed rather than making the next section defend itself.
+await clearStorage()
+await goto('/')
 
 // --- 6. language ----------------------------------------------------------
 
@@ -1268,6 +1511,7 @@ check(
 )
 
 await goto('/data/stored/')
+await expandAll()
 screen = await text()
 check(
   '6e. the stored view is German too, including the life-area labels',
@@ -1318,16 +1562,46 @@ check(
 )
 check(
   '25b. and home says so, rather than reporting that everything is settled',
-  screen.includes('has a goal but nothing to try yet'),
+  screen.includes('has a goal, but you have not decided yet'),
 )
+
+// The sentence names the area and links to it. Both halves matter: a link whose text
+// is "life area" would be useless out of context, and a link that navigates nowhere
+// useful is worse than the prose it replaced.
+const unfinishedLink = await evaluate(
+  `(() => {
+     const link = [...document.querySelectorAll('main a[href]')]
+       .find((a) => a.textContent.trim() === 'Hobbies & Creativity');
+     return link ? { text: link.textContent.trim(), href: new URL(link.href).pathname } : null;
+   })()`,
+)
+check(
+  '25b2. the unfinished area is named as a real link to that area',
+  unfinishedLink?.href === '/areas/creativity/',
+  unfinishedLink ? `${unfinishedLink.text} → ${unfinishedLink.href}` : 'no link on the area name',
+)
+
+// The trap this page has already fallen into once: something that looks like
+// navigation but writes. Following it must leave the store byte-identical.
+const beforeUnfinished = await raw()
+await clickText('Hobbies & Creativity')
+await sleep(400)
+check(
+  '25b3. and following it navigates without changing anything',
+  (await text()).includes('Draw something every week') && (await raw()) === beforeUnfinished,
+  (await raw()) === beforeUnfinished ? 'store untouched' : 'STORE CHANGED',
+)
+await goto('/')
+screen = await text()
 
 await clickNav(EN.navAreas)
 screen = await text()
 check(
   '25c. the unfinished area is reachable and says what is missing',
-  screen.includes('Hobbies & Creativity') && screen.includes('Nothing to try yet'),
+  screen.includes('Hobbies & Creativity') && screen.includes('not decided yet what could help'),
 )
 await clickOption('Hobbies & Creativity')
+await waitForText('Draw something every week')
 screen = await text()
 check(
   '25d. its goal survived, and finishing the setup is one action away',
@@ -1351,7 +1625,7 @@ await clickNav(EN.navHome)
 screen = await text()
 check(
   '25e2. and home stops reporting it as unfinished setup',
-  screen.includes('Sketch on Sunday morning') && !screen.includes('has a goal but nothing to try'),
+  screen.includes('Sketch on Sunday morning') && !screen.includes('has a goal, but you have not'),
   screen.replace(/\n/g, ' / ').slice(0, 120),
 )
 
@@ -1368,8 +1642,116 @@ check(
 )
 check(
   '25g. and "Later" is not reported as unfinished setup — it is a real answer',
-  !screen.includes('has a goal but nothing to try'),
+  !screen.includes('has a goal, but you have not'),
 )
+
+// --- 38. a goal with nothing to try yet is a real answer, not a blocked screen -
+//
+// Wanting something to change here, having a goal, and not yet knowing what would help
+// is an ordinary place to be. The steps screen used to have no way to say it: the only
+// way past was to invent something, and an invented action is worse than none because
+// the app would then treat it as a real intention.
+//
+// The state needs no new keys — a `review` fact plus a `goal` fact and no step facts
+// already means exactly this — so the assertions below are about the flow and about
+// **nothing fake being written**.
+
+await clearStorage()
+await goto('/')
+await click(EN.yes)
+await click(EN.introOk)
+
+// Area 1: yes, a goal, then "I do not know yet".
+await click(EN.reviewYes)
+await type('Sleep better')
+await click(EN.cont)
+screen = await text()
+check(
+  '38a. the steps screen offers a way on without inventing something',
+  screen.includes(EN.steps) && (await visible(EN.stepsUnknown)) && !(await visible(EN.enough)),
+  `"${EN.stepsUnknown}" offered: ${await visible(EN.stepsUnknown)}`,
+)
+
+// Secondary, and it must not compete with entering something concrete. `.btn-primary`
+// on the way out would invite skipping.
+const stepsButtons = await evaluate(
+  `(() => {
+     const b = [...document.querySelectorAll('main form button')];
+     return b.map((x) => ({ label: x.textContent.trim(), primary: x.classList.contains('btn-primary'), quiet: x.classList.contains('btn-quiet') }));
+   })()`,
+)
+check(
+  '38b. adding stays the primary action and the way out is quiet',
+  stepsButtons.find((b) => b.label === EN.add)?.primary === true &&
+    stepsButtons.find((b) => b.label === EN.stepsUnknown)?.quiet === true &&
+    stepsButtons.find((b) => b.label === EN.stepsUnknown)?.primary === false,
+  JSON.stringify(stepsButtons),
+)
+
+const beforeUnknown = JSON.parse(await raw()).facts.length
+await click(EN.stepsUnknown)
+await sleep(300)
+const afterUnknown = JSON.parse(await raw()).facts
+check(
+  '38c. taking it writes nothing at all — no placeholder entry, no fake step',
+  afterUnknown.length === beforeUnknown &&
+    !afterUnknown.some((fact) => /\.step\./.test(fact.key)) &&
+    !afterUnknown.some((fact) => /know/i.test(fact.value)),
+  `${afterUnknown.length} facts (was ${beforeUnknown}); keys: ${afterUnknown.map((f) => f.key).join(', ')}`,
+)
+check(
+  '38d. and the goal is still stored, which is the whole point of the state',
+  afterUnknown.some((fact) => fact.key === 'area.body.goal' && fact.value === 'Sleep better'),
+  afterUnknown.filter((f) => f.key.endsWith('.goal')).map((f) => f.value).join(' | '),
+)
+
+// The flow has to have moved on rather than stalled on an empty list of things to pick
+// between, which is where it would have landed without the zero case handled.
+screen = await text()
+check(
+  '38e. the introduction moved on to the next area instead of a dead screen',
+  screen.includes(EN.review) && !screen.includes(EN.focus) && !screen.includes(EN.steps),
+  screen.replace(/\n/g, ' / ').slice(0, 120),
+)
+
+// Finish the remaining four the quick way, so the downstream views can be checked.
+for (let area = 0; area < 4; area++) await click(EN.reviewNo)
+await click(EN.toHome)
+screen = await text()
+check(
+  '38f. home renders goal-with-no-entry as guidance, not as broken data',
+  screen.includes('has a goal, but you have not decided yet') && screen.includes(EN.home),
+  screen.replace(/\n/g, ' / ').slice(0, 140),
+)
+
+await clickNav(EN.navAreas)
+screen = await text()
+check(
+  '38g. and the areas list says the same thing in the same words',
+  screen.includes('Sleep better') && screen.includes('not decided yet what could help'),
+  screen.replace(/\n/g, ' / ').slice(0, 160),
+)
+
+// Opening it must offer adding something without re-asking for the goal.
+await clickOption('Body & Health')
+await waitForText(EN.addStep)
+screen = await text()
+check(
+  '38h. opening the area offers adding something, with the goal intact',
+  screen.includes('Sleep better') && (await visible(EN.addStep)),
+  screen.replace(/\n/g, ' / ').slice(0, 140),
+)
+
+// And the state is reachable in German too, where the copy is a full sentence.
+await goto('/')
+await chooseIn('Language', 'Deutsch')
+await sleep(400)
+check(
+  '38i. the same state reads correctly in German',
+  (await text()).includes('noch nicht festgelegt'),
+  (await text()).replace(/\n/g, ' / ').slice(0, 160),
+)
+await chooseIn('Sprache', 'English')
 
 // --- 31. the progress marks are painted distinguishably, in both themes -----
 //
@@ -1557,6 +1939,55 @@ check(
 await goto('/areas/body/')
 check('27e. and survives a reload of that URL', (await text()).includes('Sleep better'))
 
+// --- 32. the storage note on home: current-mode wording, cue, and a way on ---
+//
+// The wording is what this section is really about. "currently kept on this device
+// only" scopes the sentence to the storage mode in force today, so it stays true
+// rather than turning into a broken promise if anything ever syncs. A flat "is on
+// this device only" is the version that would have to be retracted, and the app
+// makes this claim on its busiest screen.
+//
+// Seeded rather than replayed, so it is independent of whatever screen the previous
+// section finished on.
+
+await seedOnboarded()
+screen = await text()
+check(
+  '32a. the storage note scopes itself to how things are stored now',
+  screen.includes('currently kept on this device only'),
+  screen.replace(/\n/g, ' / ').slice(-120),
+)
+
+// The lock is decoration and has to stay that way. If it ever became the thing
+// carrying the claim this fails — §17 forbids encoding meaning by colour or icon
+// alone, and a privacy assurance is the last place to say something silently.
+const storageNote = await evaluate(
+  `(() => {
+     const p = [...document.querySelectorAll('main p')]
+       .find((e) => e.innerText.includes('currently kept on this device only'));
+     if (!p) return null;
+     const svg = p.querySelector('svg');
+     const link = p.querySelector('a[href]');
+     return {
+       icon: Boolean(svg),
+       iconHidden: svg?.getAttribute('aria-hidden') === 'true',
+       iconNamed: Boolean(svg?.getAttribute('aria-label') || svg?.querySelector('title')),
+       href: link ? new URL(link.href).pathname : null,
+       linkText: link?.textContent.trim() ?? null,
+     };
+   })()`,
+)
+check(
+  '32b. it carries a privacy icon, and the icon is decorative rather than the claim',
+  storageNote?.icon === true && storageNote.iconHidden === true && storageNote.iconNamed === false,
+  JSON.stringify(storageNote),
+)
+check(
+  '32c. and it links onward to the page that explains, instead of explaining inline',
+  storageNote?.href === '/data/',
+  `${storageNote?.linkText} → ${storageNote?.href}`,
+)
+
 // --- 28. data protection is two levels, and readable at the first ----------
 //
 // The plain-language page has to stay short. The stored-data view grows without
@@ -1583,12 +2014,495 @@ check(
 await click(EN.dataShow)
 await sleep(400)
 screen = await text()
+
+// Each area folds away, so this is now two claims rather than one, and both matter.
+//
+// Closed, the summary still has to be worth not opening: which area, which goal, and
+// that there is history behind it. If folding hid *that anything is there*, the page
+// would stop being the thing that makes `/data/` checkable.
 check(
-  '28c. and the stored view shows what is actually there, in their own words',
-  screen.includes(EN.storedTitle) &&
-    screen.includes('Sleep better') &&
-    screen.includes('Walk after dinner'),
-  screen.replace(/\n/g, ' / ').slice(0, 160),
+  '28c. a folded area still says which area, which goal, and how much is behind it',
+  screen.includes(EN.storedTitle) && screen.includes('Sleep better') && screen.includes('1 entry'),
+  screen.replace(/\n/g, ' / ').slice(0, 200),
+)
+
+// Native `<details>`, not a hand-rolled disclosure. `components/menu.tsx` explains
+// why this project will not claim a role it has not implemented; here the element
+// supplies the state, the keyboard and find-in-page, so there is nothing to claim.
+const disclosures = await evaluate(
+  `(() => {
+     const all = [...document.querySelectorAll('main details')];
+     return {
+       count: all.length,
+       open: all.filter((d) => d.open).length,
+       withSummary: all.filter((d) => d.querySelector(':scope > summary')).length,
+       headings: all.filter((d) => d.querySelector(':scope > summary h2')).length,
+     };
+   })()`,
+)
+check(
+  '28c2. it is a real disclosure, and each one still carries its section heading',
+  disclosures.count > 0 &&
+    disclosures.count === disclosures.withSummary &&
+    disclosures.count === disclosures.headings,
+  JSON.stringify(disclosures),
+)
+
+// The words themselves are one interaction away, and that interaction is what the
+// person's own entries live behind now. 28c used to assert them directly; asserting
+// that expanding reveals them is strictly more than that, because it proves the
+// disclosure works as well as that the data is there.
+await clickSummary('Body & Health')
+screen = await text()
+check(
+  '28c3. and expanding one reveals the entries in the person’s own words',
+  screen.includes('Walk after dinner') && screen.includes('added '),
+  screen.replace(/\n/g, ' / ').slice(0, 200),
+)
+
+// Provenance, which is the other half of this section's rework. "You said / Yes" said
+// nothing, because the question it answered was not on the page. And nothing may
+// claim removal: the words are still here, which is exactly what append-only means.
+check(
+  '28c4. a review answer reads as a sentence rather than as a stored token',
+  screen.includes('You wanted to change or try something here') && !/\bYou said\b/.test(screen),
+  screen.includes('You wanted to change or try something here') ? 'sentence' : 'still a bare token',
+)
+check(
+  '28c5. and the page says plainly that nothing here is removed',
+  screen.includes('Nothing here is removed'),
+)
+
+// --- 33. the second way into deleting, and the back link's position ---------
+//
+// Two reasons to be on `/data/`: to read, or to leave. Both now have a way on, and
+// both land on the same flow in the same place — there is deliberately no second
+// copy of the confirmation on the explanation page.
+
+await seedOnboarded()
+await goto('/data/')
+const deleteEntry = await evaluate(
+  `(() => {
+     const link = [...document.querySelectorAll('main a[href]')]
+       .find((a) => a.textContent.trim() === 'Delete my data');
+     return link ? { href: link.getAttribute('href'), tag: link.tagName } : null;
+   })()`,
+)
+check(
+  '33a. the explanation page offers deleting as its own entry point, as a link',
+  deleteEntry?.tag === 'A' && String(deleteEntry.href).includes('/data/stored'),
+  JSON.stringify(deleteEntry),
+)
+check(
+  '33b. and it points into the existing flow rather than duplicating it here',
+  String(deleteEntry?.href).includes('#delete') && !(await text()).includes(EN.delWarn),
+  `${deleteEntry?.href}, no confirmation copy on /data/`,
+)
+
+// Following it must not arm anything. There is one confirmation now, so arriving with
+// it already open would put someone a single tap from deleting everything.
+await clickText('Delete my data')
+await sleep(500)
+screen = await text()
+check(
+  '33c. following it reaches the control without arming it',
+  screen.includes(EN.storedTitle) && (await visible(EN.del)) && !screen.includes(EN.delWarn),
+  screen.includes(EN.delWarn) ? 'the confirmation was already open' : 'control present, not armed',
+)
+
+// The foot of the delete section must not read as though deleting were the next step.
+// Someone can arrive here by following "delete my data", and for a while the only
+// control down here was the destructive one. Leaving is the emphasised action; deleting
+// is the quiet one under it.
+const deleteFoot = await evaluate(
+  `(() => {
+     const del = [...document.querySelectorAll('#delete button')]
+       .find((b) => b.textContent.trim() === 'Delete everything');
+     const back = [...document.querySelectorAll('#delete a[href]')]
+       .find((a) => a.textContent.trim().includes('Back to data protection'));
+     if (!del || !back) return { del: Boolean(del), back: Boolean(back) };
+     return {
+       del: true,
+       back: true,
+       backIsPrimary: back.classList.contains('btn-primary'),
+       delIsQuiet: del.classList.contains('btn-quiet'),
+       delIsPrimary: del.classList.contains('btn-primary'),
+       // 4 === DOCUMENT_POSITION_FOLLOWING: delete comes after back.
+       backFirst: Boolean(back.compareDocumentPosition(del) & 4),
+       backHref: new URL(back.href).pathname,
+     };
+   })()`,
+)
+check(
+  '33d2. the delete section leads with leaving, not with deleting',
+  deleteFoot.backIsPrimary === true &&
+    deleteFoot.delIsQuiet === true &&
+    deleteFoot.delIsPrimary === false &&
+    deleteFoot.backFirst === true &&
+    deleteFoot.backHref === '/data/',
+  JSON.stringify(deleteFoot),
+)
+
+// The back link moved to the top. On a page as long as someone's whole history, one
+// at the foot is only reachable by scrolling past everything.
+const backLink = await evaluate(
+  `(() => {
+     const link = [...document.querySelectorAll('main a[href]')]
+       .find((a) => a.textContent.trim().includes('Back to data protection'));
+     const h1 = document.querySelector('main h1');
+     if (!link || !h1) return null;
+     return {
+       href: new URL(link.href).pathname,
+       // 4 === DOCUMENT_POSITION_FOLLOWING: the heading comes after the link.
+       beforeHeading: Boolean(link.compareDocumentPosition(h1) & 4),
+       hasArrow: Boolean(link.querySelector('svg')),
+     };
+   })()`,
+)
+check(
+  '33d. the back link sits before the heading, with an arrow, and is a real link',
+  backLink?.beforeHeading === true && backLink.href === '/data/' && backLink.hasArrow === true,
+  JSON.stringify(backLink),
+)
+
+// --- 37. an area opens from the start page, and back knows where it came from -
+//
+// The detail page has two ways in now. A single hard-coded parent would be wrong for
+// one of them, so the origin travels in the URL — which survives a reload and cannot go
+// stale, unlike remembered state.
+
+await seedOnboarded()
+const homeAreaLink = await evaluate(
+  `(() => {
+     // Contains, not equals: the label carries the area's emoji as well as its name.
+     const link = [...document.querySelectorAll('main a[href]')]
+       .find((a) => a.textContent.includes('Body & Health'));
+     if (!link) return null;
+     const url = new URL(link.href);
+     return {
+       href: url.pathname + url.search,
+       // The control must be a sibling of the row's buttons, never a wrapper around
+       // them: a link containing "How is it going?" would navigate on every answer.
+       wrapsControls: Boolean(link.querySelector('button')),
+       // The entry's own words stay outside it, and stay inert.
+       wrapsEntry: link.textContent.includes('Walk after dinner'),
+     };
+   })()`,
+)
+check(
+  '37a. the area name on the start page links to that area, without wrapping its controls',
+  homeAreaLink?.href === '/areas/body/?from=home' &&
+    homeAreaLink.wrapsControls === false &&
+    homeAreaLink.wrapsEntry === false,
+  JSON.stringify(homeAreaLink),
+)
+
+// Following it must navigate and write nothing — the row holds real controls, and the
+// name sitting beside them must not become a third way to change something.
+const beforeAreaNav = await raw()
+await clickText('Body & Health')
+await sleep(500)
+screen = await text()
+check(
+  '37b. following it opens the area and changes nothing',
+  screen.includes('Sleep better') && (await raw()) === beforeAreaNav,
+  (await raw()) === beforeAreaNav ? 'store untouched' : 'STORE CHANGED',
+)
+
+// Arrived from the start page, so back says the start page — and goes there.
+check(
+  '37c. and back points at where it was opened from, not at a fixed parent',
+  (await backLinkOn())?.href === '/' && screen.includes('Back to the start page'),
+  JSON.stringify(await backLinkOn()),
+)
+await clickSelector('main a[href]')
+await sleep(500)
+check(
+  '37d. following that back link lands on the start page',
+  (await text()).includes(EN.home),
+  (await text()).replace(/\n/g, ' / ').slice(0, 80),
+)
+
+// A deep link, a shared URL or a hand-typed address has no origin, and must fall back
+// to the parent route rather than to a dead end or to leaving the app.
+await goto('/areas/body/')
+check(
+  '37e. without an origin it falls back to the life-areas list',
+  (await backLinkOn())?.href === '/areas/' && (await text()).includes('Back to your life areas'),
+  JSON.stringify(await backLinkOn()),
+)
+
+// An unrecognised origin is the same case as none. It must not be trusted into a
+// nonsense destination.
+await goto('/areas/body/?from=nowhere')
+check(
+  '37f. and an unrecognised origin falls back the same way',
+  (await backLinkOn())?.href === '/areas/',
+  JSON.stringify(await backLinkOn()),
+)
+
+// --- 34. the areas list has a hierarchy rather than five flat rows ----------
+//
+// The area name used to be `text-sm text-muted` while the goal was full-size ink, so
+// the row's own subject was the quietest thing in it. Measured rather than eyeballed:
+// the name has to be larger than the goal, and the goal must stay ink — muting the
+// person's own words to make room for a label the app chose would be the wrong fix.
+
+await goto('/areas/')
+const rowType = await evaluate(
+  `(() => {
+     const row = [...document.querySelectorAll('main a.option')]
+       .find((a) => a.textContent.includes('Body & Health'));
+     if (!row) return null;
+     const name = [...row.querySelectorAll('p, span')]
+       .find((e) => e.textContent.trim().endsWith('Body & Health'));
+     const goal = [...row.querySelectorAll('span')]
+       .find((e) => e.textContent.trim() === 'Sleep better');
+     if (!name || !goal) return null;
+     const px = (el) => parseFloat(getComputedStyle(el).fontSize);
+     const ink = getComputedStyle(document.body).color;
+     return {
+       name: px(name),
+       goal: px(goal),
+       nameWeight: getComputedStyle(name).fontWeight,
+       goalIsInk: getComputedStyle(goal).color === ink,
+     };
+   })()`,
+)
+check(
+  '34a. the area name is larger than the goal beneath it',
+  rowType !== null && rowType.name > rowType.goal,
+  rowType ? `name ${rowType.name}px / goal ${rowType.goal}px, weight ${rowType.nameWeight}` : 'row not found',
+)
+check(
+  '34b. and the goal is still the person’s words in full ink, only smaller',
+  rowType?.goalIsInk === true,
+  `goal is ink: ${rowType?.goalIsInk}`,
+)
+
+// --- 35. every nested page has the same way back ----------------------------
+//
+// One pattern, not two. `BackLink` is shared, so the assertion worth making is that
+// both nested routes actually use it and that they render identically — a second
+// hand-rolled copy would look right and drift on the next change.
+//
+// It goes to an explicit parent route rather than to `history.back()`, which is a
+// different question: arriving at an area from the start page and pressing this
+// should still offer the life areas.
+
+await seedOnboarded()
+await goto('/areas/body/')
+const areaBack = await backLinkOn()
+check(
+  '35a. an area page offers a way back to the areas list, above its own heading',
+  areaBack?.tag === 'A' &&
+    areaBack.href === '/areas/' &&
+    areaBack.hasArrow === true &&
+    areaBack.beforeHeading === true,
+  JSON.stringify(areaBack),
+)
+
+// Reachable by Tab, and painting a real focus ring when it gets there. `tabTo` presses
+// keys for real, because `:focus-visible` is a judgement about how focus arrived.
+await tabTo('main a[href]')
+const backFocus = await evaluate(
+  `(() => {
+     const el = document.activeElement;
+     const style = getComputedStyle(el);
+     return {
+       text: el?.textContent?.trim() ?? null,
+       matches: el?.matches(':focus-visible') ?? false,
+       width: style.outlineWidth,
+     };
+   })()`,
+)
+check(
+  '35b. and it is reachable by keyboard with a visible focus ring',
+  backFocus.matches === true && backFocus.width !== '0px',
+  JSON.stringify(backFocus),
+)
+
+// Following it writes nothing. It is navigation, and a nested page's way out must
+// never be a control that also decides something.
+const beforeBack = await raw()
+await clickSelector('main a[href]')
+await sleep(500)
+check(
+  '35c. following it reaches the parent and changes nothing',
+  (await text()).includes(EN.picker) && (await raw()) === beforeBack,
+  (await raw()) === beforeBack ? 'store untouched' : 'STORE CHANGED',
+)
+
+// The three question views that had no way out at all. Opening one by mistake used to
+// leave only the browser's back button; the page-level link now covers all of them.
+await goto('/areas/body/')
+await click(EN.changeGoal)
+screen = await text()
+check(
+  '35d. even the question views have it — they had no way out before',
+  screen.includes('What is your goal now?') &&
+    (await visible('Back to your life areas')) &&
+    (await raw()) === beforeBack,
+  screen.includes('What is your goal now?') ? 'present on the goal question' : 'wrong view',
+)
+
+// Both nested pages, drawn the same. Consistency is the requirement, so it is measured
+// rather than assumed from a shared import.
+await goto('/data/stored/')
+const dataBack = await backLinkOn()
+check(
+  '35e. the two nested pages render the same back link, not two lookalikes',
+  dataBack?.fontSize === areaBack.fontSize &&
+    dataBack.colour === areaBack.colour &&
+    dataBack.hasArrow === areaBack.hasArrow &&
+    dataBack.beforeHeading === areaBack.beforeHeading,
+  `areas: ${areaBack.fontSize}/${areaBack.colour} — data: ${dataBack?.fontSize}/${dataBack?.colour}`,
+)
+
+// --- 36. the storage choice can be reopened, and off really means off --------
+//
+// §36d is the one that matters, and it is the §8 guarantee applied to a path that did
+// not exist before: **turning saving off must leave `localStorage` completely empty.**
+// Not "no facts" — no key.
+//
+// `declineConsent()` alone does not do that. `commit()` writes only when the mode is
+// `local` and nothing in it removes anything, so switching with that call alone would
+// leave the stored key on disk while the page said nothing was being saved. Which is
+// why turning off goes through `forgetEverything()` first, and why the cost is stated
+// before it is paid.
+
+await seedOnboarded()
+await goto('/data/')
+screen = await text()
+check(
+  '36a. the page states the current mode as a label, right under the title',
+  screen.includes(EN.storageLocal) && (await visible(EN.storageChange)),
+  screen.replace(/\n/g, ' / ').slice(0, 120),
+)
+
+// Reopening a setting is not the same act as deciding it for the first time. There are
+// two modes and the label above says which is in force, so the panel offers **only the
+// other one** — no question, no restatement of the current mode, no second copy of what
+// the four paragraphs on this page already explain.
+await click(EN.storageChange)
+screen = await text()
+const modes = await evaluate(
+  `(() => {
+     const items = [...document.querySelectorAll('main li button.option')];
+     return items.map((b) => b.innerText.trim().split('\\n')[0].trim());
+   })()`,
+)
+check(
+  '36b. the panel offers only the mode you are not on',
+  modes.length === 1 && modes[0] === EN.storageOptionMemory,
+  JSON.stringify(modes),
+)
+check(
+  '36b2. and does not reprint the current setting or a question over it',
+  !modes.includes(EN.storageOptionLocal) &&
+    !screen.includes('How should what you write') &&
+    // The current mode is still stated — outside the panel, where it belongs.
+    screen.includes(EN.storageLocal),
+  screen.includes(EN.storageLocal) ? 'stated once, above' : 'the current mode went missing',
+)
+check(
+  '36c. and no toggle was introduced beside it',
+  (await count('main input[type="checkbox"]')) === 0 &&
+    (await count('main [role="switch"]')) === 0,
+  `${await count('main input[type="checkbox"]')} checkbox(es), ${await count('main [role="switch"]')} switch(es)`,
+)
+
+// Backing out of the panel writes nothing, which is the "no change" path now that the
+// current mode is not offered as something to re-pick.
+const beforeNoop = await raw()
+await click(EN.cancel)
+check(
+  '36c2. backing out of the panel changes nothing at all',
+  (await raw()) === beforeNoop && (await visible(EN.storageChange)),
+  (await raw()) === beforeNoop ? 'store untouched' : 'STORE CHANGED ON A NON-CHANGE',
+)
+
+// Switching away from a saving store explains the cost first, and changes nothing yet.
+await click(EN.storageChange)
+const beforeOff = await raw()
+await clickOption(EN.storageOptionMemory)
+screen = await text()
+check(
+  '36d. saying no explains that the stored data goes, and has not touched it yet',
+  screen.includes(EN.storageOffTitle) && (await raw()) === beforeOff,
+  (await raw()) === beforeOff ? 'store untouched' : 'STORE CHANGED BEFORE CONFIRMING',
+)
+
+// Backing out has to leave everything exactly as it was.
+await click(EN.delKeep)
+check(
+  '36e. and backing out leaves the store byte-identical',
+  (await raw()) === beforeOff && (await visible(EN.storageChange)),
+  (await raw()) === beforeOff ? 'store untouched' : 'STORE CHANGED',
+)
+
+// The guarantee. Confirming must leave no key at all, and the page must then say so.
+await click(EN.storageChange)
+await clickOption(EN.storageOptionMemory)
+await click(EN.storageOffConfirm)
+await sleep(300)
+screen = await text()
+check(
+  '36f. confirming leaves localStorage completely empty — no key, not just no facts',
+  (await keys()).length === 0,
+  JSON.stringify(await keys()),
+)
+check(
+  '36g. and the page now states the new mode, without still claiming the old one',
+  screen.includes(EN.storageMemory) && !screen.includes(EN.storageLocal),
+  screen.replace(/\n/g, ' / ').slice(0, 120),
+)
+
+// Back on again, from memory mode, and this direction writes rather than deletes.
+await click(EN.storageChange)
+await clickOption(EN.storageOptionLocal)
+await sleep(300)
+check(
+  '36h. turning it back on starts saving again, through the store’s own consent path',
+  (await keys()).length === 1 && JSON.parse(await raw()).consentAt !== null,
+  JSON.stringify(await keys()),
+)
+
+// One source of truth: a reload has to agree with what the page just said, because the
+// mode was never held anywhere but the store.
+await goto('/data/')
+check(
+  '36i. and the mode survives a reload, so nothing here is a second copy of it',
+  (await text()).includes(EN.storageLocal),
+  (await text()).replace(/\n/g, ' / ').slice(0, 120),
+)
+
+// A confirmation for a change with no consequence is the ceremony that teaches people
+// to click through the ones that matter. With nothing stored there is nothing to lose,
+// so switching off happens directly — and still has to clear the key, because a
+// consented store with no facts is still a key on the device.
+await clearStorage()
+await goto('/')
+await click(EN.yes)
+await goto('/data/')
+check(
+  '36j. a consented store with no answers yet still reports saving as on',
+  (await text()).includes(EN.storageLocal) && (await keys()).length === 1,
+  JSON.stringify(await keys()),
+)
+await click(EN.storageChange)
+await clickOption(EN.storageOptionMemory)
+await sleep(300)
+screen = await text()
+check(
+  '36k. with nothing stored, switching off asks for no confirmation',
+  !screen.includes(EN.storageOffTitle) && screen.includes(EN.storageMemory),
+  screen.includes(EN.storageOffTitle) ? 'confirmed a change with no consequence' : 'switched directly',
+)
+check(
+  '36l. and it still removed the key, and did not claim to have deleted anything',
+  (await keys()).length === 0 && !screen.includes('has been deleted'),
+  `${JSON.stringify(await keys())}, ${screen.includes('has been deleted') ? 'CLAIMED A DELETION' : 'no false claim'}`,
 )
 
 // --- 30. no internal id reaches any screen, seen or spoken -----------------
@@ -1599,12 +2513,25 @@ check(
 
 for (const route of ['/', '/areas/', '/areas/body/', '/data/', '/data/stored/']) {
   await goto(route)
+  // Everything folded has to be unfolded first, or this sweep silently stops looking
+  // at it: `innerText` cannot see inside a closed `<details>`, so the areas on
+  // `/data/stored/` — the very surface where a step's id sits next to its words —
+  // would pass by being invisible rather than by being clean.
+  const unfolded = await evaluate(
+    `(() => {
+       const all = [...document.querySelectorAll('details:not([open])')];
+       all.forEach((d) => { d.open = true; });
+       return all.length;
+     })()`,
+  )
+  await sleep(150)
   const spoken = await ariaLabels()
   const seen = await text()
   check(
     `30. no id reaches ${route} — not on screen, not in an accessible name`,
     !UUID.test([seen, ...spoken].join(' ')),
-    UUID.exec([seen, ...spoken].join(' '))?.[0] ?? `clean (${spoken.length} names)`,
+    UUID.exec([seen, ...spoken].join(' '))?.[0] ??
+      `clean (${spoken.length} names, ${unfolded} section(s) unfolded first)`,
   )
 }
 
@@ -1635,12 +2562,17 @@ check(
 // thing to `__visible`, and the collapse is only being tested if the links are
 // actually there to collapse. Without the count this passes just as happily when the
 // header has been broken and renders no nav at all.
+//
+// Scoped to the header, which is the region the claim is about. Document-wide it also
+// answered for the rest of the page, so the storage note on home linking to "Data
+// protection" read as the header failing to collapse — a false failure about a link
+// that is nowhere near the bar.
 check(
   '12a. the nav links exist but are not in the bar at 390px',
-  !(await visible(EN.navData)) &&
-    !(await visible(EN.navAreas)) &&
+  !(await visibleIn('header', EN.navData)) &&
+    !(await visibleIn('header', EN.navAreas)) &&
     (await count('header nav a')) === 3,
-  `${await count('header nav a')} link(s) in the DOM, none of them laid out`,
+  `${await count('header nav a')} link(s) in the DOM, none of them laid out in the header`,
 )
 await chooseIn('Menu', EN.navData)
 await sleep(500)

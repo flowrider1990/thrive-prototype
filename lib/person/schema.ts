@@ -33,6 +33,20 @@ export type PersonFact = {
   learnedAt: string
 }
 
+/**
+ * Keys that last for the visit and must never reach the device.
+ *
+ * `consent_concern` is what someone said when they declined saving. Keeping it in
+ * memory is why `/data/stored/` can show their reason back to them; writing it down
+ * would be the single write that proves the objection right.
+ *
+ * It is a property of the persisted shape, not of a screen, because the mode a fact
+ * was written under does not stay fixed: saving can be turned on later from `/data/`,
+ * and that hands the store a snapshot gathered while nothing was being written. So
+ * `write()` in `store.ts` drops these on the way out — see the note there.
+ */
+export const MEMORY_ONLY_KEYS: readonly string[] = ['consent_concern']
+
 export type PersonStore = {
   version: 1
   /** Only ever written when consent was given. */

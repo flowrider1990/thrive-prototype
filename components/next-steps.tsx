@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { AreaLabel } from '@/components/area-label'
 import { Choice } from '@/components/choice'
@@ -55,24 +56,27 @@ export function NextSteps() {
   // "that is a fine place to be" claiming everything is settled when it is not. An
   // area paused *on purpose* has entries behind it and is excluded: that is a real
   // answer, and pointing at it would be nagging.
-  const unfinished = states.some((state) => state.goal && state.steps.length === 0)
+  //
+  // The first one rather than all of them, and that is the calm choice: naming five
+  // areas at once would be a list of things you have not done. Once this one is
+  // finished the next takes its place, so nothing is hidden.
+  const unfinished = states.find((state) => state.goal && state.steps.length === 0)
 
   if (rows.length === 0) {
     return (
+      // Both lines are guidance rather than a problem report, and they are weighted
+      // like it: `text-sm text-muted`, the same as every other empty state in the app.
+      // Nothing is wrong when there is nothing active.
       <div className="space-y-3">
-        <p className="max-w-prose leading-relaxed text-muted">{m.home.empty}</p>
-        {unfinished && (
-          <p className="max-w-prose text-sm leading-relaxed text-muted">{m.home.unfinished}</p>
-        )}
+        <p className="max-w-prose text-sm leading-relaxed text-muted">{m.home.empty}</p>
+        <UnfinishedNote area={unfinished?.area} />
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      {unfinished && (
-        <p className="max-w-prose text-sm leading-relaxed text-muted">{m.home.unfinished}</p>
-      )}
+      <UnfinishedNote area={unfinished?.area} />
       {/**
        * The live region is here, mounted once and never unmounted, rather than
        * inside the row that has something to say.
@@ -89,12 +93,54 @@ export function NextSteps() {
       <ul className="space-y-8">
         {rows.map((state) => (
           <li key={state.area} className="space-y-3">
-            <AreaLabel area={state.area} />
+            {/* The area's name opens the area. It is a sibling of the controls below,
+                never a wrapper around them, so nothing inside the row can navigate by
+                accident — the entry's own words stay inert and "How is it going?" still
+                only opens the answers. `from=home` tells that page where to come back
+                to; see `components/area-screen.tsx`. */}
+            <AreaLabel area={state.area} href={`/areas/${state.area}?from=home`} />
             <Row state={state} busy={busy?.area === state.area ? busy : null} onBusy={setBusy} />
           </li>
         ))}
       </ul>
     </div>
+  )
+}
+
+/**
+ * The one line on this page that points somewhere else: an area whose setup was
+ * interrupted, named and linked so that finishing it is one tap rather than a hunt
+ * through the areas list.
+ *
+ * The link is the area's own name. That makes it good link text out of context —
+ * "Body & Health" says where it goes, where a link on the words "life area" would
+ * not — and it is the same name the destination is titled with.
+ *
+ * It navigates and does nothing else. A `Link`, not a button: nothing here changes
+ * any stored state, and this page has already been through one round of a control
+ * that looked like navigation and quietly acted instead.
+ */
+function UnfinishedNote({ area }: { area: AreaId | undefined }) {
+  const { m } = useI18n()
+  if (!area) return null
+
+  // The catalog owns the sentence and the placeholder marks where the area name
+  // goes. A translation that loses `{area}` degrades to plain prose rather than
+  // throwing or printing the placeholder — the same rule `t()` follows.
+  const [before, after] = m.home.unfinished.split('{area}')
+
+  return (
+    <p className="max-w-prose text-sm leading-relaxed text-muted">
+      {before}
+      {after !== undefined && (
+        <>
+          <Link href={`/areas/${area}`} className="link-inline">
+            {m.areas[area]}
+          </Link>
+          {after}
+        </>
+      )}
+    </p>
   )
 }
 
@@ -144,11 +190,19 @@ function Row({
             something no longer on screen. The accessible name carries it either
             way; a sighted person was being asked to remember it. */}
         {active && <p className="max-w-prose leading-relaxed text-ink">{active.text}</p>}
+        {/**
+         * Three answers, not four.
+         *
+         * "I would rather do something else" and "This does not fit anymore" were two
+         * labels for one state — this is not right for me now — and offering both asked
+         * the person to classify their own dissatisfaction before the app would act.
+         * The single answer sets the entry aside and then offers to choose another,
+         * which is what both of the old paths ended up doing anyway.
+         */}
         <OptionList
           options={[
             { id: 'done', label: m.home.outcomeDone },
             { id: 'ongoing', label: m.home.outcomeOngoing },
-            { id: 'swap', label: m.home.outcomeSwap },
             { id: 'aside', label: m.home.outcomeAside },
           ]}
           onSelect={(id) => {
@@ -159,12 +213,11 @@ function Row({
               return
             }
             if (id === 'aside') {
+              // Out of current use, still kept — `retireStep` never deletes. The
+              // 'offer' phase then asks whether to choose something else, which is the
+              // half the old "rather do something else" answer contributed.
               retireStep(state.area, active.id)
               onBusy({ area: state.area, phase: 'offer' })
-              return
-            }
-            if (id === 'swap') {
-              onBusy({ area: state.area, phase: 'pick' })
               return
             }
             // "Still on it" writes nothing. Nothing changed, the active pointer
@@ -209,11 +262,9 @@ function Row({
     const others = state.open.filter((step) => step.id !== active?.id)
     // Every branch offers a way out, and taking it writes nothing.
     //
-    // This used to be reachable only after "Later" had already been offered and
-    // declined, so a dead end was survivable. The swap answer reaches it directly,
-    // and someone who picks "I would rather do something else" and then changes
-    // their mind must not be stuck in a mandatory field with only the page's
-    // navigation to escape through.
+    // Reached from "Choose something" after an entry was finished or set aside. The way
+    // out matters because the alternative is a mandatory field with only the page's own
+    // navigation to escape through — a dead end this flow shipped once.
     const back = <Choice options={[{ label: m.home.cancel, tone: 'quiet', onSelect: close }]} />
 
     return others.length > 0 ? (

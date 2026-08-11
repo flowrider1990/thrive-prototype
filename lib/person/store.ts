@@ -3,7 +3,7 @@
 import { useMemo, useSyncExternalStore } from 'react'
 import { detectLocale, isLocale, type Locale } from '@/lib/i18n/locale'
 import { isTheme, type Theme, type ThemeChoice } from '@/lib/theme'
-import { STORAGE_KEY, type PersonFact, type PersonStore } from './schema'
+import { MEMORY_ONLY_KEYS, STORAGE_KEY, type PersonFact, type PersonStore } from './schema'
 
 /**
  * The only place in the app that touches persistent storage.
@@ -200,7 +200,14 @@ function write(state: Snapshot): void {
     locale: state.locale,
     // Omitted while unset, so following the OS leaves no trace in the store.
     ...(state.theme ? { theme: state.theme } : {}),
-    facts: [...state.facts],
+    // Memory-only keys are dropped **here**, at the one function that touches the
+    // device, rather than wherever consent happens to be granted. `grantConsent()`
+    // persists the snapshot as it stands so that answers given this visit are kept
+    // instead of being asked for again — and from `/data/` that snapshot can hold a
+    // `consent_concern`, given precisely because nothing was being written at the
+    // time. Filtering at the boundary makes that guarantee hold for every path that
+    // reaches local mode, including ones that do not exist yet.
+    facts: state.facts.filter((fact) => !MEMORY_ONLY_KEYS.includes(fact.key)),
   }
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
 }

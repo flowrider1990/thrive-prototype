@@ -44,6 +44,49 @@ Persisting "they said no" would be the single write that proves them right.
 - **A quota or a private-mode failure downgrades to memory mode** rather than
   claiming a save happened. See `commit()` in `lib/person/store.ts`.
 
+## Known debt: UI preferences ride along with personal data
+
+**This is recorded, not fixed. Do not fix it in a UI change.**
+
+Turning saving off from `/data/` has to leave `localStorage` completely empty — that
+is the §8 guarantee, and it applies to that path as much as to declining at the start.
+The only function that clears the key today is `forgetEverything()`, so that is what
+the UI calls, followed by `declineConsent()` to carry the visit on in memory.
+
+`declineConsent()` on its own does **not** clear the key: `commit()` writes only when
+the mode is `local`, and nothing in it removes anything. Calling it alone would leave
+the stored key on disk while the app claimed nothing was being saved.
+
+The consequence is that **turning saving off also resets the theme preference**, since
+`forgetEverything()` returns the whole snapshot to "nothing known yet" — including
+`theme`, whose `null` means "follow the operating system". Nobody asked for their theme
+to be forgotten; it is collateral from the only available way to clear the key.
+
+The underlying problem is that one key holds two different kinds of thing:
+
+- **personal data** — goals, what someone wanted to try, their own words,
+- **UI preferences** — the theme, and the chosen language.
+
+They have different lifetimes and deserve different controls. "Delete my personal
+data" should not mean "and also forget that I prefer dark mode".
+
+So a future persistence-layer change should make it possible to **clear stored
+personal data without disturbing unrelated UI preferences.** Whoever does it decides
+the shape; the requirement is the separation, not a particular mechanism. Two things
+it must not break on the way:
+
+- the consent gate still has to sit above preferences — a theme is still something
+  written to someone's device, which is why `setTheme()` goes through `commit()`
+  today, and why declining means the choice lasts only the visit;
+- "declining leaves `localStorage` completely empty" has to keep meaning *empty*. A
+  preferences key that survives declining would be the single write that proves the
+  person right to have declined.
+
+Note that `forgetEverything()` already makes one exception of exactly this kind, and
+for exactly this reason: it deliberately leaves the *displayed language* alone, because
+yanking that away mid-sentence would be its own small betrayal. The theme simply never
+got the same treatment.
+
 ## What would have to be true to change it
 
 Sync between devices, or any feature that needs data outside the browser, means

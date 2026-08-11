@@ -322,6 +322,74 @@
   }
 
   /**
+   * A link inside a sentence.
+   *
+   * The underline is not decoration and must not be removed: these sit in muted
+   * prose, and §17 forbids encoding meaning by colour alone — without it, "this
+   * word is a link" would be carried by the ink/muted difference and nothing else.
+   * So there are two cues at rest (weight of colour, and the rule) and the hover
+   * strengthens the rule rather than adding anything.
+   *
+   * `underline-offset-2` keeps the rule off the descenders, which is what stops an
+   * underlined link inside body text reading as struck through.
+   */
+  .link-inline {
+    @apply text-ink underline decoration-line-strong underline-offset-2 transition-colors;
+  }
+
+  .link-inline:hover {
+    @apply decoration-ink;
+  }
+
+  /**
+   * A section that can be folded away: `<details>` with a `<summary>`.
+   *
+   * Native rather than hand-built, and that is the whole point — the open/closed
+   * state, the accessible role, Enter and Space, and the fact that find-in-page can
+   * open a closed section all come from the element. `components/menu.tsx` explains
+   * why this project will not claim a role it has not implemented; here there is
+   * nothing to implement.
+   *
+   * The default marker is replaced rather than merely hidden: `list-style: none`
+   * covers the standard rendering and the `::-webkit-details-marker` rule covers
+   * Safari, and the chevron that takes its place is a real element so it can sit
+   * where the layout wants it.
+   *
+   * The chevron rotates and nothing else moves — no height, no padding, no font
+   * weight — so opening a section cannot shift the sections below it beyond the
+   * content it is revealing. Under `prefers-reduced-motion` the rotation is instant,
+   * from the blanket rule in `@layer base`.
+   */
+  .disclosure > summary {
+    @apply cursor-pointer rounded-sm;
+    list-style: none;
+  }
+
+  .disclosure > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  /* Layout stays on the element: `summary` may only contain phrasing and heading
+     content, so the call site uses a grid to place a heading and a line of text
+     beside the marker without wrapping them in a `div` that does not belong there. */
+  .disclosure-marker {
+    @apply shrink-0 text-muted transition-transform;
+    /* Points along the reading direction when closed, down when open. */
+    transform: rotate(-90deg);
+  }
+
+  .disclosure[open] > summary .disclosure-marker {
+    transform: none;
+  }
+
+  /* The only hover cue, and it is on the marker rather than the text: recolouring
+     the whole summary would pull the muted second line up to ink and undo the
+     hierarchy the line exists to have. */
+  .disclosure > summary:hover .disclosure-marker {
+    @apply text-ink;
+  }
+
+  /**
    * The menu panel's entrance. Opacity and transform only — nothing that could
    * move the trigger or the header — and short enough to read as "this came from
    * there" rather than as an animation. Off entirely under reduced motion.

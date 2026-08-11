@@ -11,7 +11,7 @@ import type { Messages } from './en'
 export const de: Messages = {
   app: {
     description:
-      'Ein Prototyp einer App, die dabei unterstützen soll, gut zu leben. Läuft vollständig in deinem Browser.',
+      'Ein Prototyp einer App, die dabei unterstützen soll, gut zu leben. Läuft vorerst vollständig in deinem Browser.',
   },
 
   nav: {
@@ -107,6 +107,7 @@ export const de: Messages = {
     stepsAdd: 'Hinzufügen',
     stepsAddAnother: 'Noch etwas hinzufügen',
     stepsEnough: 'Das reicht',
+    stepsUnknown: 'Ich weiß es noch nicht',
     stepsFull: 'Drei sind für den Anfang genug.',
     stepsContinue: 'Weiter',
     stepsEdit: 'Ändern: {text}',
@@ -126,13 +127,13 @@ export const de: Messages = {
   home: {
     title: 'Woran du gerade dran bist',
     empty: 'Gerade ist nichts aktiv. Auch das ist ein guter Ort.',
-    unfinished: 'In einem deiner Lebensbereiche steht ein Ziel, aber noch nichts zum Ausprobieren.',
+    unfinished:
+      'In {area} steht ein Ziel, aber du hast noch nicht festgelegt, was dir dabei helfen könnte.',
     check: 'Wie läuft’s?',
     checkOn: 'Wie läuft’s mit: {text}',
     outcomeDone: 'Das habe ich gemacht',
     outcomeOngoing: 'Bin noch dran',
-    outcomeSwap: 'Ich möchte lieber etwas anderes',
-    outcomeAside: 'Das passt nicht mehr',
+    outcomeAside: 'Das passt für mich nicht mehr',
     cancel: 'Abbrechen',
     done: 'Notiert.',
     chooseNextQuestion: 'Möchtest du wählen, was du als Nächstes ausprobierst?',
@@ -141,7 +142,7 @@ export const de: Messages = {
     newStepQuestion: 'Was könnte dir helfen, diesem Ziel näherzukommen?',
     newStepPlaceholder: 'Etwas Kleines und Konkretes',
     newStepSubmit: 'Speichern',
-    savedNote: 'Was du mir erzählt hast, liegt nur auf diesem Gerät.',
+    savedNote: 'Was du mir erzählt hast, liegt aktuell nur auf diesem Gerät.',
     memoryNote: 'Es wird nichts gespeichert. Was du mir erzählt hast, bleibt in diesem Tab.',
     ack: 'Danke. Das war alles, was ich fragen wollte.',
     greeting: 'Hallo {name}.',
@@ -150,11 +151,13 @@ export const de: Messages = {
   },
 
   manage: {
+    back: 'Zurück zu deinen Lebensbereichen',
+    backHome: 'Zurück zur Startseite',
     pickerTitle: 'Deine Lebensbereiche',
     pickerNote: 'Öffne einen, um sein Ziel zu ändern — oder was du ausprobieren willst.',
     noGoal: 'Noch kein Ziel',
     notNow: 'Gerade nicht',
-    noStep: 'Noch nichts zum Ausprobieren',
+    noStep: 'Du hast noch nicht festgelegt, was dir dabei helfen könnte.',
 
     reconsiderQuestion: 'Möchtest du hier jetzt etwas verändern oder ausprobieren?',
     reconsiderYes: 'Ja',
@@ -164,7 +167,6 @@ export const de: Messages = {
     activeLabel: 'Daran arbeitest du gerade',
     preparedLabel: 'Außerdem notiert',
     changeGoal: 'Ziel ändern',
-    changeStep: 'An etwas anderem arbeiten',
     addStep: 'Etwas zum Ausprobieren hinzufügen',
     done: 'Fertig',
 
@@ -182,12 +184,14 @@ export const de: Messages = {
     title: 'Was gespeichert ist',
     back: 'Zurück zum Datenschutz',
     introSaved:
-      'In deinen eigenen Worten, genau so, wie du sie gesagt hast. Das hat diesen Browser nie verlassen: es gibt keinen Server, kein Konto, und nichts wird irgendwohin geschickt.',
+      'In deinen eigenen Worten, genau so, wie du sie gesagt hast. Nichts davon hat diesen Browser jemals verlassen: es gibt aktuell keinen Server und kein Konto, und nichts wird irgendwohin geschickt.',
     introMemory:
       'Du wolltest nicht, dass etwas gespeichert wird — deshalb lebt diese Liste nur in diesem Tab und ist weg, sobald du ihn schließt. Auf dein Gerät wurde nichts geschrieben.',
     introUnknown: 'Wir haben noch nicht gesprochen, deshalb ist hier nichts.',
     empty: 'Noch nichts.',
     learnedAt: 'notiert {when}',
+    entryCountOne: 'ein Eintrag',
+    entryCount: '{count} Einträge',
     consentAt: 'Du hast dem Speichern am {when} zugestimmt.',
     keys: {
       preferred_name: 'Wie ich dich nennen soll',
@@ -195,38 +199,58 @@ export const de: Messages = {
       consent_concern: 'Was du zum Speichern gesagt hast',
     },
     areas: {
-      review: 'Du hast gesagt',
-      yes: 'Ja',
-      notNow: 'Gerade nicht',
+      note: 'Hier wird nichts entfernt. Frühere Formulierungen und Dinge, die du beiseitegelegt hast, bleiben erhalten — so bleibt sichtbar, wie sich etwas verändert hat.',
+      review: 'Als du diesen Bereich angesehen hast',
+      yes: 'Du wolltest hier etwas verändern oder ausprobieren',
+      notNow: 'Du wolltest damals nichts verändern',
       goal: 'Dein Ziel',
-      earlier: 'vorher: {goal}',
-      steps: 'Nächste Schritte',
+      earlier: 'geändert von: {goal}',
+      steps: 'Was du ausprobieren wolltest',
+      added: 'hinzugefügt {when}',
       active: 'daran arbeitest du',
       open: 'notiert',
       done: 'erledigt',
-      retired: 'aus den aktuellen Schritten entfernt',
+      retired: 'beiseitegelegt',
       edited: 'umformuliert aus: {text}',
+      noGoal: 'Kein Ziel notiert',
     },
   },
 
   data: {
     title: 'Datenschutz',
-    p1: 'Was du hier schreibst, wird nur in diesem Browser auf diesem Gerät gespeichert.',
-    p2: 'Es wird nicht an uns gesendet. Es gibt kein Konto und keine Cloud, und niemand sonst kann es sehen.',
+    p1: 'Was du hier schreibst, wird aktuell nur in diesem Browser auf diesem Gerät gespeichert.',
+    p2: 'Es wird nicht an uns gesendet. Es gibt aktuell kein Konto und keine Cloud, und niemand sonst kann es sehen.',
     p3: 'Wenn du deine Browserdaten löschst, wird es mit allem anderen zusammen gelöscht.',
     p4: 'Ein anderer Browser oder ein anderes Gerät hat es nicht.',
     show: 'Zeigen, was gespeichert ist',
+    deleteEntry: 'Meine Daten löschen',
+
+    storage: {
+      local: 'Aktuell: Auf diesem Gerät gespeichert',
+      memory: 'Aktuell: Nur für diesen Tab',
+      undecided: 'Aktuell: Noch nicht entschieden',
+      change: 'Speichereinstellungen ändern',
+
+      optionLocal: 'Auf diesem Gerät speichern',
+      optionMemory: 'Nur für diesen Tab',
+
+      offTitle: 'Speichern ausschalten?',
+      offBody:
+        'Speichern aus bedeutet, dass nichts von dir auf diesem Gerät bleibt — deshalb wird mit der Umstellung gelöscht, was hier gespeichert ist. Dieser Besuch geht weiter, und was du darin machst, bleibt in diesem Tab, bis du ihn schließt.',
+      offConfirm: 'Speichern ausschalten und löschen',
+      onDone: 'Speichern ist jetzt an.',
+      offDone: 'Speichern ist jetzt aus, und was gespeichert war, wurde gelöscht.',
+      offDoneEmpty: 'Speichern ist jetzt aus.',
+    },
     memoryNote:
       'Du wolltest nicht, dass etwas gespeichert wird — deshalb wird auf dieses Gerät gar nichts geschrieben. Was du der App diesmal erzählst, bleibt in diesem Tab und ist weg, sobald du ihn schließt.',
 
     delete: {
       button: 'Alles löschen',
-      warnTitle: 'Damit wird alles gelöscht, was du eingegeben hast.',
+      warnTitle: 'Alle Daten löschen?',
       warnBody:
-        'Deine Ziele, was du ausprobieren wolltest, und alles auf dieser Seite. Wenn du es dir später anders überlegst, müsstest du alles neu eingeben.',
-      warnContinue: 'Weiter',
+        'Dadurch werden alle von dir gespeicherten Daten gelöscht, und das lässt sich nicht rückgängig machen. Wenn du die App später wieder verwendest, musst du sie erneut eingeben.',
       cancel: 'Behalten',
-      finalTitle: 'Jetzt alles löschen? Das lässt sich nicht rückgängig machen.',
       finalConfirm: 'Ja, alles löschen',
       done: 'Gelöscht. Es ist nichts mehr da.',
     },
@@ -236,13 +260,13 @@ export const de: Messages = {
     title: 'Über {app}',
     isTitle: 'Was das hier ist',
     isP1: '{app} ist der Prototyp einer App, die einen Menschen dabei unterstützen soll, gut zu leben. Was du gesehen hast, ist ihr Anfang: die Frage nach deinem Einverständnis und fünf Lebensbereiche, die man sich nacheinander ansieht.',
-    isP2: 'Sie läuft vollständig in deinem Browser. Es gibt keinen Server, kein Konto, keine Auswertung und keine KI. Nichts, was du schreibst, wird irgendwohin geschickt, und auf dein Gerät wird nichts geschrieben, solange du nicht ja gesagt hast.',
+    isP2: 'Sie läuft vorerst vollständig in deinem Browser. Derzeit gibt es keinen Server, kein Konto, keine Auswertung und keine KI. Nichts, was du schreibst, wird irgendwohin geschickt, und auf dein Gerät wird nichts geschrieben, solange du nicht ja gesagt hast.',
     isP3: 'Was du erzählst, bleibt in deinen eigenen Worten. Antworten werden ergänzt statt überschrieben, damit eine spätere Antwort eine frühere nie löscht — wie sich etwas verändert hat, ist ja das Interessante.',
     isNotTitle: 'Was sie noch nicht ist',
     isNotP1: 'Es gibt kein Gewohnheits-Tracking, kein Tagebuch, keine Stimmungskurve, keine Erinnerungen und keine Punkte. Sie verlangt nicht, dass du jeden Tag wiederkommst. Das kommt später, falls es sich als sinnvoll erweist.',
     isNotP2: 'Sie ist außerdem kein medizinisches oder therapeutisches Werkzeug und kein Ersatz dafür, mit einem Menschen zu sprechen.',
     whereTitle: 'Wo deine Antworten liegen',
-    whereP1: 'In diesem Browser, in einem einzigen Eintrag namens {key}, auf diesem Gerät. Wenn du deine Browserdaten löschst, ist er weg — genauso über „alles löschen“ unter Datenschutz.',
+    whereP1: 'Vorerst in diesem Browser, in einem einzigen Eintrag namens {key}, auf diesem Gerät. Wenn du deine Browserdaten löschst, ist er weg — genauso über „alles löschen“ unter Datenschutz.',
     whereP2: 'Wenn du abgelehnt hast, existiert nicht einmal dieser Eintrag: die App läuft dann nur im Arbeitsspeicher und schreibt gar nichts. Das hat eine ehrliche Folge — sie kann sich nicht merken, dass du abgelehnt hast, und fragt dich beim nächsten Mal wieder.',
   },
 }

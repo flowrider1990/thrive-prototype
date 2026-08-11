@@ -144,6 +144,26 @@ one without shifting the layout, whereas every `.option` state has a border
 already and only its colour changes. `components/option-list.tsx` renders these as
 a real `<ul>`, so a screen reader says how many there are to choose between.
 
+`AreaLabel` takes an optional `href` at `row` size, which turns the icon-and-name line
+into a link — used on the start page, where an area's name opens that area. It belongs
+in the component rather than being wrapped at the call site because that line was
+duplicated at four call sites once, which is exactly what let it drift. The name takes
+`.link-inline` and the icon does not: an underlined emoji reads as a mistake, and the
+underline is what keeps "this is a link" off colour alone.
+
+**The link is a sibling of the row's controls, never a wrapper around them.** A link
+containing "How is it going?" would navigate on every answer, and the entry's own words
+have to stay inert — §24a2 asserts that clicking them changes nothing, and §37a asserts
+the link wraps neither.
+
+`OptionList` takes a `current` flag per option, which renders as `aria-current` — the
+same hook `.nav-link` uses, so the visible mark and the accessibility tree have one
+source of truth. A caller that marks an option visually **must** set it: the tick is
+`Check` from `components/menu.tsx` and is `aria-hidden`, so on its own it is a state
+carried by appearance alone, which §17 does not allow. `Check`'s slot is always
+rendered, so moving the mark shifts nothing. The storage choice on `/data/` is the one
+call site.
+
 `.option` means exactly one thing: **pick this**. Selecting one chooses something; it
 never spends anything. That is now true, and it was not: the focused next step on the
 home screen used to be a bare `.option` whose only content was the step's own words,
@@ -161,10 +181,26 @@ of them in a three-item list read as peers of "Add another" and "That is enough"
 the list became a stack of pills.
 
 **In a destructive flow, the safe choice takes `.btn-primary`.** On both steps of the
-delete confirmation, "Keep it" is the filled button and the step toward deletion is
-`.btn-quiet`. Emphasis marks what is *recommended*, not what is next — a filled
-"Yes, delete everything" would be the interface leaning on someone at the one moment
-it should not.
+delete confirmation, and on the step that turns saving off, "Keep it" is the filled
+button and the step toward deletion is `.btn-quiet`. Emphasis marks what is
+*recommended*, not what is next — a filled "Yes, delete everything" would be the
+interface leaning on someone at the one moment it should not.
+
+**There is no destructive/danger variant, and adding one is a decision not yet
+made.** The obvious ask — paint the final irreversible action red — has no token to
+use: the palette is monochrome by intent (`CLAUDE.md` §7, "do not introduce an accent
+hue without asking"), so a danger colour would be the first hue in the system. It was
+considered and deferred rather than improvised. What carries the weight instead is
+*where* emphasis sits and how many steps there are, which is the pattern above. If a
+danger token is ever added it needs the same treatment as `--color-line-strong`: a
+contrast floor against both backgrounds, in both themes, asserted.
+
+`.link-inline` is a link inside a sentence. Its underline is load-bearing, not
+decoration: these sit in `text-muted` prose, so without the rule "this word is a
+link" would be carried by the ink/muted difference alone, which §17 rules out. Two
+cues at rest, and the hover strengthens the rule rather than adding a third.
+`underline-offset-2` keeps it off the descenders, which is what stops an underlined
+link reading as struck through.
 
 Two rules that are load-bearing rather than stylistic:
 
@@ -235,13 +271,143 @@ It is a real `role="progressbar"` with `aria-valuenow` and a translated
 measures is **areas looked at** — "not right now" advances it exactly as much as
 setting a goal does.
 
+## Disclosure
+
+`.disclosure` styles a native `<details>`, and native is the whole point: the
+open/closed state, the role, Enter and Space, and find-in-page opening a closed
+section all come from the element. "Primitives" at the end of this file explains why
+this project will not claim a role it has not implemented — here there is nothing to
+implement.
+
+Two rules that are easy to undo by accident:
+
+- **`<summary>` may only contain phrasing content and heading content.** A wrapping
+  `<div>` is not allowed; an `<h2>` is. That is why `components/stored-areas.tsx`
+  lays its summary out as a **grid** rather than nesting boxes — it needs a heading
+  and a line of text beside a marker, and the grid places them without a wrapper the
+  content model forbids. Keeping the real `h2` is what keeps five stored areas
+  visible as five sections in the document outline.
+- **Only the marker moves.** The chevron rotates; no height, padding or weight
+  changes, so opening a section shifts nothing except the content it reveals. The
+  hover cue is on the marker rather than the summary text, because recolouring the
+  whole summary would pull its muted second line up to ink and undo the hierarchy
+  that line exists to have.
+
+A collapsed section still has to be worth not opening: on `/data/stored/` each one
+names the area, its current goal and how many entries are behind it. Folding may hide
+detail; it may not hide that anything is there, which is what `scripts/verify.mjs`
+§28c asserts.
+
+**Anything folded is invisible to `innerText`.** Every check that reads text off a
+page with disclosures has to unfold first — `expandAll()` exists for that — or the
+assertion is answered by the fold rather than by the content, and "not there" and
+"hidden" look identical from outside. §30, the sweep for leaked internal ids, is the
+one where this matters most: it now unfolds and reports how many sections it opened,
+because a sweep that silently stopped looking would still have printed PASS.
+
+## Nested-page navigation
+
+`components/back-link.tsx` is the one way back, shared by `/data/stored/` and
+`/areas/<id>/`.
+
+It navigates to an **explicit route, never `history.back()`.** Browser back answers a
+different question — "undo my last navigation" — and when the page was the first one
+opened it leaves the app entirely. The browser's own back button already does that job,
+and better.
+
+### Where back goes when a page has two ways in
+
+`/areas/<id>/` can be opened from the life-areas list *or* from an area's name on the
+start page, so a single hard-coded parent would be wrong for one of them.
+
+The origin travels in the URL: the start page links to `/areas/<id>?from=home`, and
+`components/area-screen.tsx` reads it to choose both the back target and where "Done"
+lands. Three properties make that the right mechanism here rather than remembered
+state:
+
+- **it survives a reload**, and cannot go stale the way a module-level "last route"
+  would;
+- **it is read with `useSearchParams()`, not from `window.location`.** Reading `window`
+  during render was the first attempt and it was quietly wrong: it is not reactive, and
+  on a client-side navigation Next renders the new route *before* committing the URL, so
+  the one render that mattered saw an empty search string and nothing re-ran. The link
+  said "Back to your life areas" on a page opened from the start page while the URL was
+  correct the whole time — which is what made it look like a broken test rather than a
+  bug. `useSearchParams` is subscribed to the router, so it re-renders when the URL
+  commits;
+- **anything unrecognised or absent falls back to `/areas`**, the parent route, which is
+  always a correct place to be. A deep link, a shared URL or a hand-typed address gets
+  that instead of a dead end.
+
+That hook costs a **`Suspense` boundary** in `app/areas/[area]/page.tsx`, which is not
+optional: on a prerendered route `useSearchParams` bails the client tree up to the
+nearest boundary out of prerendering, and without one `next build` fails. It passes in
+`pnpm dev` regardless, because development renders on demand — so this is a defect class
+that only appears in a production build, and a reason to keep building before believing a
+route works.
+
+It also costs latency worth knowing about: the area route's content is client-rendered
+after the navigation commits, measured at ~340ms in headless Chrome against ~220ms
+before. Nothing incorrect is shown in between — the boundary's fallback is `null`, so it
+is empty rather than wrong — but it is why `scripts/verify.mjs` waits for the destination
+with `waitForText()` at those two call sites instead of sleeping a fixed number of
+milliseconds.
+
+The label changes with the target (`manage.back` / `manage.backHome`), because a back
+link should name where it goes — one saying "Back to your life areas" while returning to
+the start page would be worse than no label at all. §37c–§37f cover the home origin,
+following it, a deep link with no origin, and a bogus origin.
+
+It sits **above** the page's own heading. A nested page can be as long as the
+person's history, and a way back that has to be scrolled to is not a way back for
+someone who took a wrong turn.
+
+It reuses `.nav-link`, which is what keeps its size, colour and hover identical to
+the rest of the app's navigation rather than becoming a third kind of link. §35e
+measures that both nested pages render the same font size, colour, arrow and
+position, so a hand-rolled second copy fails rather than quietly diverging.
+
+On `/areas/<id>/` it is rendered by `AreaScreen`, **not** by `AreaManage`: it is
+chrome belonging to the route, not content belonging to one of eight views. Put
+inside, it would have to be repeated in each and would go missing from whichever view
+was added next. That placement also gave three question views a way out they never
+had — changing the goal, adding something, and choosing what to work on are plain
+fields with no cancel.
+
+## Icons
+
+There is no icon library, and two glyphs do not justify one (`CLAUDE.md` §11).
+`components/icons.tsx` holds `Lock` and `ArrowLeft`, the ones used on more than one
+page. They follow the conventions the existing inline icons already set: a 12-unit
+viewBox, `fill="none"`, `stroke="currentColor"` so they take the colour of the text
+around them, and `aria-hidden`.
+
+`Check` and `Chevron` deliberately stay in `components/menu.tsx`. They belong to that
+widget; moving them would be churn without a reader benefit.
+
+**An icon may not be the only thing making a claim.** The lock beside the storage
+note on the start page is decorative and carries no label — the sentence beside it
+says everything. §32b fails if it ever gains one, because a privacy assurance encoded
+in a glyph is exactly what §17 forbids.
+
 ## The area label
 
-`components/area-label.tsx` in two sizes. `eyebrow` sits directly above a question
-and is `text-ink`; `row` labels an area inside a list and is `text-sm text-muted`.
-Neither renders a heading element — the eyebrow sits above the `h1` that owns the
+`components/area-label.tsx` in three sizes. `eyebrow` sits directly above a question
+and is `text-ink`; `row` labels an area inside a list and is `text-sm text-muted`;
+`card` titles an area on `/areas/` and is `text-lg` medium ink.
+
+`card` exists because that list had no hierarchy: the name was `text-sm text-muted`
+while the goal beneath it was full-size ink, so the row's own *subject* was the
+quietest thing in it and five rows read as ten interchangeable lines. The goal drops a
+step in size but **stays `text-ink`** — muting the person's own words to make room for
+a label the app chose would be the wrong trade, and size alone separates them once the
+name is bigger. §34a measures the two font sizes rather than trusting the eye, and
+§34b pins the goal to ink.
+
+None renders a heading element — the eyebrow sits above the `h1` that owns the
 question, and an `h2` in front of it would put the document outline in the wrong
-order.
+order. On `/areas/` the whole row is a link, and a heading inside a link is worse
+again.
 
 The eyebrow is passed to `QuestionCard`'s `area` slot rather than rendered beside
 it, and that grouping is the whole point. Rendered by the caller it sat in an
@@ -302,6 +468,47 @@ confusing exception rather than as a named failure.
 the German label is "Zu Dunkel wechseln". The German branch never matched anything,
 and the checks passed only because they happen to run in English. It now matches on
 a substring.)*
+
+## Page rhythm
+
+Five pages drifted into five different spacings for the same relationships. These are
+now one set of numbers, and the point of writing them down is that the next page uses
+them instead of picking again:
+
+| relationship | value |
+| --- | --- |
+| between a page's top-level sections | `space-y-10` |
+| a title and the line that belongs to it | `space-y-2` |
+| a back link and the content under it | `space-y-6` |
+| above a rule that separates a section | `border-t border-line pt-6` |
+| between buttons in a row | `gap-x-5 gap-y-3` |
+
+**A title and its one-line companion are a pair, not two sections.** `/areas/` has its
+subtitle, `/data/stored/` its intro, and `/data/` the current storage mode — each
+`space-y-2` from the `h1`, which is the same proximity argument that moved the area
+eyebrow inside `QuestionCard`. They had been 2.5rem, 1rem and 2rem apart.
+
+**Three weights of action, in this order.** `/data/` is the worked example: the primary
+thing (`.btn-primary`), then a secondary full-size `.btn-quiet`, then a `.link-inline`
+for the quiet one. `.btn-sm` is *not* the secondary size — it means "subordinate to the
+thing beside me", which is a different claim, and using it for a page-level action made
+"Change storage settings" look like it belonged to the button above it.
+
+**A count belongs beside an action, not inside its label.** `/data/` puts the number of
+stored entries next to "Show what is stored" rather than in it. A control whose
+accessible name changes with the data cannot be found by name twice — which is also
+true for `scripts/verify.mjs`, whose click and visibility helpers match text exactly.
+
+## Empty states
+
+An empty state is guidance, and it is weighted like guidance: `text-sm` and
+`text-muted`, everywhere. Nothing is wrong when there is nothing active, so nothing
+should look like a warning — no border, no icon, no colour, and never at body size
+competing with the content that *is* there.
+
+The list: home's "nothing is active right now", the unfinished-area note beside it,
+`/areas/`'s no-goal / not-now / nothing-decided lines, and `/data/stored/`'s "nothing
+yet".
 
 ## Layout
 

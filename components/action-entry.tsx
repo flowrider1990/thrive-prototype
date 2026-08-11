@@ -113,13 +113,33 @@ export function ActionEntry({
             key={entries.length}
             placeholder={m.goals.stepsPlaceholder}
             submitLabel={entries.length === 0 ? m.goals.stepsAdd : m.goals.stepsAddAnother}
-            // Offered from the first entry on, never before: leaving with nothing
-            // written down is not a state this screen should be able to reach.
-            skipLabel={onEnough && entries.length > 0 ? m.goals.stepsEnough : undefined}
+            /**
+             * The way out is always offered; only what it is called changes.
+             *
+             * With nothing written it says "I do not know yet", because that is the
+             * true answer for someone who wants something to change here and does not
+             * yet know what would help. This screen used to have no way to say it — the
+             * only way past was to invent something, and an invented action is worse
+             * than none, since the app would then treat it as a real intention.
+             *
+             * With something written it says "That is enough", which is a different
+             * sentence: not "I have nothing" but "I have what I need".
+             *
+             * Either way it writes nothing. `TextAnswer` renders it as `.btn-quiet`
+             * beside the primary Add, so it never competes with entering something
+             * concrete.
+             */
+            skipLabel={
+              onEnough
+                ? entries.length === 0
+                  ? m.goals.stepsUnknown
+                  : m.goals.stepsEnough
+                : undefined
+            }
             onSubmit={(value) => {
               addStep(area, value)
             }}
-            onSkip={onEnough && entries.length > 0 ? onEnough : undefined}
+            onSkip={onEnough}
           />
         ))}
     </div>

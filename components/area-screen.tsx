@@ -39,7 +39,9 @@ export function AreaScreen({ area }: { area: AreaId }) {
        * the same place; this answers "take me up a level", which is a different
        * question and needs to be answerable without reading to the bottom of the page.
        */}
-      <div className="space-y-4">
+      {/* `space-y-6`, matching `/data/stored/`'s header, so the way back sits the same
+          distance from the content on both nested routes. */}
+      <div className="space-y-6">
         <BackLink href="/areas" label={m.manage.back} />
         {/* `key` so that following a link from one area to another remounts rather
             than carrying the previous area's sub-view across. */}

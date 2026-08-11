@@ -76,21 +76,28 @@ export default function StoredPage() {
   return (
     <PageShell>
       <div className="space-y-10">
-        <header className="space-y-4">
+        {/* `space-y-6` between the back link and the content, matching `AreaScreen`, so
+            the way back sits the same distance from the page on both nested routes. */}
+        <header className="space-y-6">
           {/* Above the title rather than at the foot of the page: this page is as long
               as the person's history, and a way back you have to scroll to is not one.
               Shared with `/areas/<id>/` through `BackLink`, so the two cannot drift. */}
           <BackLink href="/data" label={m.stored.back} />
-          <h1 className="heading">{m.stored.title}</h1>
-          <p className="max-w-prose leading-relaxed text-muted">{intro}</p>
-          {mode === 'local' && consentAt && (
-            <p className="text-sm text-muted">
-              {t(m.stored.consentAt, { when: formatWhen(consentAt, locale) })}
-            </p>
-          )}
+          {/* Title and its intro as one group, as on `/areas/`. */}
+          <div className="space-y-2">
+            <h1 className="heading">{m.stored.title}</h1>
+            <p className="max-w-prose leading-relaxed text-muted">{intro}</p>
+            {mode === 'local' && consentAt && (
+              <p className="text-sm text-muted">
+                {t(m.stored.consentAt, { when: formatWhen(consentAt, locale) })}
+              </p>
+            )}
+          </div>
         </header>
 
-        {facts.length === 0 && <p className="text-muted">{m.stored.empty}</p>}
+        {/* Empty states are guidance, not a problem report: `text-sm text-muted`, the
+            same weight as every other one in the app. */}
+        {facts.length === 0 && <p className="text-sm text-muted">{m.stored.empty}</p>}
 
         {groups.length > 0 && (
           <dl className="space-y-10">

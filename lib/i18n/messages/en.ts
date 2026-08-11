@@ -280,6 +280,17 @@ export const en = {
     introUnknown: 'We have not talked yet, so there is nothing here.',
     empty: 'Nothing yet.',
     learnedAt: 'noted {when}',
+    /**
+     * How much is stored, in two forms because "1 entries" is wrong in English and
+     * "1 Einträge" is worse in German.
+     *
+     * Used twice, which is why it sits here rather than under `areas`: on `/data/`
+     * beside the action that opens this page, and in each folded area's summary. Both
+     * answer the same question — how much is behind this — so both should say it the
+     * same way.
+     */
+    entryCountOne: '1 entry',
+    entryCount: '{count} entries',
     consentAt: 'You agreed to saving on {when}.',
     keys: {
       preferred_name: 'What I should call you',
@@ -322,8 +333,6 @@ export const en = {
       edited: 'reworded from: {text}',
       /** The collapsed summary has to say enough to be worth not opening. */
       noGoal: 'No goal recorded',
-      entryCountOne: '1 entry',
-      entryCount: '{count} entries',
     },
   },
 
@@ -363,34 +372,58 @@ export const en = {
      */
     deleteEntry: 'Delete my data',
 
-    /**
-     * The storage choice, reopened.
-     *
-     * The question and its two answers are **not** here: they are `consent.question`,
-     * `consent.yes` and `consent.no`, reused verbatim from onboarding. The same
-     * decision should be put the same way whenever it is put, and a second wording
-     * of it is a second thing to keep true.
-     */
+    /** The storage choice: what is in force, and how to change it. */
     storage: {
-      /** What is happening right now, said plainly before anything is offered. */
-      local: 'Saving is on. What you write is kept in this browser, on this device.',
-      memory: 'Saving is off. Nothing is being written to this device.',
-      undecided: 'You have not decided yet whether anything may be saved.',
+      /**
+       * The state as a **label**, not a sentence — "Currently: …". It is the one thing
+       * on this page someone might arrive specifically to check, so it reads at a
+       * glance and sits directly under the title.
+       *
+       * Deliberately short. It used to restate what the four paragraphs below already
+       * explain ("what you write is kept in this browser, on this device"), and saying
+       * the same thing twice was most of why this section felt dense.
+       *
+       * "Currently" for the same reason it appears in `p1`: this describes the mode in
+       * force today and must not read as a permanent property.
+       */
+      local: 'Currently: saved on this device',
+      memory: 'Currently: this tab only',
+      undecided: 'Currently: not decided yet',
       change: 'Change storage settings',
+
+      /**
+       * A short, neutral question — deliberately **not** `consent.question`.
+       *
+       * Onboarding's wording asserts the outcome as a fact ("Information you give is
+       * saved only on the device you are using right now. Is this okay for you?"),
+       * which is the right way to ask for consent once and the wrong way to offer a
+       * choice between two modes: it states one of the options as though it were
+       * already settled. Onboarding itself is unchanged.
+       */
+      question: 'How should what you write be kept?',
+      /** Named modes rather than yes and no, so the two are told apart on sight. */
+      optionLocal: 'Save on this device',
+      optionLocalNote: 'What you write stays here, and is still here next time.',
+      optionMemory: 'This tab only',
+      optionMemoryNote: 'Nothing is written to this device, and it is gone when you close the tab.',
+
       /**
        * Turning saving off has to delete what was saved, and that is not a warning
        * dressed up — it is the only honest outcome. "Off" means nothing of yours is
        * left on the device, so anything already there has to go with it.
        *
-       * Stated before it happens rather than after, and the way back is the emphasised
-       * button, as everywhere else a step cannot be undone.
+       * Shown **only when there is something to lose.** Switching with nothing stored
+       * costs nothing, and a confirmation step for a change with no consequence is the
+       * kind of ceremony that teaches people to click through the ones that matter.
        */
       offTitle: 'Turn saving off?',
       offBody:
-        'Saving off means nothing of yours stays on this device, so anything saved here is deleted as part of the change. This visit carries on, and what you do in it stays in this tab until you close it.',
+        'Saving off means nothing of yours stays on this device, so what is saved here is deleted as part of the change. This visit carries on, and what you do in it stays in this tab until you close it.',
       offConfirm: 'Turn saving off and delete',
       onDone: 'Saving is on now.',
       offDone: 'Saving is off now, and what was stored has been deleted.',
+      /** Nothing was stored, so nothing was deleted, and the copy must not claim it. */
+      offDoneEmpty: 'Saving is off now.',
     },
     memoryNote:
       'You asked for nothing to be saved, so nothing is being written to this device at all. What you tell the app this visit stays in this tab and is gone when you close it.',
@@ -429,13 +462,20 @@ export const en = {
     title: 'About {app}',
     isTitle: 'What this is',
     isP1: '{app} is a prototype of an app meant to support a person in living and thriving. What you have seen is its beginning: a question about consent, and five areas of a life to look at one at a time.',
-    isP2: 'It runs entirely in your browser. There is no server, no account, no analytics and no AI. Nothing you type is sent anywhere, and nothing is written to your device unless you said it was okay.',
+    /**
+     * "For now" and "at the moment" carry the same weight here as "currently" does in
+     * the `data` group. These are the strongest claims the app makes about itself, and
+     * an architectural promise is not what they are — they describe what is true of
+     * this prototype today. Saying so costs one phrase and saves having to retract a
+     * paragraph.
+     */
+    isP2: 'It runs entirely in your browser for now. At the moment there is no server, no account, no analytics and no AI. Nothing you type is sent anywhere, and nothing is written to your device unless you said it was okay.',
     isP3: 'What you tell it is kept in your own words. Answers are added to a list rather than overwritten, so a later answer never erases an earlier one — how something changed is the interesting part.',
     isNotTitle: 'What it is not yet',
     isNotP1: 'There is no habit tracking, no journal, no mood tracking, no reminders and no scoring. It does not ask you to come back every day. Those choices come later, if they earn their place.',
     isNotP2: 'It is also not a medical or therapeutic tool, and no substitute for talking to a person.',
     whereTitle: 'Where your answers live',
-    whereP1: 'In this browser, in a single entry called {key}, on this device. Clearing your browser data removes it, and so does "delete everything" under Data protection.',
+    whereP1: 'For now, in this browser, in a single entry called {key}, on this device. Clearing your browser data removes it, and so does "delete everything" under Data protection.',
     whereP2: 'If you declined, not even that entry exists: the app runs in memory for that visit and writes nothing at all. That has one honest consequence — it cannot remember that you declined, so it will ask again next time.',
   },
 }

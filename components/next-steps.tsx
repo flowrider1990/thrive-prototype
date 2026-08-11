@@ -64,8 +64,11 @@ export function NextSteps() {
 
   if (rows.length === 0) {
     return (
+      // Both lines are guidance rather than a problem report, and they are weighted
+      // like it: `text-sm text-muted`, the same as every other empty state in the app.
+      // Nothing is wrong when there is nothing active.
       <div className="space-y-3">
-        <p className="max-w-prose leading-relaxed text-muted">{m.home.empty}</p>
+        <p className="max-w-prose text-sm leading-relaxed text-muted">{m.home.empty}</p>
         <UnfinishedNote area={unfinished?.area} />
       </div>
     )

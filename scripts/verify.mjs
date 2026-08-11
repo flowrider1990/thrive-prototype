@@ -662,6 +662,10 @@ const EN = {
   delConfirm: 'Yes, delete everything',
   delDone: 'Deleted. Nothing is left.',
   storageChange: 'Change storage settings',
+  storageLocal: 'Currently: saved on this device',
+  storageMemory: 'Currently: this tab only',
+  storageOptionLocal: 'Save on this device',
+  storageOptionMemory: 'This tab only',
   storageOffTitle: 'Turn saving off?',
   storageOffConfirm: 'Turn saving off and delete',
 }
@@ -2025,19 +2029,44 @@ await seedOnboarded()
 await goto('/data/')
 screen = await text()
 check(
-  '36a. the page says which storage mode is in force, and offers to change it',
-  screen.includes('Saving is on') && (await visible(EN.storageChange)),
-  screen.replace(/\n/g, ' / ').slice(-160),
+  '36a. the page states the current mode as a label, right under the title',
+  screen.includes(EN.storageLocal) && (await visible(EN.storageChange)),
+  screen.replace(/\n/g, ' / ').slice(0, 120),
 )
 
-// Reopened, it has to be the *same* question — same words as onboarding, not a toggle
-// and not a second phrasing of a decision the app already puts carefully.
+// The two modes have to be told apart on sight, and the one in force has to be marked
+// in a way that is not colour and not silent.
 await click(EN.storageChange)
 screen = await text()
+const modes = await evaluate(
+  `(() => {
+     const items = [...document.querySelectorAll('main li button.option')];
+     // Read the rendered lines rather than reaching for a nested span: the tick's own
+     // wrapper is also a span, and a structural selector picked that up instead.
+     return items.map((b) => ({
+       label: b.innerText.trim().split('\\n')[0].trim(),
+       hasNote: b.innerText.trim().split('\\n').length > 1,
+       current: b.getAttribute('aria-current'),
+       tick: Boolean(b.querySelector('svg')),
+       // The mark's slot must exist on both, or marking one would shift the other.
+       slot: Boolean(b.querySelector('span')),
+     }));
+   })()`,
+)
 check(
-  '36b. it reopens onboarding’s own question, word for word',
-  screen.includes(EN.consent) && (await visible(EN.yes)) && (await visible(EN.no)),
-  screen.includes(EN.consent) ? 'same question' : 'a different wording appeared',
+  '36b. both storage modes are offered, each named and each explained',
+  modes.length === 2 &&
+    modes.every((mode) => mode.label.length > 0 && mode.hasNote) &&
+    modes.some((mode) => mode.label === EN.storageOptionLocal) &&
+    modes.some((mode) => mode.label === EN.storageOptionMemory),
+  JSON.stringify(modes.map((mode) => mode.label)),
+)
+check(
+  '36b2. exactly one is marked as current, and the mark is in the accessibility tree',
+  modes.filter((mode) => mode.current === 'true').length === 1 &&
+    modes.find((mode) => mode.current === 'true')?.label === EN.storageOptionLocal &&
+    modes.filter((mode) => mode.tick).length === 1,
+  JSON.stringify(modes),
 )
 check(
   '36c. and no toggle was introduced beside it',
@@ -2046,9 +2075,20 @@ check(
   `${await count('main input[type="checkbox"]')} checkbox(es), ${await count('main [role="switch"]')} switch(es)`,
 )
 
-// Saying no from a saving store explains the cost first, and changes nothing yet.
+// Choosing the mode already in force must write nothing: it is not a change, and a
+// fact recording "no change" is clutter the append-only log would keep forever.
+const beforeNoop = await raw()
+await clickOption(EN.storageOptionLocal)
+check(
+  '36c2. choosing the mode already in force changes nothing at all',
+  (await raw()) === beforeNoop && (await visible(EN.storageChange)),
+  (await raw()) === beforeNoop ? 'store untouched' : 'STORE CHANGED ON A NON-CHANGE',
+)
+
+// Switching away from a saving store explains the cost first, and changes nothing yet.
+await click(EN.storageChange)
 const beforeOff = await raw()
-await click(EN.no)
+await clickOption(EN.storageOptionMemory)
 screen = await text()
 check(
   '36d. saying no explains that the stored data goes, and has not touched it yet',
@@ -2066,7 +2106,7 @@ check(
 
 // The guarantee. Confirming must leave no key at all, and the page must then say so.
 await click(EN.storageChange)
-await click(EN.no)
+await clickOption(EN.storageOptionMemory)
 await click(EN.storageOffConfirm)
 await sleep(300)
 screen = await text()
@@ -2076,14 +2116,14 @@ check(
   JSON.stringify(await keys()),
 )
 check(
-  '36g. and the page now says saving is off, without claiming data is still kept',
-  screen.includes('Saving is off') && !screen.includes('Saving is on'),
-  screen.replace(/\n/g, ' / ').slice(-160),
+  '36g. and the page now states the new mode, without still claiming the old one',
+  screen.includes(EN.storageMemory) && !screen.includes(EN.storageLocal),
+  screen.replace(/\n/g, ' / ').slice(0, 120),
 )
 
 // Back on again, from memory mode, and this direction writes rather than deletes.
 await click(EN.storageChange)
-await click(EN.yes)
+await clickOption(EN.storageOptionLocal)
 await sleep(300)
 check(
   '36h. turning it back on starts saving again, through the store’s own consent path',
@@ -2096,8 +2136,36 @@ check(
 await goto('/data/')
 check(
   '36i. and the mode survives a reload, so nothing here is a second copy of it',
-  (await text()).includes('Saving is on'),
-  (await text()).replace(/\n/g, ' / ').slice(-120),
+  (await text()).includes(EN.storageLocal),
+  (await text()).replace(/\n/g, ' / ').slice(0, 120),
+)
+
+// A confirmation for a change with no consequence is the ceremony that teaches people
+// to click through the ones that matter. With nothing stored there is nothing to lose,
+// so switching off happens directly — and still has to clear the key, because a
+// consented store with no facts is still a key on the device.
+await clearStorage()
+await goto('/')
+await click(EN.yes)
+await goto('/data/')
+check(
+  '36j. a consented store with no answers yet still reports saving as on',
+  (await text()).includes(EN.storageLocal) && (await keys()).length === 1,
+  JSON.stringify(await keys()),
+)
+await click(EN.storageChange)
+await clickOption(EN.storageOptionMemory)
+await sleep(300)
+screen = await text()
+check(
+  '36k. with nothing stored, switching off asks for no confirmation',
+  !screen.includes(EN.storageOffTitle) && screen.includes(EN.storageMemory),
+  screen.includes(EN.storageOffTitle) ? 'confirmed a change with no consequence' : 'switched directly',
+)
+check(
+  '36l. and it still removed the key, and did not claim to have deleted anything',
+  (await keys()).length === 0 && !screen.includes('has been deleted'),
+  `${JSON.stringify(await keys())}, ${screen.includes('has been deleted') ? 'CLAIMED A DELETION' : 'no false claim'}`,
 )
 
 // --- 30. no internal id reaches any screen, seen or spoken -----------------

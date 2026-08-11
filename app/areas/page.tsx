@@ -35,7 +35,7 @@ export default function AreasPage() {
 
   return (
     <PageShell>
-      <div className="space-y-8">
+      <div className="space-y-10">
         <div className="space-y-2">
           <h1 className="heading">{m.manage.pickerTitle}</h1>
           <p className="max-w-prose text-sm leading-relaxed text-muted">{m.manage.pickerNote}</p>

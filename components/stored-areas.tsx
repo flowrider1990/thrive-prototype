@@ -73,8 +73,8 @@ export function StoredAreas() {
           const goal = detail.goals[0]?.value
           const count =
             detail.steps.length === 1
-              ? m.stored.areas.entryCountOne
-              : t(m.stored.areas.entryCount, { count: String(detail.steps.length) })
+              ? m.stored.entryCountOne
+              : t(m.stored.entryCount, { count: String(detail.steps.length) })
 
           return (
             <details key={detail.area} className="disclosure border-t border-line pt-3">

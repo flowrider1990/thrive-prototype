@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 154/154** (25 at the
+the two the plan singles out. **The current count is 159/159** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework); the script itself is the only authority on that number, so treat
 any count written in prose as a snapshot.
@@ -523,8 +523,12 @@ afterwards: not "no facts", no key.
 
 Two consequences worth knowing before this is built on:
 
-- `forgetEverything()` also resets the theme to following the OS, since it is the only
-  available way to clear the key. A side effect, not an intention.
+- **`forgetEverything()` also resets the theme preference**, since it returns the whole
+  snapshot to "nothing known yet". Nobody asked for their theme to be forgotten; it is
+  collateral from the only available way to clear the key. Written up as debt in
+  `docs/persistence-decision.md` — the fix is to stop one key holding both personal
+  data and UI preferences, and it belongs to a persistence-layer change, **not** to a
+  UI change. Deliberately not fixed here.
 - If keeping in-memory facts while clearing the key is ever wanted, that needs a new
   store function (`stopPersisting()` or similar) and belongs to whoever owns the
   persistence boundary — not to a UI change.
@@ -559,10 +563,49 @@ Two consequences worth knowing before this is built on:
   the page one line down. It now asserts the new vocabulary *and* that "removed from"
   is gone.
 
-Also: `serve` fell over mid-run once, and two checks failed in a way that looked like
+### The closing polish pass
+
+`pnpm verify` is **159 checks**. No new product behaviour; consistency only.
+
+- **The storage state is a label, not a sentence.** "Currently: saved on this device" /
+  "Aktuell: Nur für diesen Tab", directly under the title where someone who came to
+  check one thing will read it. It used to restate what the four paragraphs below
+  already say, which was most of why the section felt dense.
+- **The two storage modes are named and the active one is marked** — a tick in an
+  always-present slot plus `aria-current`. Yes and no could not do this: they answer a
+  question, and neither is a thing that can be "the one you are already on". The
+  question is now short and neutral rather than onboarding's, which asserts one of the
+  options as settled fact; **onboarding itself is unchanged.** This deliberately
+  softens the earlier "reuse onboarding's wording verbatim" instruction, and it is one
+  message key to revert.
+- **The destructive confirmation only appears when the change is destructive.** With
+  nothing stored there is nothing to lose, so switching off happens directly — and
+  still clears the key, because a consented store with no answers is still a key on
+  the device. §36k and §36l pin both halves. A confirmation for a change with no
+  consequence is the ceremony that teaches people to click through the ones that
+  matter.
+- **Page rhythm is one set of numbers** rather than five pages guessing. The table is
+  in `docs/design-system.md`; the visible offenders were a title-to-intro gap that was
+  2.5rem on one page, 1rem on another and 2rem on a third, and two nested pages whose
+  back links sat at different distances from their content.
+- **Three weights of action on `/data/`**: primary, secondary, quiet link. "Change
+  storage settings" had been `.btn-sm`, which means "subordinate to the thing beside
+  me" and made it look like it belonged to the button above it.
+- **Empty states are all `text-sm text-muted`.** Guidance, not warnings — home's was at
+  body size and read as more consequential than it is.
+- **About no longer makes architectural promises.** "There is no server, no account, no
+  cloud" became "at the moment there is…", matching the `data` group.
+
+One approximation worth knowing: the count beside "Show what is stored" is
+`facts.length`, the number of stored facts. `/data/stored/` renders slightly fewer rows
+than that, because an active-step pointer resolves into the words it points at rather
+than appearing as its own entry. The number is truthful about the store; it is not a
+count of visible rows.
+
+Also: `serve` fell over mid-run twice, and checks failed in a way that looked like
 a UI defect until the port was checked. Verification ports and the ownership check are
-recorded at the top of this file's sibling note in the session memory, not here — but
-the habit is worth repeating: confirm the server before believing a failure.
+recorded in the session memory, not here — but the habit is worth repeating: confirm
+the server before believing a failure.
 
 ## Supabase: paused deliberately after the proposal (2026-08-11)
 

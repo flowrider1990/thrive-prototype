@@ -144,6 +144,14 @@ one without shifting the layout, whereas every `.option` state has a border
 already and only its colour changes. `components/option-list.tsx` renders these as
 a real `<ul>`, so a screen reader says how many there are to choose between.
 
+`OptionList` takes a `current` flag per option, which renders as `aria-current` — the
+same hook `.nav-link` uses, so the visible mark and the accessibility tree have one
+source of truth. A caller that marks an option visually **must** set it: the tick is
+`Check` from `components/menu.tsx` and is `aria-hidden`, so on its own it is a state
+carried by appearance alone, which §17 does not allow. `Check`'s slot is always
+rendered, so moving the mark shifts nothing. The storage choice on `/data/` is the one
+call site.
+
 `.option` means exactly one thing: **pick this**. Selecting one chooses something; it
 never spends anything. That is now true, and it was not: the focused next step on the
 home screen used to be a bare `.option` whose only content was the step's own words,
@@ -405,6 +413,47 @@ confusing exception rather than as a named failure.
 the German label is "Zu Dunkel wechseln". The German branch never matched anything,
 and the checks passed only because they happen to run in English. It now matches on
 a substring.)*
+
+## Page rhythm
+
+Five pages drifted into five different spacings for the same relationships. These are
+now one set of numbers, and the point of writing them down is that the next page uses
+them instead of picking again:
+
+| relationship | value |
+| --- | --- |
+| between a page's top-level sections | `space-y-10` |
+| a title and the line that belongs to it | `space-y-2` |
+| a back link and the content under it | `space-y-6` |
+| above a rule that separates a section | `border-t border-line pt-6` |
+| between buttons in a row | `gap-x-5 gap-y-3` |
+
+**A title and its one-line companion are a pair, not two sections.** `/areas/` has its
+subtitle, `/data/stored/` its intro, and `/data/` the current storage mode — each
+`space-y-2` from the `h1`, which is the same proximity argument that moved the area
+eyebrow inside `QuestionCard`. They had been 2.5rem, 1rem and 2rem apart.
+
+**Three weights of action, in this order.** `/data/` is the worked example: the primary
+thing (`.btn-primary`), then a secondary full-size `.btn-quiet`, then a `.link-inline`
+for the quiet one. `.btn-sm` is *not* the secondary size — it means "subordinate to the
+thing beside me", which is a different claim, and using it for a page-level action made
+"Change storage settings" look like it belonged to the button above it.
+
+**A count belongs beside an action, not inside its label.** `/data/` puts the number of
+stored entries next to "Show what is stored" rather than in it. A control whose
+accessible name changes with the data cannot be found by name twice — which is also
+true for `scripts/verify.mjs`, whose click and visibility helpers match text exactly.
+
+## Empty states
+
+An empty state is guidance, and it is weighted like guidance: `text-sm` and
+`text-muted`, everywhere. Nothing is wrong when there is nothing active, so nothing
+should look like a warning — no border, no icon, no colour, and never at body size
+competing with the content that *is* there.
+
+The list: home's "nothing is active right now", the unfinished-area note beside it,
+`/areas/`'s no-goal / not-now / nothing-decided lines, and `/data/stored/`'s "nothing
+yet".
 
 ## Layout
 

@@ -190,6 +190,8 @@ export const de: Messages = {
     introUnknown: 'Wir haben noch nicht gesprochen, deshalb ist hier nichts.',
     empty: 'Noch nichts.',
     learnedAt: 'notiert {when}',
+    entryCountOne: 'ein Eintrag',
+    entryCount: '{count} Einträge',
     consentAt: 'Du hast dem Speichern am {when} zugestimmt.',
     keys: {
       preferred_name: 'Wie ich dich nennen soll',
@@ -211,8 +213,6 @@ export const de: Messages = {
       retired: 'beiseitegelegt',
       edited: 'umformuliert aus: {text}',
       noGoal: 'Kein Ziel notiert',
-      entryCountOne: 'ein Eintrag',
-      entryCount: '{count} Einträge',
     },
   },
 
@@ -226,16 +226,25 @@ export const de: Messages = {
     deleteEntry: 'Meine Daten löschen',
 
     storage: {
-      local: 'Speichern ist an. Was du schreibst, bleibt in diesem Browser auf diesem Gerät.',
-      memory: 'Speichern ist aus. Auf dieses Gerät wird nichts geschrieben.',
-      undecided: 'Du hast noch nicht entschieden, ob etwas gespeichert werden darf.',
+      local: 'Aktuell: Auf diesem Gerät gespeichert',
+      memory: 'Aktuell: Nur für diesen Tab',
+      undecided: 'Aktuell: Noch nicht entschieden',
       change: 'Speichereinstellungen ändern',
+
+      question: 'Wie soll aufbewahrt werden, was du schreibst?',
+      optionLocal: 'Auf diesem Gerät speichern',
+      optionLocalNote: 'Was du schreibst, bleibt hier — und ist beim nächsten Mal wieder da.',
+      optionMemory: 'Nur für diesen Tab',
+      optionMemoryNote:
+        'Auf dieses Gerät wird nichts geschrieben, und es ist weg, sobald du den Tab schließt.',
+
       offTitle: 'Speichern ausschalten?',
       offBody:
-        'Speichern aus bedeutet, dass nichts von dir auf diesem Gerät bleibt — deshalb wird alles, was hier gespeichert ist, mit der Umstellung gelöscht. Dieser Besuch geht weiter, und was du darin machst, bleibt in diesem Tab, bis du ihn schließt.',
+        'Speichern aus bedeutet, dass nichts von dir auf diesem Gerät bleibt — deshalb wird mit der Umstellung gelöscht, was hier gespeichert ist. Dieser Besuch geht weiter, und was du darin machst, bleibt in diesem Tab, bis du ihn schließt.',
       offConfirm: 'Speichern ausschalten und löschen',
       onDone: 'Speichern ist jetzt an.',
       offDone: 'Speichern ist jetzt aus, und was gespeichert war, wurde gelöscht.',
+      offDoneEmpty: 'Speichern ist jetzt aus.',
     },
     memoryNote:
       'Du wolltest nicht, dass etwas gespeichert wird — deshalb wird auf dieses Gerät gar nichts geschrieben. Was du der App diesmal erzählst, bleibt in diesem Tab und ist weg, sobald du ihn schließt.',
@@ -257,13 +266,13 @@ export const de: Messages = {
     title: 'Über {app}',
     isTitle: 'Was das hier ist',
     isP1: '{app} ist der Prototyp einer App, die einen Menschen dabei unterstützen soll, gut zu leben. Was du gesehen hast, ist ihr Anfang: die Frage nach deinem Einverständnis und fünf Lebensbereiche, die man sich nacheinander ansieht.',
-    isP2: 'Sie läuft vollständig in deinem Browser. Es gibt keinen Server, kein Konto, keine Auswertung und keine KI. Nichts, was du schreibst, wird irgendwohin geschickt, und auf dein Gerät wird nichts geschrieben, solange du nicht ja gesagt hast.',
+    isP2: 'Sie läuft vorerst vollständig in deinem Browser. Derzeit gibt es keinen Server, kein Konto, keine Auswertung und keine KI. Nichts, was du schreibst, wird irgendwohin geschickt, und auf dein Gerät wird nichts geschrieben, solange du nicht ja gesagt hast.',
     isP3: 'Was du erzählst, bleibt in deinen eigenen Worten. Antworten werden ergänzt statt überschrieben, damit eine spätere Antwort eine frühere nie löscht — wie sich etwas verändert hat, ist ja das Interessante.',
     isNotTitle: 'Was sie noch nicht ist',
     isNotP1: 'Es gibt kein Gewohnheits-Tracking, kein Tagebuch, keine Stimmungskurve, keine Erinnerungen und keine Punkte. Sie verlangt nicht, dass du jeden Tag wiederkommst. Das kommt später, falls es sich als sinnvoll erweist.',
     isNotP2: 'Sie ist außerdem kein medizinisches oder therapeutisches Werkzeug und kein Ersatz dafür, mit einem Menschen zu sprechen.',
     whereTitle: 'Wo deine Antworten liegen',
-    whereP1: 'In diesem Browser, in einem einzigen Eintrag namens {key}, auf diesem Gerät. Wenn du deine Browserdaten löschst, ist er weg — genauso über „alles löschen“ unter Datenschutz.',
+    whereP1: 'Vorerst in diesem Browser, in einem einzigen Eintrag namens {key}, auf diesem Gerät. Wenn du deine Browserdaten löschst, ist er weg — genauso über „alles löschen“ unter Datenschutz.',
     whereP2: 'Wenn du abgelehnt hast, existiert nicht einmal dieser Eintrag: die App läuft dann nur im Arbeitsspeicher und schreibt gar nichts. Das hat eine ehrliche Folge — sie kann sich nicht merken, dass du abgelehnt hast, und fragt dich beim nächsten Mal wieder.',
   },
 }

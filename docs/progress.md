@@ -27,7 +27,7 @@ it is the first outward-facing action, so it waits for a decision.
 | 6. i18n | `lib/i18n/*`, both catalogs complete |
 | 7. The store | `lib/person/store.ts`, both backends, consent gate |
 | 8. The conversation | `app/page.tsx` + four components |
-| 9. `/you` and `/about` | in-page confirm for forgetting |
+| 9. `/you` and `/about` | in-page confirm for forgetting — `/you` since replaced by `/data/` |
 | 10. Shell and styling | quiet monochrome palette, light/dark with no script |
 | 11. Docs | `CLAUDE.md`, `README.md`, five `docs/*.md` |
 | 12. Commit, push, enable Pages | committed; **push not done** |
@@ -397,6 +397,43 @@ And one genuine platform finding, from the new check 9b (no response ≥ 400):
   payloads and `favicon.ico`, with the reasoning written at the check, and still
   catches the thing worth catching: a document, script or stylesheet 404ing, which is
   what a dynamic route missing `generateStaticParams` looks like.
+
+### Stage 4: data protection someone can actually read
+
+`pnpm verify` is **123 checks**, passing against both the export and `pnpm dev`.
+`/you` is gone; the app's routes are `/`, `/areas/`, `/areas/<id>/`, `/data/`,
+`/data/stored/`, `/about/`.
+
+- **Two levels, not one page with a disclosure.** `/data/` explains in four plain
+  sentences and links onward; `/data/stored/` shows the data and holds the delete
+  flow. The stored view grows without bound as the app is used, so folding it into
+  the explanation would have buried the explanation under the thing it explains.
+  §28b asserts the split from the other direction: the plain page must **not**
+  contain the person's goal.
+- **Deleting takes two confirmations, and the first only explains.** §8a and §8b
+  assert `raw()` is **byte-identical** after each — "the key still exists" would not
+  notice it being rewritten — and §8c asserts backing out at the last moment leaves
+  everything. `forgetEverything()` itself is untouched.
+- **The safe choice carries the emphasis.** "Keep it" is `.btn-primary` on both
+  steps; the step toward deletion is quiet. A filled "Yes, delete everything" would
+  be the interface leaning on someone at the one moment it must not.
+- **About moved to the footer**, where — unlike the nav — it is never gated. During
+  the introduction the header has no links at all, and the page explaining what this
+  is should not be the one thing you cannot reach while deciding whether to trust it.
+  §12c asserts it from both sides, because the failure worth catching is it appearing
+  in *both* places.
+- **`about.whereP1` had to change.** It named *"forget everything" on the You page*
+  as the way to remove your data. Deleting that route would have left the app making
+  a false statement about privacy — the reason it was flagged before the work started
+  rather than found afterwards.
+- **The `you` message group is now `stored`.** A catalog group named for a route that
+  no longer exists is how a catalog starts drifting from the app; `you-areas.tsx`
+  became `stored-areas.tsx` for the same reason. Mechanical, and the build enforces it.
+
+New §30 sweeps every route for internal ids in both `innerText` **and** accessible
+names. §7f had done this for one page; the rework added four more surfaces where an
+entry's own words sit next to its id, and moved those words into `aria-label`s, which
+`innerText` cannot see at all.
 
 ## Supabase: paused deliberately after the proposal (2026-08-11)
 

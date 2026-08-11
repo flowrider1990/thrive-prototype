@@ -145,6 +145,12 @@ beside it — the per-entry Edit in `components/action-entry.tsx`. At full size,
 of them in a three-item list read as peers of "Add another" and "That is enough", and
 the list became a stack of pills.
 
+**In a destructive flow, the safe choice takes `.btn-primary`.** On both steps of the
+delete confirmation, "Keep it" is the filled button and the step toward deletion is
+`.btn-quiet`. Emphasis marks what is *recommended*, not what is next — a filled
+"Yes, delete everything" would be the interface leaning on someone at the one moment
+it should not.
+
 Two rules that are load-bearing rather than stylistic:
 
 - **`.btn` carries a transparent border always.** The disabled and quiet variants
@@ -233,7 +239,7 @@ not fix this; proximity did.
 site used to inherit `text-sm`, which rendered the emoji at body-small — the area
 context was a footnote to its own question.
 
-One variant stays outside this component, in `components/you-areas.tsx`, where the
+One variant stays outside this component, in `components/stored-areas.tsx`, where the
 area name is a section `h2` inside a document rather than a label beside something.
 Pulling it in would mean `AreaLabel` rendering headings, which is what would make it
 wrong at the other four call sites.
@@ -287,7 +293,7 @@ a substring.)*
 `html { scrollbar-gutter: stable }`. Every page centres its column with
 `mx-auto max-w-2xl`, and a classic scrollbar appearing on the tall pages but not
 the short ones moved that column sideways between routes: `main` sat at x=264 on
-`/` and x=256.5 on `/you/` and `/about/`. Reserving the gutter everywhere costs
+`/` and x=256.5 on the other routes. Reserving the gutter everywhere costs
 15px of width on pages that do not scroll and nothing at all where scrollbars
 overlay, which is most phones. `scripts/verify.mjs` check 20a asserts the column
 starts at the same x on all three routes, and 20b asserts the pages still differ

@@ -10,7 +10,7 @@ ever.
 output: 'export',                 // emits out/, plus a 404.html Pages picks up
 basePath: process.env.PAGES_BASE_PATH,
 images: { unoptimized: true },     // required for next/image under static export
-trailingSlash: true,               // /you resolves as /you/index.html
+trailingSlash: true,               // /data resolves as /data/index.html
 ```
 
 `basePath` comes from the environment rather than being hardcoded, so renaming the

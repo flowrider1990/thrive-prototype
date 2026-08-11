@@ -17,7 +17,7 @@ export const en = {
   nav: {
     home: 'Start',
     areas: 'Life areas',
-    you: 'You',
+    data: 'Data protection',
     about: 'About',
     /** Accessible name for the nav dropdown the links collapse into on narrow screens. */
     menu: 'Menu',
@@ -66,8 +66,8 @@ export const en = {
 
   /**
    * Parked, not dead. The name question was removed so the app asks for less,
-   * but the copy stays until we decide whether it returns — and `/you` still
-   * needs `you.keys.preferred_name` to label a name someone already gave.
+   * but the copy stays until we decide whether it returns — and `/data/stored/` still
+   * needs `stored.keys.preferred_name` to label a name someone already gave.
    * Same for `opening` and for the parked entries in `home`.
    */
   name: {
@@ -227,8 +227,14 @@ export const en = {
     editSubmit: 'Save',
   },
 
-  you: {
-    title: 'What I know about you',
+  /**
+   * The stored-data view at `/data/stored/`. Named for the page, not for the person:
+   * this used to be the `you` group behind a `/you` route, and a group whose name no
+   * longer matches any route is how a catalog starts drifting from the app.
+   */
+  stored: {
+    title: 'What is stored',
+    back: 'Back to data protection',
     introSaved:
       'In your own words, exactly as you gave them. This has never left this browser: there is no server, no account, and nothing is sent anywhere.',
     introMemory:
@@ -256,13 +262,41 @@ export const en = {
       retired: 'removed from current steps',
       edited: 'reworded from: {text}',
     },
-    forget: {
-      button: 'Forget everything',
-      question:
-        'Everything above will be removed from this device. This cannot be undone.',
-      confirm: 'Yes, forget everything',
+  },
+
+  /**
+   * Two levels on purpose. `/data/` has to stay readable by someone with no interest
+   * in how software works, and the stored-data list grows without bound as the app is
+   * used — putting one inside the other would eventually bury the explanation under
+   * the thing it is explaining.
+   */
+  data: {
+    title: 'Data protection',
+    /** Plain language, present tense, no hedging. Each sentence is one fact. */
+    p1: 'What you write here is stored only in this browser, on this device.',
+    p2: 'It is not sent to us. There is no account and no cloud, and nobody else can see it.',
+    p3: 'If you clear your browser data, it is deleted along with everything else.',
+    p4: 'Another browser, or another device, will not have it.',
+    /** The one thing this page is for, besides being true. */
+    show: 'Show what is stored',
+    memoryNote:
+      'You asked for nothing to be saved, so nothing is being written to this device at all. What you tell the app this visit stays in this tab and is gone when you close it.',
+
+    /**
+     * Deleting is deliberate: two confirmations, and the first one only explains.
+     * The copy stays factual — no warning tone, no attempt to talk anyone out of it.
+     * It is their data.
+     */
+    delete: {
+      button: 'Delete everything',
+      warnTitle: 'This removes everything you have entered.',
+      warnBody:
+        'Your goals, what you wanted to try, and everything on this page. If you change your mind later, you would have to enter it all again.',
+      warnContinue: 'Continue',
       cancel: 'Keep it',
-      done: 'Forgotten. Nothing is left.',
+      finalTitle: 'Delete everything now? This cannot be undone.',
+      finalConfirm: 'Yes, delete everything',
+      done: 'Deleted. Nothing is left.',
     },
   },
 
@@ -276,7 +310,7 @@ export const en = {
     isNotP1: 'There is no habit tracking, no journal, no mood tracking, no reminders and no scoring. It does not ask you to come back every day. Those choices come later, if they earn their place.',
     isNotP2: 'It is also not a medical or therapeutic tool, and no substitute for talking to a person.',
     whereTitle: 'Where your answers live',
-    whereP1: 'In this browser, in a single entry called {key}, on this device. Clearing your browser data removes it, and so does "forget everything" on the You page.',
+    whereP1: 'In this browser, in a single entry called {key}, on this device. Clearing your browser data removes it, and so does "delete everything" under Data protection.',
     whereP2: 'If you declined, not even that entry exists: the app runs in memory for that visit and writes nothing at all. That has one honest consequence — it cannot remember that you declined, so it will ask again next time.',
   },
 }

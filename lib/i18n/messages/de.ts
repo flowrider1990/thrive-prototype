@@ -17,7 +17,7 @@ export const de: Messages = {
   nav: {
     home: 'Start',
     areas: 'Lebensbereiche',
-    you: 'Du',
+    data: 'Datenschutz',
     about: 'Über',
     menu: 'Menü',
   },
@@ -178,8 +178,9 @@ export const de: Messages = {
     editSubmit: 'Speichern',
   },
 
-  you: {
-    title: 'Was ich über dich weiß',
+  stored: {
+    title: 'Was gespeichert ist',
+    back: 'Zurück zum Datenschutz',
     introSaved:
       'In deinen eigenen Worten, genau so, wie du sie gesagt hast. Das hat diesen Browser nie verlassen: es gibt keinen Server, kein Konto, und nichts wird irgendwohin geschickt.',
     introMemory:
@@ -206,13 +207,28 @@ export const de: Messages = {
       retired: 'aus den aktuellen Schritten entfernt',
       edited: 'umformuliert aus: {text}',
     },
-    forget: {
-      button: 'Alles vergessen',
-      question:
-        'Alles hier oben wird von diesem Gerät entfernt. Das lässt sich nicht rückgängig machen.',
-      confirm: 'Ja, alles vergessen',
+  },
+
+  data: {
+    title: 'Datenschutz',
+    p1: 'Was du hier schreibst, wird nur in diesem Browser auf diesem Gerät gespeichert.',
+    p2: 'Es wird nicht an uns gesendet. Es gibt kein Konto und keine Cloud, und niemand sonst kann es sehen.',
+    p3: 'Wenn du deine Browserdaten löschst, wird es mit allem anderen zusammen gelöscht.',
+    p4: 'Ein anderer Browser oder ein anderes Gerät hat es nicht.',
+    show: 'Zeigen, was gespeichert ist',
+    memoryNote:
+      'Du wolltest nicht, dass etwas gespeichert wird — deshalb wird auf dieses Gerät gar nichts geschrieben. Was du der App diesmal erzählst, bleibt in diesem Tab und ist weg, sobald du ihn schließt.',
+
+    delete: {
+      button: 'Alles löschen',
+      warnTitle: 'Damit wird alles gelöscht, was du eingegeben hast.',
+      warnBody:
+        'Deine Ziele, was du ausprobieren wolltest, und alles auf dieser Seite. Wenn du es dir später anders überlegst, müsstest du alles neu eingeben.',
+      warnContinue: 'Weiter',
       cancel: 'Behalten',
-      done: 'Vergessen. Es ist nichts mehr da.',
+      finalTitle: 'Jetzt alles löschen? Das lässt sich nicht rückgängig machen.',
+      finalConfirm: 'Ja, alles löschen',
+      done: 'Gelöscht. Es ist nichts mehr da.',
     },
   },
 
@@ -226,7 +242,7 @@ export const de: Messages = {
     isNotP1: 'Es gibt kein Gewohnheits-Tracking, kein Tagebuch, keine Stimmungskurve, keine Erinnerungen und keine Punkte. Sie verlangt nicht, dass du jeden Tag wiederkommst. Das kommt später, falls es sich als sinnvoll erweist.',
     isNotP2: 'Sie ist außerdem kein medizinisches oder therapeutisches Werkzeug und kein Ersatz dafür, mit einem Menschen zu sprechen.',
     whereTitle: 'Wo deine Antworten liegen',
-    whereP1: 'In diesem Browser, in einem einzigen Eintrag namens {key}, auf diesem Gerät. Wenn du deine Browserdaten löschst, ist er weg — genauso über „alles vergessen“ auf der Seite Du.',
+    whereP1: 'In diesem Browser, in einem einzigen Eintrag namens {key}, auf diesem Gerät. Wenn du deine Browserdaten löschst, ist er weg — genauso über „alles löschen“ unter Datenschutz.',
     whereP2: 'Wenn du abgelehnt hast, existiert nicht einmal dieser Eintrag: die App läuft dann nur im Arbeitsspeicher und schreibt gar nichts. Das hat eine ehrliche Folge — sie kann sich nicht merken, dass du abgelehnt hast, und fragt dich beim nächsten Mal wieder.',
   },
 }

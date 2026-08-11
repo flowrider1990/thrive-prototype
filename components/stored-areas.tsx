@@ -7,18 +7,18 @@ import { readAreaDetail, type AreaDetail, type StepDetail } from '@/lib/person/g
 import { usePerson } from '@/lib/person/store'
 
 /**
- * The life-area part of `/you`.
+ * The life-area part of `/data/stored/`.
  *
  * Rendered through the domain layer rather than as raw fact groups, for one
- * reason: a next step is identified internally by an id, and an id is not
- * something to show a person. Everything here resolves to the words they wrote —
- * every goal including the ones it replaced, every step with its state, and every
- * earlier wording of a step that was reworded.
+ * reason: an entry is identified internally by an id, and an id is not something to
+ * show a person. Everything here resolves to the words they wrote — every goal
+ * including the ones it replaced, every entry with its state, and every earlier
+ * wording of one that was reworded.
  *
  * It is a record, not a task list: there is nothing to act on here, which is the
  * difference between this page and the start page.
  */
-export function YouAreas() {
+export function StoredAreas() {
   const { m, t, locale } = useI18n()
   const person = usePerson()
 
@@ -29,14 +29,14 @@ export function YouAreas() {
   if (details.length === 0) return null
 
   function noted(when: string) {
-    return t(m.you.learnedAt, { when: formatWhen(when, locale) })
+    return t(m.stored.learnedAt, { when: formatWhen(when, locale) })
   }
 
   function stateWord(detail: AreaDetail, step: StepDetail) {
-    if (step.id === detail.activeId) return m.you.areas.active
-    if (step.state === 'done') return m.you.areas.done
-    if (step.state === 'retired') return m.you.areas.retired
-    return m.you.areas.open
+    if (step.id === detail.activeId) return m.stored.areas.active
+    if (step.state === 'done') return m.stored.areas.done
+    if (step.state === 'retired') return m.stored.areas.retired
+    return m.stored.areas.open
   }
 
   return (
@@ -51,11 +51,11 @@ export function YouAreas() {
           <dl className="space-y-5">
             {detail.reviews.length > 0 && (
               <div className="space-y-2 border-s-2 border-line ps-5">
-                <dt className="text-sm text-muted">{m.you.areas.review}</dt>
+                <dt className="text-sm text-muted">{m.stored.areas.review}</dt>
                 {detail.reviews.map((review, index) => (
                   <dd key={index} className="space-y-1">
                     <p className="leading-relaxed text-ink">
-                      {review.value === 'yes' ? m.you.areas.yes : m.you.areas.notNow}
+                      {review.value === 'yes' ? m.stored.areas.yes : m.stored.areas.notNow}
                     </p>
                     <p className="text-xs text-muted">{noted(review.at)}</p>
                   </dd>
@@ -65,11 +65,11 @@ export function YouAreas() {
 
             {detail.goals.length > 0 && (
               <div className="space-y-2 border-s-2 border-line ps-5">
-                <dt className="text-sm text-muted">{m.you.areas.goal}</dt>
+                <dt className="text-sm text-muted">{m.stored.areas.goal}</dt>
                 {detail.goals.map((goal, index) => (
                   <dd key={index} className="space-y-1">
                     <p className="whitespace-pre-line leading-relaxed text-ink">
-                      {index === 0 ? goal.value : t(m.you.areas.earlier, { goal: goal.value })}
+                      {index === 0 ? goal.value : t(m.stored.areas.earlier, { goal: goal.value })}
                     </p>
                     <p className="text-xs text-muted">{noted(goal.at)}</p>
                   </dd>
@@ -79,7 +79,7 @@ export function YouAreas() {
 
             {detail.steps.length > 0 && (
               <div className="space-y-2 border-s-2 border-line ps-5">
-                <dt className="text-sm text-muted">{m.you.areas.steps}</dt>
+                <dt className="text-sm text-muted">{m.stored.areas.steps}</dt>
                 {detail.steps.map((step) => (
                   <dd key={step.id} className="space-y-1">
                     <p className="whitespace-pre-line leading-relaxed text-ink">{step.text}</p>
@@ -88,7 +88,7 @@ export function YouAreas() {
                     </p>
                     {step.previous.map((text, index) => (
                       <p key={index} className="text-xs text-muted">
-                        {t(m.you.areas.edited, { text })}
+                        {t(m.stored.areas.edited, { text })}
                       </p>
                     ))}
                   </dd>

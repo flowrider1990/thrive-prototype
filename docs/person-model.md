@@ -44,7 +44,7 @@ value is the cheap part.
 
 Current state is therefore a derived read: **newest entry per `key`**, which is
 what `current(key)` returns. `history(key)` gives all of them, oldest first, and
-`/you` shows every entry with the date it was noted.
+`/data/stored/` shows every entry with the date it was noted.
 
 `version` exists so a later shape change can migrate rather than guess.
 
@@ -67,7 +67,7 @@ the first:
 - **a token or a reference** — written by the app: `'yes'`, `'done'`, or a step's
   internal id. Never shown as itself.
 
-A reference must never reach a screen. That is why `/you` renders life-area facts
+A reference must never reach a screen. That is why `/data/stored/` renders life-area facts
 through `lib/person/goals.ts` rather than through its generic key-grouped list —
 see `docs/goals-and-areas.md`.
 
@@ -81,18 +81,18 @@ see `docs/goals-and-areas.md`.
 | `area.<a>.step.<sid>.state` | done, or removed from current steps | `'done'` / `'retired'`; absent means open |
 | `area.<a>.step_active` | choosing what to work on | holds a step id, so it is never rendered raw |
 | `consent_concern` | the question after declining | **memory mode only** — never written to the device |
-| `preferred_name` | *parked* — the name question was removed | still shown on `/you` if it is there |
-| `opening_intent` | *parked* — the open question was removed | still shown on `/you` if it is there |
+| `preferred_name` | *parked* — the name question was removed | still shown on `/data/stored/` if it is there |
+| `opening_intent` | *parked* — the open question was removed | still shown on `/data/stored/` if it is there |
 
 The area keys are documented in full in `docs/goals-and-areas.md`, including why a
 step's id lives in its key rather than in a value.
 
 **Parked is not deleted.** The app no longer asks for a name or for what someone
 wanted when they arrived, but an answer already given is still theirs: the keys,
-their `/you` labels and their copy all stay. Removing them would silently drop real
+their labels on `/data/stored/` and their copy all stay. Removing them would silently drop real
 answers from someone's store.
 
-New keys need no migration: the store is a list, and `/you` labels unknown keys
+New keys need no migration: the store is a list, and `/data/stored/` labels unknown keys
 with the raw key until a translation is added for it.
 
 ## Reading and writing

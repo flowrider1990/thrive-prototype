@@ -61,13 +61,15 @@ export function PageShell({ children }: { children: ReactNode }) {
 
   // Defined once and rendered twice — inline on wide screens, inside the dropdown
   // on narrow ones — so a new entry never has to be added in two places.
+  // About is not here. It is read once and then never again, so it does not earn a
+  // permanent slot next to the three places someone actually returns to — it lives
+  // in the footer instead, where it is also reachable *during* the introduction.
   const navLinks = navigable
     ? [
         // Exact, or it would match everything.
         { href: '/', label: m.nav.home, current: samePath(pathname, '/') },
         { href: '/areas', label: m.nav.areas, current: inSection(pathname, '/areas') },
-        { href: '/you', label: m.nav.you, current: samePath(pathname, '/you') },
-        { href: '/about', label: m.nav.about, current: samePath(pathname, '/about') },
+        { href: '/data', label: m.nav.data, current: inSection(pathname, '/data') },
       ]
     : []
 
@@ -150,8 +152,23 @@ export function PageShell({ children }: { children: ReactNode }) {
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-16 sm:py-24">{children}</main>
 
       <footer className="border-t border-line">
-        <div className="mx-auto w-full max-w-2xl px-6 py-6">
-          {ready && <p className="text-xs leading-relaxed text-muted">{m.app.description}</p>}
+        {/* About sits here rather than in the nav, and unlike the nav it is never
+            gated: during the introduction the header has no links at all, and the
+            one page explaining what this is should not be the thing you cannot
+            reach while deciding whether to trust it. */}
+        <div className="mx-auto flex w-full max-w-2xl flex-wrap items-baseline justify-between gap-x-6 gap-y-2 px-6 py-6">
+          {ready && (
+            <>
+              <p className="max-w-prose text-xs leading-relaxed text-muted">{m.app.description}</p>
+              <Link
+                href="/about"
+                aria-current={samePath(pathname, '/about') ? 'page' : undefined}
+                className="nav-link text-xs"
+              >
+                {m.nav.about}
+              </Link>
+            </>
+          )}
         </div>
       </footer>
     </div>

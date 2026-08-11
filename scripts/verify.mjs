@@ -567,8 +567,16 @@ const EN = {
   keep: 'Keep',
   removeStep: 'Remove from current steps',
   contYes: 'Yes, let us go on',
-  forget: 'Forget everything',
-  forgetConfirm: 'Yes, forget everything',
+  navData: 'Data protection',
+  dataShow: 'Show what is stored',
+  storedTitle: 'What is stored',
+  del: 'Delete everything',
+  delWarn: 'This removes everything you have entered.',
+  delContinue: 'Continue',
+  delKeep: 'Keep it',
+  delFinal: 'Delete everything now? This cannot be undone.',
+  delConfirm: 'Yes, delete everything',
+  delDone: 'Deleted. Nothing is left.',
 }
 
 /** The collapsed-nav trigger, which is icon-only and so has to be found by name. */
@@ -1003,7 +1011,7 @@ check(
 )
 
 await click(EN.manageDone)
-await goto('/you/')
+await goto('/data/stored/')
 screen = await text()
 check(
   '7e. /you shows the current goal and the one it replaced, with dates',
@@ -1029,11 +1037,45 @@ check(
 
 // --- 8. forget everything --------------------------------------------------
 
-await click(EN.forget)
-await click(EN.forgetConfirm)
-check('8a. forgetting removes the key entirely', (await keys()).length === 0, JSON.stringify(await keys()))
+// Deleting is deliberate: two confirmations, and the first one only explains.
+const beforeDelete = await raw()
+await click(EN.del)
+screen = await text()
+check(
+  '8a. the first step explains what goes, and deletes nothing',
+  screen.includes(EN.delWarn) &&
+    // Byte-identical, not merely present: "the key still exists" would not notice it
+    // being rewritten, which is the failure mode a presence check misses.
+    (await raw()) === beforeDelete,
+  (await raw()) === beforeDelete ? 'store untouched' : 'STORE CHANGED',
+)
+
+await click(EN.delContinue)
+screen = await text()
+check(
+  '8b. the second step asks once more, and still deletes nothing',
+  screen.includes(EN.delFinal) && (await raw()) === beforeDelete,
+  (await raw()) === beforeDelete ? 'store untouched' : 'STORE CHANGED',
+)
+
+// Backing out at the last moment has to be possible, and has to leave everything.
+await click(EN.delKeep)
+check(
+  '8c. and backing out leaves it all in place',
+  (await raw()) === beforeDelete && (await visible(EN.del)),
+  (await raw()) === beforeDelete ? 'store untouched' : 'STORE CHANGED',
+)
+
+await click(EN.del)
+await click(EN.delContinue)
+await click(EN.delConfirm)
+check(
+  '8d. only the second confirmation deletes, and it removes the key entirely',
+  (await keys()).length === 0 && (await text()).includes(EN.delDone),
+  JSON.stringify(await keys()),
+)
 await goto('/')
-check('8b. after a reload it starts over', (await text()).includes(EN.consent))
+check('8e. after a reload it starts over', (await text()).includes(EN.consent))
 
 // --- 29. writing down what to try: the cap is visible, entries are editable -
 //
@@ -1153,11 +1195,23 @@ check(
 
 // Via the in-app link, not a fresh page load: memory mode is meant to die with
 // the tab, so a hard navigation losing it is the design, not a defect.
-await clickNav('You')
+await clickNav(EN.navData)
 screen = await text()
 check(
-  '5f. /you says this list lives in the tab only, and still shows their words',
-  screen.includes('lives in this tab only') && screen.includes('Walk after lunch'),
+  '5f. Data protection says plainly that nothing is being written this visit',
+  screen.includes('nothing is being written to this device') && screen.includes(EN.dataShow),
+  screen.replace(/\n/g, ' / ').slice(0, 140),
+)
+
+// One level deeper, and still in memory mode: their words are there to see even
+// though the device holds nothing.
+await click(EN.dataShow)
+screen = await text()
+check(
+  '5f2. and the stored view still shows their words, from memory alone',
+  screen.includes('lives in this tab only') &&
+    screen.includes('Walk after lunch') &&
+    (await keys()).length === 0,
 )
 
 await goto('/')
@@ -1203,12 +1257,12 @@ check(
     !screen.includes(EN.home),
 )
 
-await goto('/you/')
+await goto('/data/stored/')
 screen = await text()
 check(
-  '6e. /you is German too, including the life-area labels',
-  screen.includes('Was ich über dich weiß') &&
-    !screen.includes('What I know about you') &&
+  '6e. the stored view is German too, including the life-area labels',
+  screen.includes('Was gespeichert ist') &&
+    !screen.includes(EN.storedTitle) &&
     screen.includes('Dein Ziel') &&
     screen.includes('Besser schlafen'),
 )
@@ -1393,7 +1447,7 @@ check(
 await seedOnboarded()
 check(
   '26c. once it is finished the links are there',
-  (await count('header nav a')) === 4,
+  (await count('header nav a')) === 3,
   (await navLinks()).map((l) => `${l.text}→${l.href}`).join(' '),
 )
 
@@ -1410,7 +1464,7 @@ for (let area = 0; area < 5; area++) await click(EN.reviewNo)
 await click(EN.toHome)
 check(
   '26d. and in memory mode as well — the gate is about the person, not the store',
-  (await count('header nav a')) === 4 && (await keys()).length === 0,
+  (await count('header nav a')) === 3 && (await keys()).length === 0,
   `${await count('header nav a')} link(s), ${(await keys()).length} storage key(s)`,
 )
 
@@ -1468,6 +1522,57 @@ check(
 await goto('/areas/body/')
 check('27e. and survives a reload of that URL', (await text()).includes('Sleep better'))
 
+// --- 28. data protection is two levels, and readable at the first ----------
+//
+// The plain-language page has to stay short. The stored-data view grows without
+// bound as the app is used, so putting it inside the explanation would eventually
+// bury the explanation under the thing it explains.
+
+await seedOnboarded()
+await clickNav(EN.navData)
+screen = await text()
+check(
+  '28a. the plain-language page says where the data is, in four plain sentences',
+  screen.includes('stored only in this browser') &&
+    screen.includes('not sent to us') &&
+    screen.includes('clear your browser data') &&
+    screen.includes('Another browser'),
+  screen.replace(/\n/g, ' / ').slice(0, 200),
+)
+check(
+  '28b. and it does not list the data itself — that is one level deeper',
+  !screen.includes('Sleep better') && (await visible(EN.dataShow)),
+  screen.includes('Sleep better') ? 'the list leaked onto the explanation' : 'explanation only',
+)
+
+await click(EN.dataShow)
+await sleep(400)
+screen = await text()
+check(
+  '28c. and the stored view shows what is actually there, in their own words',
+  screen.includes(EN.storedTitle) &&
+    screen.includes('Sleep better') &&
+    screen.includes('Walk after dinner'),
+  screen.replace(/\n/g, ' / ').slice(0, 160),
+)
+
+// --- 30. no internal id reaches any screen, seen or spoken -----------------
+//
+// 7f does this for one page. The rework added four more surfaces where a step's own
+// words sit next to its id, and moved those words into accessible names, which
+// `innerText` cannot see at all.
+
+for (const route of ['/', '/areas/', '/areas/body/', '/data/', '/data/stored/']) {
+  await goto(route)
+  const spoken = await ariaLabels()
+  const seen = await text()
+  check(
+    `30. no id reaches ${route} — not on screen, not in an accessible name`,
+    !UUID.test([seen, ...spoken].join(' ')),
+    UUID.exec([seen, ...spoken].join(' '))?.[0] ?? `clean (${spoken.length} names)`,
+  )
+}
+
 // --- 11. the header at phone width — the wrap this change exists to fix ----
 //
 // Split in two, because the interesting case is the one with the nav present. With
@@ -1497,23 +1602,37 @@ check(
 // header has been broken and renders no nav at all.
 check(
   '12a. the nav links exist but are not in the bar at 390px',
-  !(await visible('You')) &&
-    !(await visible('About')) &&
-    !(await visible('Life areas')) &&
-    (await count('header nav a')) === 4,
+  !(await visible(EN.navData)) &&
+    !(await visible(EN.navAreas)) &&
+    (await count('header nav a')) === 3,
   `${await count('header nav a')} link(s) in the DOM, none of them laid out`,
 )
-await chooseIn('Menu', 'About')
+await chooseIn('Menu', EN.navData)
 await sleep(500)
-check('12b. the collapsed menu still navigates', (await text()).includes('About thrive'))
+check(
+  '12b. the collapsed menu still navigates',
+  (await text()).includes(EN.dataShow),
+  (await text()).replace(/\n/g, ' / ').slice(0, 80),
+)
+
+// About left the header for the footer, where it is reachable at both widths and —
+// unlike the nav — during the introduction too. Asserted from both sides, because
+// the failure worth catching is it appearing in *both* places.
+const footerLinks = await evaluate(
+  `[...document.querySelectorAll('footer a[href]')].map((a) => a.textContent.trim())`,
+)
+check(
+  '12c. About is in the footer, and only there',
+  footerLinks.includes('About') && !(await navLinks()).some((link) => link.text === 'About'),
+  `footer: [${footerLinks.join(', ')}], nav: [${(await navLinks()).map((l) => l.text).join(', ')}]`,
+)
 
 await setViewport(1200, 800)
 await seedOnboarded()
 check(
   '13. the links sit inline at desktop width, with the collapsed trigger hidden',
-  (await visible('You')) &&
-    (await visible('About')) &&
-    (await visible('Life areas')) &&
+  (await visible(EN.navData)) &&
+    (await visible(EN.navAreas)) &&
     // By selector, not by text. `!visible('Menu')` was true on every screen the app
     // has ever had, because the trigger is a hamburger with no text in it.
     !(await shown(MENU)),
@@ -1535,7 +1654,7 @@ check(
 // with the scrollbar gutter.
 await clearStorage()
 const columnX = {}
-for (const route of ['/', '/areas/', '/areas/body/', '/you/', '/about/']) {
+for (const route of ['/', '/areas/', '/areas/body/', '/data/', '/data/stored/', '/about/']) {
   await goto(route)
   columnX[route] = await mainX()
 }
@@ -1570,22 +1689,22 @@ check(
 // Needs the nav, so it needs a finished introduction.
 await seedOnboarded()
 await goto('/about/')
-const inactiveYou = await navBox('You')
-await goto('/you/')
-const activeYou = await navBox('You')
+const inactiveData = await navBox(EN.navData)
+await goto('/data/')
+const activeData = await navBox(EN.navData)
 check(
   '21a. the active nav link occupies exactly the same box as the inactive one',
-  inactiveYou.w === activeYou.w &&
-    inactiveYou.h === activeYou.h &&
-    inactiveYou.weight === activeYou.weight &&
-    inactiveYou.borderBottom === activeYou.borderBottom &&
-    inactiveYou.pad === activeYou.pad,
-  `${JSON.stringify(inactiveYou)} vs ${JSON.stringify(activeYou)}`,
+  inactiveData.w === activeData.w &&
+    inactiveData.h === activeData.h &&
+    inactiveData.weight === activeData.weight &&
+    inactiveData.borderBottom === activeData.borderBottom &&
+    inactiveData.pad === activeData.pad,
+  `${JSON.stringify(inactiveData)} vs ${JSON.stringify(activeData)}`,
 )
 check(
   '21b. and it is actually marked, for the accessibility tree too',
-  activeYou.current === 'page' && inactiveYou.current === null,
-  `on /you/: ${activeYou.current}, on /about/: ${inactiveYou.current}`,
+  activeData.current === 'page' && inactiveData.current === null,
+  `on /you/: ${activeData.current}, on /about/: ${inactiveData.current}`,
 )
 
 // A section, not a page. `/areas` has children, and an exact match would drop its
@@ -1745,7 +1864,7 @@ check(
 )
 // The app no longer asks for a name, but a name someone already gave is still
 // theirs and still shown. Parked, not discarded.
-await goto('/you/')
+await goto('/data/stored/')
 check('18b. and a parked answer inside it still shows on /you', (await text()).includes('Ada'))
 
 // --- 9. nothing leaves the browser ---------------------------------------

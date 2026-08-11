@@ -91,8 +91,8 @@ The model now has both, and the distinction is worth naming:
 - **references and tokens** — `review`, `state`, `step_active`. Written by the app.
   `step_active` holds a `sid`, which is an internal id.
 
-An id must never reach a screen. `components/you-areas.tsx` exists for exactly
-that reason: `/you` renders life-area facts through `readAreaDetail()` rather than
+An id must never reach a screen. `components/stored-areas.tsx` exists for exactly
+that reason: `/data/stored/` renders life-area facts through `readAreaDetail()` rather than
 through its generic group-by-key list, so every reference resolves back to the
 words it points at. `scripts/verify.mjs` check 7f asserts the rendered page
 contains no UUID at all.
@@ -126,6 +126,36 @@ mints a new `sid`.
 
 None of these is a stored constraint. They fall out of the derivation, which is
 why a hand-edited store degrades rather than becoming invalid.
+
+### One goal per area is a first-iteration constraint, not a domain rule
+
+Recorded because the code reads like a rule and is not one. A later version may
+support **up to three concurrently relevant goals per area, with priority ordering
+the person controls**, and the product should stay able to help someone *compare,
+prioritise and choose between* competing goals and possible actions. None of that is
+built, and none of it should be built without its own approval.
+
+What that means for the two halves of the model is quite different, and it is worth
+knowing which is already ready:
+
+- **Actions are already independent of any one goal.** They hang off the area
+  (`area.<a>.step.<sid>.*`), never off a goal id — see "Changing a goal" below, where
+  a new goal reviews the existing entries rather than replacing them. So "an action
+  may support one or more goals rather than belonging permanently to exactly one" is
+  compatible with the keys as they stand. Expressing *which* goals an action serves
+  would be additive: a new key alongside the existing ones, no migration.
+- **Goals are not.** `area.<a>.goal` is a single key where the newest value wins,
+  which is exactly what makes "one current goal" fall out of the derivation for free.
+  Three concurrent goals needs the same treatment steps already got —
+  `area.<a>.goal.<gid>.text`, plus something for ordering — and that *is* a
+  migration, because existing single-key goal facts would have to be read as one
+  goal under the new shape. `docs/person-model.md` has the rule: a `version` bump is
+  for changes that genuinely cannot be read the old way, and this is one of the few
+  that might qualify.
+
+The lesson from doing it once already applies here: the id belongs in the **key**,
+not in the value, because a fact carries one string and the value has to stay free
+for the person's own words.
 
 ## The four outcomes
 
@@ -183,7 +213,7 @@ discarded. `retired` exists because an append-only log has no delete, and becaus
 "I decided this no longer applies" is itself worth knowing later. The user-facing
 label says "remove from current steps" rather than "remove" for the same reason:
 nothing is deleted, and the copy should not claim otherwise on a page whose
-neighbour is `/you`.
+neighbour is `/data/stored/`.
 
 ## Which goal was current when something happened
 
@@ -204,7 +234,7 @@ summary would read.
 Completions stay in the store, with their timestamps, because reflection, journey
 summaries and any later compression of old activity all need them. **No screen in
 this iteration lists them.** Home shows what is active; the life-area view shows
-the current goal, the active step, and what else is prepared. `/you` is where
+the current goal, what is active, and what else is prepared. `/data/stored/` is where
 everything can be inspected.
 
 The direction that matters here: older activity should eventually be summarised

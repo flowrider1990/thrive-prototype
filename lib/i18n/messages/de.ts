@@ -10,7 +10,6 @@ import type { Messages } from './en'
  */
 export const de: Messages = {
   app: {
-    name: 'thrive',
     description:
       'Ein Prototyp einer App, die dabei unterstützen soll, gut zu leben. Läuft vollständig in deinem Browser.',
   },
@@ -103,16 +102,16 @@ export const de: Messages = {
   },
 
   about: {
-    title: 'Über thrive',
+    title: 'Über {app}',
     isTitle: 'Was das hier ist',
-    isP1: 'thrive ist der Prototyp einer App, die einen Menschen dabei unterstützen soll, gut zu leben. Was du gesehen hast, ist ihr Grundgerüst: die Frage nach deinem Einverständnis, dein Name und eine offene Frage.',
+    isP1: '{app} ist der Prototyp einer App, die einen Menschen dabei unterstützen soll, gut zu leben. Was du gesehen hast, ist ihr Grundgerüst: die Frage nach deinem Einverständnis, dein Name und eine offene Frage.',
     isP2: 'Sie läuft vollständig in deinem Browser. Es gibt keinen Server, kein Konto, keine Auswertung und keine KI. Nichts, was du schreibst, wird irgendwohin geschickt, und auf dein Gerät wird nichts geschrieben, solange du nicht ja gesagt hast.',
     isP3: 'Was du erzählst, bleibt in deinen eigenen Worten. Antworten werden ergänzt statt überschrieben, damit eine spätere Antwort eine frühere nie löscht — wie sich etwas verändert hat, ist ja das Interessante.',
     isNotTitle: 'Was sie noch nicht ist',
     isNotP1: 'Es gibt noch keine Funktion für irgendetwas Bestimmtes: keine Gewohnheiten, kein Tagebuch, keine Stimmungskurve, keine Erinnerungen. Das kommt später, wenn das Grundgerüst verlässlich steht.',
     isNotP2: 'Sie ist außerdem kein medizinisches oder therapeutisches Werkzeug und kein Ersatz dafür, mit einem Menschen zu sprechen.',
     whereTitle: 'Wo deine Antworten liegen',
-    whereP1: 'In diesem Browser, in einem einzigen Eintrag namens thrive.person.v1, auf diesem Gerät. Wenn du deine Browserdaten löschst, ist er weg — genauso über „alles vergessen“ auf der Seite Du.',
+    whereP1: 'In diesem Browser, in einem einzigen Eintrag namens {key}, auf diesem Gerät. Wenn du deine Browserdaten löschst, ist er weg — genauso über „alles vergessen“ auf der Seite Du.',
     whereP2: 'Wenn du abgelehnt hast, existiert nicht einmal dieser Eintrag: die App läuft dann nur im Arbeitsspeicher und schreibt gar nichts. Das hat eine ehrliche Folge — sie kann sich nicht merken, dass du abgelehnt hast, und fragt dich beim nächsten Mal wieder.',
   },
 }

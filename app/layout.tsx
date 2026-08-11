@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { APP_NAME } from '@/lib/app'
 import { HtmlLang } from '@/lib/i18n'
 import { en } from '@/lib/i18n/messages/en'
 import './globals.css'
@@ -7,7 +8,7 @@ import './globals.css'
 // browser has said which language it wants. English is the source catalog, so it
 // is what goes here; everything a person actually reads is translated.
 export const metadata: Metadata = {
-  title: en.app.name,
+  title: APP_NAME,
   description: en.app.description,
 }
 

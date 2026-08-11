@@ -12,6 +12,11 @@ import { join } from 'node:path'
 const BASE = process.argv[2] ?? 'http://localhost:4321'
 const PORT = 9333
 
+// Kept in step with lib/person/store.ts by hand: this script runs outside the
+// bundle, so it cannot import it. The key is deliberately independent of the
+// product name — see lib/app.ts.
+const STORAGE_KEY = 'thrive.person.v1'
+
 const CHROME_CANDIDATES = [
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
@@ -153,7 +158,7 @@ const HELPERS = `
   };
   window.__text = () => document.body.innerText;
   window.__keys = () => Object.keys(localStorage);
-  window.__raw = () => localStorage.getItem('thrive.person.v1');
+  window.__raw = () => localStorage.getItem(${JSON.stringify(STORAGE_KEY)});
   true;
 `
 
@@ -169,7 +174,7 @@ async function type(value) {
 }
 const text = () => evaluate('document.body.innerText')
 const keys = () => evaluate('Object.keys(localStorage)')
-const raw = () => evaluate("localStorage.getItem('thrive.person.v1')")
+const raw = () => evaluate(`localStorage.getItem(${JSON.stringify(STORAGE_KEY)})`)
 const frames = () => evaluate('window.__frames || []')
 
 const EN = {
@@ -332,7 +337,7 @@ check('6e. the locale was persisted with consent', JSON.parse(await raw()).local
 
 // --- 10. corrupt store ----------------------------------------------------
 
-await evaluate("localStorage.setItem('thrive.person.v1', '{ not json at all')")
+await evaluate(`localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, '{ not json at all')`)
 await goto('/')
 screen = await text()
 check(

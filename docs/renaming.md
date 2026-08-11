@@ -1,6 +1,32 @@
-# Renaming the folder, the package or the repository
+# Renaming the product, the folder, the package or the repository
 
-All three are cheap, and this file exists to keep them that way.
+All four are cheap, and this file exists to keep them that way.
+
+## Renaming the product
+
+The domain is not for sale, so a rename is likely. It is **one edit**:
+
+```ts
+// lib/app.ts
+export const APP_NAME = 'thrive'
+```
+
+Nothing else in the app spells the name out. The header, the page title and the
+`/about` copy all read it from there — copy interpolates `{app}` rather than
+containing the word, which is also why no message catalog has to be touched.
+Verified by grep: outside `lib/app.ts`, the only occurrences are the package
+name, the storage key, this documentation, and the verification script's
+temp-profile prefix.
+
+**What must not change with it: `STORAGE_KEY` in `lib/person/store.ts`.** It
+stays `thrive.person.v1` whatever the product is called. Renaming the key would
+orphan every person's saved answers — invisibly, until someone complained their
+data had vanished. A key holding a former product name is a cosmetic wart; losing
+someone's answers because the product was renamed is not. If it ever genuinely
+has to change, that is a migration with a version bump, not a rename.
+
+For the same reason `/about` interpolates the key into its copy instead of
+stating it, so the page cannot drift out of step with what is actually stored.
 
 ## Nothing in the repo names the folder
 

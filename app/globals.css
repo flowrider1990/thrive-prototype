@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
 /**
- * One quiet palette, a small type scale, and nothing that loads from a network:
- * system fonts only, since the app promises that nothing leaves the browser.
+ * One quiet monochrome palette, a small type scale, and nothing that loads from
+ * a network: system fonts only, since the app promises that nothing leaves the
+ * browser.
+ *
+ * `--color-accent` is a near-ink neutral rather than a hue, so emphasis comes
+ * from contrast alone. Later themes change these tokens and nothing else —
+ * utilities resolve them as variables, so no component knows a colour.
  */
 @theme {
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
@@ -14,7 +19,7 @@
   --color-ink: #1f1e1c;
   --color-muted: #6b6862;
   --color-line: #e6e3dd;
-  --color-accent: #4a6b57;
+  --color-accent: #2f2e2b;
 
   --text-base: 1.0625rem;
 }
@@ -32,7 +37,7 @@
     --color-ink: #eae7e2;
     --color-muted: #9d9a94;
     --color-line: #2d2d33;
-    --color-accent: #8fb69c;
+    --color-accent: #e5e2dd;
   }
 }
 
@@ -73,11 +78,20 @@
 
   .btn {
     @apply inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm;
-    @apply transition-colors disabled:cursor-not-allowed disabled:opacity-40;
+    /* A transparent border on every button so the disabled and quiet variants
+       can take a visible one without shifting the layout by a pixel. */
+    @apply border border-transparent transition-colors disabled:cursor-not-allowed;
   }
 
   .btn-primary {
     @apply bg-accent text-ground;
+  }
+
+  /* Not `opacity-40`: dimming a filled button leaves its label grey-on-grey.
+     Unavailable is shown by weight and outline instead, which keeps the text
+     legible — a disabled control still has to be readable to be understood. */
+  .btn-primary:disabled {
+    @apply border-line bg-transparent text-muted;
   }
 
   .btn-primary:not(:disabled):hover {
@@ -85,7 +99,7 @@
   }
 
   .btn-quiet {
-    @apply border border-line bg-transparent text-muted;
+    @apply border-line bg-transparent text-muted;
   }
 
   .btn-quiet:not(:disabled):hover {

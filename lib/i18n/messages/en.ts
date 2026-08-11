@@ -8,8 +8,9 @@
  * does not.
  */
 export const en = {
+  // No `name` here on purpose: the product name lives in `lib/app.ts`, so a
+  // rename is one edit. Copy that needs it interpolates `{app}`.
   app: {
-    name: 'thrive',
     description: 'A prototype of an app to support living and thriving. Runs entirely in your browser.',
   },
 
@@ -101,16 +102,16 @@ export const en = {
   },
 
   about: {
-    title: 'About thrive',
+    title: 'About {app}',
     isTitle: 'What this is',
-    isP1: 'thrive is a prototype of an app meant to support a person in living and thriving. What you have seen is its shell: a question about consent, your name, and one open question.',
+    isP1: '{app} is a prototype of an app meant to support a person in living and thriving. What you have seen is its shell: a question about consent, your name, and one open question.',
     isP2: 'It runs entirely in your browser. There is no server, no account, no analytics and no AI. Nothing you type is sent anywhere, and nothing is written to your device unless you said it was okay.',
     isP3: 'What you tell it is kept in your own words. Answers are added to a list rather than overwritten, so a later answer never erases an earlier one — how something changed is the interesting part.',
     isNotTitle: 'What it is not yet',
     isNotP1: 'There is no feature for anything in particular yet: no habits, no journal, no mood tracking, no reminders. Those choices come later, once the shell can be trusted.',
     isNotP2: 'It is also not a medical or therapeutic tool, and no substitute for talking to a person.',
     whereTitle: 'Where your answers live',
-    whereP1: 'In this browser, in a single entry called thrive.person.v1, on this device. Clearing your browser data removes it, and so does "forget everything" on the You page.',
+    whereP1: 'In this browser, in a single entry called {key}, on this device. Clearing your browser data removes it, and so does "forget everything" on the You page.',
     whereP2: 'If you declined, not even that entry exists: the app runs in memory for that visit and writes nothing at all. That has one honest consequence — it cannot remember that you declined, so it will ask again next time.',
   },
 }

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import { APP_NAME } from '@/lib/app'
 import { useI18n } from '@/lib/i18n'
 import { LanguageSwitch } from './language-switch'
 
@@ -24,7 +25,7 @@ export function PageShell({ children }: { children: ReactNode }) {
                 href="/"
                 className="text-sm font-medium tracking-wide text-ink transition-colors hover:text-accent"
               >
-                {m.app.name}
+                {APP_NAME}
               </Link>
               <nav className="flex items-center gap-5 text-sm text-muted">
                 <Link href="/you" className="transition-colors hover:text-ink">

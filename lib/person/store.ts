@@ -11,8 +11,10 @@ import { detectLocale, isLocale, type Locale } from '@/lib/i18n/locale'
  * Callers never know which is active — that is what makes the consent switch one
  * line here instead of a condition at every call site.
  *
- * The key does not track the package name, so renaming the project or the repo
- * never orphans someone's saved answers.
+ * The key tracks neither the product name nor the package name, so renaming
+ * either never orphans someone's saved answers. A rename must leave this string
+ * exactly as it is — see `lib/app.ts` and `docs/renaming.md`. Changing it is a
+ * migration with a version bump, never a find-and-replace.
  */
 export const STORAGE_KEY = 'thrive.person.v1'
 

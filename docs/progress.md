@@ -22,7 +22,7 @@ it is the first outward-facing action, so it waits for a decision.
 | 7. The store | `lib/person/store.ts`, both backends, consent gate |
 | 8. The conversation | `app/page.tsx` + four components |
 | 9. `/you` and `/about` | in-page confirm for forgetting |
-| 10. Shell and styling | quiet palette, light/dark with no script |
+| 10. Shell and styling | quiet monochrome palette, light/dark with no script |
 | 11. Docs | `CLAUDE.md`, `README.md`, five `docs/*.md` |
 | 12. Commit, push, enable Pages | committed; **push not done** |
 
@@ -90,6 +90,35 @@ The rest by hand or by build:
 - **`innerText` reflects `text-transform`**, which cost two false failures in the
   verification script before it compared case-insensitively. Worth knowing before
   writing any further DOM assertions.
+
+## Changes since the foundation
+
+- **`CLAUDE.md` replaced** with the full product/engineering brief: mission, the
+  Feature Manifest every feature has to pass, product and engineering
+  principles, the development and git procedure, and the current constraints.
+  The `@AGENTS.md` import stays at the top, which is what loads the Next.js 16
+  agent rules into a session.
+- **The palette is now monochrome** — `--color-accent` became a near-ink neutral
+  (`#2f2e2b` light, `#e5e2dd` dark) in place of the muted green, so emphasis
+  comes from contrast alone. Two token values; no component changed, because no
+  component names a colour.
+- **Disabled buttons were failing on contrast.** `disabled:opacity-40` on a
+  filled button left the label grey-on-grey, which the monochrome palette made
+  obvious. Disabled primaries now use the outlined, muted treatment instead, and
+  every `.btn` carries a transparent border so gaining a visible one shifts
+  nothing. Caught by screenshotting the states rather than by any test — worth
+  repeating for future UI work.
+- **The product name is now one edit.** The domain is not for sale, so a rename
+  is likely. `lib/app.ts` holds `APP_NAME`; the header, page title and `/about`
+  copy read it from there, with copy interpolating `{app}` instead of containing
+  the word. `/about` interpolates the storage key too, so the page cannot drift
+  from what is actually stored. Rehearsed rather than assumed: renaming to
+  `Wintergreen` and rebuilding changed the header and the `/about` title while
+  the saved answers survived untouched under the same key. **`STORAGE_KEY` must
+  not travel with a rename** — see `docs/renaming.md`.
+- **Verified at phone width for the first time** (390×844, both schemes), which
+  closes a gap that had been assumption-only: the shell was previously only ever
+  checked at a default headless viewport.
 
 ## Open decisions
 

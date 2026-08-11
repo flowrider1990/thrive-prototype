@@ -1,7 +1,13 @@
 # Progress against `docs/plan.md`
 
-The plan is the spec; this file records what was actually built, where reality
-differed from the plan, and what is left.
+This file records what was actually built, where reality differed from the plan,
+and what is left.
+
+**`docs/plan.md` is historical.** It is the original foundation plan, kept
+unchanged on purpose, and it has been superseded as a description of current
+product behaviour — it still describes a name question and a single open question,
+both since removed. For what the app does today, read this file and the repository
+itself.
 
 Last worked: 2026-08-11.
 
@@ -30,8 +36,10 @@ it is the first outward-facing action, so it waits for a decision.
 
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
-added (Node 22 has a global `WebSocket`). **25/25 checks pass**, covering plan
-items 4–10 — including the two the plan singles out:
+added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
+the two the plan singles out. **The current count is 78/78** (it was 25 at the
+foundation and 39 after the header controls); the script itself is the only
+authority on that number, so treat any count written in prose as a snapshot.
 
 - **no flash on reload** (item 4) — sampled from `requestAnimationFrame` starting
   before the app's own scripts run, so a wrong-state frame would be caught rather
@@ -167,6 +175,75 @@ Three things worth remembering from doing it:
   `offsetTop` fails twice over: `display:none` children report `0`, and
   centre-aligned children of different heights have different tops on the same
   line. Comparing vertical *centres* is the measure that actually works.
+
+## Life areas, goals and next steps (branch `feature/goal-areas`)
+
+The first product loop: five fixed life areas, one goal each where the person wants
+one, up to three prepared next steps, and one being worked on. *Choose* and *Act*
+of Notice → Choose → Act → Reflect → Adjust; no reflection mechanics yet.
+`pnpm verify` now runs **78 checks**, all passing, against both the export and
+`pnpm dev`.
+
+Design and derivation rules live in `docs/goals-and-areas.md`. What is worth
+recording here is where reality differed from the first plan.
+
+- **The persistence boundary barely moved.** No new storage key, no `version` bump,
+  no migration, no change to `parse()`, `commit()` or the consent gate. The one
+  edit to `lib/person/store.ts` is exporting `newId()`, because a step's id is part
+  of its keys and therefore has to exist before the first write about it.
+- **Identity by text was the first plan, and it was wrong.** Using a step's words as
+  its identity read well and needed no resolver on `/you`, but it collapses "walk
+  for 20 minutes, done in August" and "walk for 20 minutes, worth doing again in
+  October" into one thing. Ids fixed that — and turned out to make the derivation
+  *simpler*: with a pointer at a step, completing it stops the pointer resolving, so
+  there is no timestamp comparison and no sentinel for "nothing active".
+- **The id had to go in the key, not the value.** A fact carries one string. With
+  the id in the value there is no way to say "this step now reads X" without
+  splitting a value, which `docs/person-model.md` forbids. `area.<a>.step.<sid>.text`
+  leaves the value free to be the person's words, which is what makes editing a
+  step possible at all. This was the single most load-bearing decision in the
+  feature.
+- **"Later" writes nothing, and that is a feature.** The area has no active step
+  because the step was completed — already a recorded fact. No empty-string fact,
+  no `step_later` key. The same trick means retiring a step clears the active slot
+  for free.
+- **Onboarding was restructured, not extended.** The name question and the open
+  question are gone, so the app asks for less and feels less identifying. Both are
+  **parked, not deleted**: `m.name.*`, `m.opening.*`, both `you.keys` labels and
+  both `KEY_ORDER` entries stay, so anyone who already answered still sees their
+  answers on `/you`. This is a deliberate exception to `CLAUDE.md` §13C's
+  no-dead-code rule, agreed before implementation — not an oversight. Check 18b
+  asserts the parked path still renders.
+- **"Introduction finished" cannot be derived from area state.** The first attempt
+  used "every area settled", which is not monotonic: completing a step and choosing
+  "Later" makes an area unsettled again, and the app would have dropped someone back
+  into onboarding months later. It is the count of areas with a `review` fact
+  instead, which never decreases. Where an interrupted pass *resumes* is a separate,
+  non-monotonic derivation. Both are in `docs/goals-and-areas.md`.
+- **The accepted edge exposed a copy defect.** Closing the tab midway through the
+  fifth area lands on home rather than resuming — fine in itself, but home then said
+  "Nothing is active right now. That is a fine place to be." while a goal sat
+  without a next step. Home now names interrupted setup, defined as *a goal with no
+  step ever written*. An area paused on purpose has steps behind it and is excluded,
+  because "Later" is a real answer and pointing at it would be nagging. §25 asserts
+  all four properties that make the edge acceptable, including the guard that nobody
+  is routed back into onboarding just because an area has no active step.
+- **Two checks failed on the first run, and both were the assertion's fault, not the
+  code's.** Check 4k asserted that no fact value is a UUID — but the active-step
+  pointer is a UUID by design, which is what check 7f (nothing rendered contains a
+  UUID) actually protects. Check 18 asserted `Hello Ada.`, a greeting that no longer
+  exists; it now asserts the store was *accepted* rather than rejected, plus 18b for
+  the parked answer, which is stronger than what it replaced.
+- **Roughly half the suite was rewritten**, because sections 4–8 asserted the old
+  onboarding by its exact copy. Nothing was weakened: the critical
+  empty-`localStorage` check now runs after the whole area flow *including*
+  completing a step, and append-only is now demonstrated by changing a goal twice
+  rather than by renaming.
+- **Screenshots caught nothing this time**, which is worth recording as well: 390px
+  in both schemes, thirteen screens each, and the only thing to note is that the long
+  "Remove from current steps" pill wraps onto its own line, which is what
+  `flex-wrap` is for. The habit still earns its place — it is how the disabled-button
+  contrast defect was found.
 
 ## Supabase: paused deliberately after the proposal (2026-08-11)
 

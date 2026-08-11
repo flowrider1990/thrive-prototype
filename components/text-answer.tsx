@@ -8,6 +8,10 @@ import { useEffect, useRef, useState } from 'react'
  *
  * `allowEmpty` exists for the question about declining: insisting on a reason
  * from someone who just said no would be its own small coercion.
+ *
+ * `initialValue` is for editing something already written — rewording a next
+ * step should not mean retyping it. It seeds the field once, so the component
+ * has to be remounted (a changed `key`) to show different text.
  */
 export function TextAnswer({
   placeholder,
@@ -15,6 +19,7 @@ export function TextAnswer({
   skipLabel,
   multiline = false,
   allowEmpty = false,
+  initialValue = '',
   onSubmit,
   onSkip,
 }: {
@@ -23,10 +28,11 @@ export function TextAnswer({
   skipLabel?: string
   multiline?: boolean
   allowEmpty?: boolean
+  initialValue?: string
   onSubmit: (value: string) => void
   onSkip?: () => void
 }) {
-  const [value, setValue] = useState('')
+  const [value, setValue] = useState(initialValue)
   const fieldRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
 
   useEffect(() => {

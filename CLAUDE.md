@@ -97,19 +97,28 @@ Prefer meaningful actions completed outside the app.
 
 ## 4. Current Product Stage
 
-The repository currently contains a deliberately small, trusted shell rather than the full feature product.
+The repository contains the trusted shell plus the first product loop, and nothing beyond it.
 
 Existing foundation:
 - consent flow,
 - optional decline reason,
 - continue-without-persistence path,
-- name capture,
-- one open question,
 - `/you` and `/about`,
 - English and German copy,
 - local/in-memory person store,
 - static export,
 - automated verification.
+
+First product loop (see `docs/goals-and-areas.md`):
+- five fixed life areas, reviewed one per screen during onboarding,
+- one current goal per area, where the person wants one,
+- up to three prepared next steps, at most one active,
+- completing a step, then choosing another or not,
+- a small per-area view for changing the goal and the steps.
+
+Name capture and the single open question were **removed** so the app asks for less.
+Their keys, labels and copy are parked rather than deleted, so an answer someone
+already gave still shows on `/you`.
 
 Do not interpret the broader product vision in this file as permission to skip ahead and implement future domains without an explicit task.
 
@@ -119,17 +128,26 @@ Do not interpret the broader product vision in this file as permission to skip a
 
 Once the current shell/deployment foundation is complete and a new implementation phase is explicitly approved, the first useful product should remain deliberately small.
 
-Likely early feature scope:
+Built (approved and implemented — §4):
 - a small set of life areas,
 - one active goal per area,
-- one **Next Challenge** per goal,
+- one next step per goal, with a few prepared,
+- complete a step,
+- mobile-first responsive UI,
+- light and dark monochrome themes.
+
+Still not built, and each needs its own approval:
 - lightweight daily check-in,
-- complete / skip challenge,
 - perceived difficulty + helpfulness feedback,
 - weekly review,
 - gratitude page,
-- mobile-first responsive UI,
-- light and dark monochrome themes.
+- resurfacing or reminding someone of a next step,
+- any prompt about how something is going, what is getting in the way, or whether
+  it still matters.
+
+The behavioural direction those belong to is Purpose → Next Step → Resurface →
+Action, and only where action repeatedly stalls, Obstacle → Reflection → Adjust.
+Direction, not a queue of work.
 
 Do **not** add unless explicitly approved:
 - AI coaching,
@@ -509,10 +527,11 @@ The existing verification suite is part of the product contract.
 
 Current known verification:
 - `scripts/verify.mjs`,
-- 25/25 automated checks currently pass,
+- all automated checks currently pass — the script is the authority on the count, not this file,
 - it drives real headless Chrome against the served static export,
-- declining persistence leaves `localStorage` empty,
-- no incorrect consent/naming flash on reload,
+- declining persistence leaves `localStorage` completely empty, even after the whole area flow,
+- no incorrect consent/onboarding flash on reload,
+- a step's internal id never reaches the screen,
 - missing German keys fail the build,
 - corrupt persisted data degrades rather than white-screening,
 - no unexpected external requests,
@@ -556,11 +575,12 @@ Keep the root `CLAUDE.md` focused on durable project-wide instructions and high-
 
 Use:
 - `AGENTS.md` — framework/tool-generated repository guidance; preserve its managed block and read it when present,
-- `docs/plan.md` — original implementation plan, kept verbatim,
+- `docs/plan.md` — documents the original foundation plan and is intentionally kept unchanged; use `docs/progress.md` and the repository itself for the current product state,
 - `docs/progress.md` — current implementation/deployment status and learnings,
 - `docs/persistence-decision.md` — conditions for a future persistence/backend change,
 - `docs/copy-and-language.md` — i18n/copy rules,
 - `docs/design-system.md` — tokens, component classes, and the visual rules behind them,
+- `docs/goals-and-areas.md` — the life-area fact keys and how current state is derived,
 - other `docs/*` files for detailed or changing decisions.
 
 When implementation changes documented behavior, update the relevant documentation in the same task.
@@ -584,10 +604,13 @@ Current known state:
 - i18n is complete for English and German,
 - `useSyncExternalStore` is intentionally used for browser-backed external state,
 - static-export verification is implemented in `scripts/verify.mjs`,
-- the verification suite currently passes 25/25 checks.
+- the verification suite currently passes every check.
 
 Important implementation details:
 - `lib/i18n/locale.ts` holds the shared `Locale` type and avoids circular imports.
+- `lib/person/goals.ts` is the only module that knows the life-area fact-key shape;
+  a next step's id lives inside its keys, which is what leaves a fact's single value
+  free to be the person's own words. See `docs/goals-and-areas.md`.
 - `scripts/verify.mjs` drives real headless Chrome against the served static export without adding a browser-test dependency.
 - On this Windows setup, plain `corepack enable pnpm` can fail with `EPERM`; the documented non-admin workaround is:
   `corepack enable pnpm --install-directory "$env:APPDATA\npm"`.

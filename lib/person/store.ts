@@ -133,7 +133,13 @@ function loadOnce(): void {
   )
 }
 
-function newId(): string {
+/**
+ * Exported because a caller sometimes needs an id *before* the write: a next
+ * step's id lives inside its fact keys, so it has to exist before the first fact
+ * about that step can be written. Keeping the generator here means there is one
+ * copy of the secure-context fallback below, not two.
+ */
+export function newId(): string {
   // randomUUID needs a secure context: fine on https and localhost, which is
   // everywhere this runs. The fallback keeps a plain-http host from throwing.
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {

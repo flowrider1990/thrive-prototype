@@ -317,3 +317,77 @@ Deliberately absent: check-ins, reminders, resurfacing, difficulty and helpfulne
 ratings, streaks, points, urgency, celebration, priorities, recurrence, due dates,
 and any history browser. The behavioural layer that would ask "how is this going?"
 or "does this still matter to you?" belongs to a later iteration.
+
+## Product follow-ups: asked for, and deliberately not built
+
+Three things were requested during the UI sprint and are recorded here instead of
+implemented, because each needs a domain concept rather than a screen. **None of them
+should be attempted as a UI change.**
+
+### A visible status per life area on the start page
+
+The intent: the start page shows, for each life area, a visible status.
+
+- The status **replaces** the "How is everything going?" button once one has been
+  chosen — the button is not shown alongside it.
+- Clicking the status **reopens the existing selection**, so it can be changed.
+- The status should be compact and scannable, so the start page communicates the state
+  of the life areas at a glance.
+
+**This needs its own domain concept, not just UI.** There is no per-area status in the
+model today. The four answers behind "How is it going?" are *actions*, not a state:
+they write `area.<a>.step.<sid>.state` or move `area.<a>.step_active`, and "Still on
+it" deliberately writes nothing at all (see "Still on it writes nothing" above). So
+there is nothing for a chip to read, and nothing that could make the button disappear
+— after "Still on it" the app would have to show the button again, which contradicts
+the intent directly.
+
+Open questions, to be decided before any implementation:
+
+- **A status of its own** (`area.<a>.status`) — a real fact, explicitly chosen and
+  stored. Needs a value set, and every value becomes a promise the UI has to keep.
+- **Or a derived status**, computed from the facts that already exist — is there a
+  goal, is something active, was the last thing set aside, has anything been done. Adds
+  no keys, but can only ever say what the existing facts happen to imply, and cannot
+  represent "I checked in and things are fine".
+- **When it updates, and when it goes stale.** A status shown without a notion of age
+  will eventually assert something that stopped being true months ago, which is worse
+  than showing nothing. If it can go stale, the rules for that are part of the concept,
+  not an afterthought.
+
+Note the interaction with a second decision already parked: once check-ins exist,
+"Still on it" is expected to start writing the answer *and its timestamp*, because that
+pair is the signal resurfacing needs. Whichever way status goes, it should be decided
+together with that, not before it.
+
+### Ordering and priority instead of interchangeable items
+
+"Work on something else" was **removed** from the area page in this sprint. Freely
+swapping between prepared items implied they are equally interchangeable, which is the
+opposite of what the list should communicate.
+
+The intended direction, to be worked out later:
+
+- someone should be able to **mark items as priorities**;
+- there should also be an **explicit ranking** — an order, not just a flag;
+- that ranking may later be **editable by dragging**;
+- **marking and ranking are related but not the same thing**, and the difference has to
+  be decided rather than assumed;
+- the UI should eventually use the ordering to say **what matters most now**, so
+  relevance is communicated by position rather than by offering an equal switch between
+  peers.
+
+Final semantics are deliberately not invented here. Note that swapping is still
+reachable where it makes sense — from the "How is it going?" answers on the start page,
+which ask about one specific thing rather than presenting a flat set of equals.
+
+### Satisfaction check-ins per life area
+
+Later, the app should periodically ask how satisfied someone is, or how things are
+going, **within an individual life area** rather than about one entry.
+
+This belongs to the future check-in and problem-solving flow, and should build on the
+model that already exists — areas, goals, and the things someone wanted to try — rather
+than introducing a parallel structure beside it. It is also the most likely consumer of
+whatever status concept is settled above, which is a further reason not to fix status
+first and discover the mismatch afterwards.

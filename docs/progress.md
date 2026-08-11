@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 159/159** (25 at the
+the two the plan singles out. **The current count is 160/160** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework); the script itself is the only authority on that number, so treat
 any count written in prose as a snapshot.
@@ -595,6 +595,34 @@ Two consequences worth knowing before this is built on:
   body size and read as more consequential than it is.
 - **About no longer makes architectural promises.** "There is no server, no account, no
   cloud" became "at the moment there is…", matching the `data` group.
+
+### Closing changes, and three follow-ups that were not built
+
+Last in: leaving is now the emphasised action at the foot of the delete flow, with
+"Delete everything" quiet beneath it — that section can be arrived at directly from
+"delete my data", and for a while the destructive control was the only thing on it.
+
+The storage-change flow was cut back to the change itself. It had been reprinting
+onboarding's framing plus both modes with a line of explanation each, on a page whose
+four paragraphs had just explained all of it; with two modes and the current one stated
+above, the whole decision is "switch to the other, or do not". Only the mode you are not
+on is offered.
+
+**"Work on something else" is gone** from the area page, along with the view it was the
+only entry into and its catalog key. Swapping freely between prepared items implied they
+are interchangeable, which is the opposite of what the list should say.
+
+Three requests were **documented instead of implemented**, in
+`docs/goals-and-areas.md` under "Product follow-ups":
+
+- **a visible status per life area on the start page** — needs its own domain concept.
+  The four "How is it going?" answers are actions, not a state, and "Still on it" writes
+  nothing, so nothing exists for a chip to read or for the button to disappear behind.
+  Open: a real `area_status` fact versus a derived one, and the rules for when a status
+  updates and when it goes stale;
+- **priority marking and explicit ranking**, which is what should replace free swapping;
+- **satisfaction check-ins per life area**, which will most likely consume whatever
+  status concept is settled — a reason not to decide status first.
 
 One approximation worth knowing: the count beside "Show what is stored" is
 `facts.length`, the number of stored facts. `/data/stored/` renders slightly fewer rows

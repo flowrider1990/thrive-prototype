@@ -1,1 +1,94 @@
 @import "tailwindcss";
+
+/**
+ * One quiet palette, a small type scale, and nothing that loads from a network:
+ * system fonts only, since the app promises that nothing leaves the browser.
+ */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+
+  /* Warm off-white and a soft ink — easier to sit with than pure black on white. */
+  --color-ground: #faf9f7;
+  --color-surface: #ffffff;
+  --color-ink: #1f1e1c;
+  --color-muted: #6b6862;
+  --color-line: #e6e3dd;
+  --color-accent: #4a6b57;
+
+  --text-base: 1.0625rem;
+}
+
+/**
+ * Light and dark are settled before the first paint by the media query itself —
+ * no script, no stored preference, so nothing to flash and nothing to write to
+ * the device. Utilities resolve these as variables, so overriding the tokens
+ * here re-themes every one of them.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-ground: #17171a;
+    --color-surface: #202024;
+    --color-ink: #eae7e2;
+    --color-muted: #9d9a94;
+    --color-line: #2d2d33;
+    --color-accent: #8fb69c;
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+  }
+
+  body {
+    background-color: var(--color-ground);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::placeholder {
+    color: var(--color-muted);
+    opacity: 0.7;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
+}
+
+@layer components {
+  .field {
+    @apply w-full rounded-lg border border-line bg-surface px-4 py-3 text-ink;
+    @apply leading-relaxed shadow-none transition-colors;
+  }
+
+  .field:focus {
+    @apply border-accent outline-none;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm;
+    @apply transition-colors disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .btn-primary {
+    @apply bg-accent text-ground;
+  }
+
+  .btn-primary:not(:disabled):hover {
+    @apply opacity-90;
+  }
+
+  .btn-quiet {
+    @apply border border-line bg-transparent text-muted;
+  }
+
+  .btn-quiet:not(:disabled):hover {
+    @apply border-muted text-ink;
+  }
+}

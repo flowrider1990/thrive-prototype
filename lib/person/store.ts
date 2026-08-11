@@ -1,0 +1,300 @@
+'use client'
+
+import { useMemo, useSyncExternalStore } from 'react'
+import { detectLocale, isLocale, type Locale } from '@/lib/i18n/locale'
+
+/**
+ * The only place in the app that touches persistent storage.
+ *
+ * Two backends behind one API: **local** (this one key) once consent is given,
+ * and **memory** (this module's state, which dies with the tab) when it is not.
+ * Callers never know which is active — that is what makes the consent switch one
+ * line here instead of a condition at every call site.
+ *
+ * The key does not track the package name, so renaming the project or the repo
+ * never orphans someone's saved answers.
+ */
+export const STORAGE_KEY = 'thrive.person.v1'
+
+export type PersonFact = {
+  id: string
+  key: string
+  /** The person's own words, verbatim and unparsed. */
+  value: string
+  /** How it came up — 'onboarding' for now. */
+  source: string
+  learnedAt: string
+}
+
+/** The persisted shape. `version` exists so a later change can migrate rather than guess. */
+export type PersonStore = {
+  version: 1
+  /** Only ever written when consent was given. */
+  consentAt: string
+  locale: Locale
+  facts: PersonFact[]
+}
+
+export type Mode =
+  /** Not asked yet, or asked and then forgotten. Nothing is written in this mode. */
+  | 'undecided'
+  /** Consented: one localStorage key. */
+  | 'local'
+  /** Declined but continuing: nothing is written, ever. */
+  | 'memory'
+
+export type Status = 'loading' | 'ready'
+
+type Snapshot = {
+  status: Status
+  mode: Mode
+  consentAt: string | null
+  locale: Locale
+  facts: readonly PersonFact[]
+}
+
+export type Person = Snapshot & {
+  /** Newest fact for a key, or undefined. Current state is a derived read. */
+  current: (key: string) => PersonFact | undefined
+  /** Every fact for a key, oldest first. */
+  history: (key: string) => PersonFact[]
+  grantConsent: () => void
+  declineConsent: () => void
+  remember: (key: string, value: string, source?: string) => void
+  setLocale: (locale: Locale) => void
+  forgetEverything: () => void
+}
+
+/**
+ * The snapshot the build produces, and therefore the one the first client render
+ * has to agree with. `status: 'loading'` is what every screen waits on: nothing
+ * here claims to know the person or the language yet, because at this point it
+ * genuinely cannot.
+ */
+const EMPTY: Snapshot = {
+  status: 'loading',
+  mode: 'undecided',
+  consentAt: null,
+  locale: 'en',
+  facts: [],
+}
+
+let snapshot: Snapshot = EMPTY
+let loaded = false
+const listeners = new Set<() => void>()
+
+function set(next: Snapshot): void {
+  snapshot = next
+  for (const listener of listeners) listener()
+}
+
+function getSnapshot(): Snapshot {
+  return snapshot
+}
+
+function getServerSnapshot(): Snapshot {
+  return EMPTY
+}
+
+/**
+ * React calls this after mounting, never during render — which makes it the
+ * right moment to read the device. Doing it in a render would be a hydration
+ * mismatch; doing it in a page's own effect would be a second source of truth.
+ */
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener)
+  loadOnce()
+  return () => {
+    listeners.delete(listener)
+  }
+}
+
+function loadOnce(): void {
+  if (loaded) return
+  loaded = true
+
+  let stored: PersonStore | null = null
+  try {
+    stored = parse(window.localStorage.getItem(STORAGE_KEY))
+  } catch {
+    // Storage can throw on access alone in locked-down browsers.
+    stored = null
+  }
+
+  set(
+    stored
+      ? {
+          status: 'ready',
+          mode: 'local',
+          consentAt: stored.consentAt,
+          locale: stored.locale,
+          facts: stored.facts,
+        }
+      : {
+          // Reading `navigator.language` is not storing it, so this is allowed
+          // before consent — and has to be, since the consent question itself
+          // has to be in some language.
+          status: 'ready',
+          mode: 'undecided',
+          consentAt: null,
+          locale: detectLocale(),
+          facts: [],
+        },
+  )
+}
+
+function newId(): string {
+  // randomUUID needs a secure context: fine on https and localhost, which is
+  // everywhere this runs. The fallback keeps a plain-http host from throwing.
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `fact-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`
+}
+
+function isFact(value: unknown): value is PersonFact {
+  if (typeof value !== 'object' || value === null) return false
+  const fact = value as Record<string, unknown>
+  return (
+    typeof fact.id === 'string' &&
+    typeof fact.key === 'string' &&
+    typeof fact.value === 'string' &&
+    typeof fact.source === 'string' &&
+    typeof fact.learnedAt === 'string'
+  )
+}
+
+/**
+ * Guarded parse: a corrupt or hand-edited key degrades to "nothing known yet",
+ * never a white screen. Individual malformed facts are dropped rather than
+ * taking the whole store down with them.
+ */
+function parse(raw: string | null): PersonStore | null {
+  if (!raw) return null
+  try {
+    const data: unknown = JSON.parse(raw)
+    if (typeof data !== 'object' || data === null) return null
+    const stored = data as Record<string, unknown>
+    if (stored.version !== 1) return null
+    if (typeof stored.consentAt !== 'string') return null
+    if (!isLocale(stored.locale)) return null
+    if (!Array.isArray(stored.facts)) return null
+    return {
+      version: 1,
+      consentAt: stored.consentAt,
+      locale: stored.locale,
+      facts: stored.facts.filter(isFact),
+    }
+  } catch {
+    return null
+  }
+}
+
+function write(state: Snapshot): void {
+  // A local-mode snapshot without a consent timestamp would be a bug, and the
+  // safe direction for that bug is not writing.
+  if (!state.consentAt) throw new Error('refusing to write without recorded consent')
+  const stored: PersonStore = {
+    version: 1,
+    consentAt: state.consentAt,
+    locale: state.locale,
+    facts: [...state.facts],
+  }
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
+}
+
+/**
+ * Every write goes through here, and the `mode === 'local'` check is the whole
+ * consent gate. If the write fails — private mode, quota, no consent recorded —
+ * the app drops to memory mode rather than claiming to have saved something it
+ * did not.
+ */
+function commit(update: (previous: Snapshot) => Snapshot): void {
+  const next = update(snapshot)
+  if (next.mode === 'local') {
+    try {
+      write(next)
+    } catch {
+      set({ ...next, mode: 'memory' })
+      return
+    }
+  }
+  set(next)
+}
+
+export function grantConsent(): void {
+  commit((previous) => ({
+    ...previous,
+    mode: 'local',
+    consentAt: previous.consentAt ?? new Date().toISOString(),
+  }))
+}
+
+export function declineConsent(): void {
+  // Note what is *not* here: no write recording the decision. Persisting "they
+  // said no" would be the single write that proves them right, so the question
+  // returns next visit instead.
+  commit((previous) => ({ ...previous, mode: 'memory', consentAt: null }))
+}
+
+export function remember(key: string, value: string, source = 'onboarding'): void {
+  commit((previous) => ({
+    ...previous,
+    // Append-only: answer the same question differently in three months and both
+    // are kept, so the app can see that something changed.
+    facts: [
+      ...previous.facts,
+      { id: newId(), key, value, source, learnedAt: new Date().toISOString() },
+    ],
+  }))
+}
+
+/** The chosen locale is data too: persisted when consented, session-only when not. */
+export function setLocale(locale: Locale): void {
+  commit((previous) => ({ ...previous, locale }))
+}
+
+export function forgetEverything(): void {
+  try {
+    window.localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // Nothing to do: if it cannot be removed, it was never written.
+  }
+  // Forgetting includes forgetting that consent was given, so this returns to a
+  // genuinely fresh state. The displayed language is left alone — yanking that
+  // away mid-sentence would be its own small betrayal.
+  set({
+    status: 'ready',
+    mode: 'undecided',
+    consentAt: null,
+    locale: snapshot.locale,
+    facts: [],
+  })
+}
+
+function newest(facts: readonly PersonFact[], key: string): PersonFact | undefined {
+  let found: PersonFact | undefined
+  for (const fact of facts) {
+    if (fact.key !== key) continue
+    if (!found || fact.learnedAt >= found.learnedAt) found = fact
+  }
+  return found
+}
+
+export function usePerson(): Person {
+  const current = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+
+  return useMemo(
+    () => ({
+      ...current,
+      current: (key: string) => newest(current.facts, key),
+      history: (key: string) => current.facts.filter((fact) => fact.key === key),
+      grantConsent,
+      declineConsent,
+      remember,
+      setLocale,
+      forgetEverything,
+    }),
+    [current],
+  )
+}

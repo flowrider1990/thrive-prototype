@@ -1,34 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# thrive
 
-## Getting Started
+A prototype of an app meant to support a person in living and thriving.
 
-First, run the development server:
+What exists today is the shell: it asks for consent, then a name, then one open
+question — and then stops. There is no feature domain yet, on purpose.
+
+- **Everything stays in your browser.** No server, no accounts, no analytics, no
+  AI, no network calls of any kind.
+- **Nothing is written to your device unless you said it was okay.** Declining is
+  a real option: the app then runs in memory for that visit and writes nothing at
+  all.
+- **What you say is kept in your own words**, added to a list rather than
+  overwritten, so a later answer never erases an earlier one.
+- German and English, both complete.
+
+## Running it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm dev                        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Checking it
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm build                      # the real check: static export into out/
+pnpm lint
+pnpm dlx serve out --listen 4321
+pnpm verify                     # walks the whole flow in real Chrome, headless
+```
 
-## Learn More
+`pnpm verify` drives the served export over the DevTools protocol and asserts the
+things this app claims — including that declining leaves `localStorage`
+completely empty, that a reload shows no flash of the wrong screen, and that no
+request goes anywhere but the app's own assets. It needs a server already running
+at `http://localhost:4321` (or pass another base URL as an argument).
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Static export to GitHub Pages via Actions. See [docs/hosting.md](docs/hosting.md).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Documentation
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| | |
+| --- | --- |
+| [CLAUDE.md](CLAUDE.md) | the constraints that govern the code |
+| [docs/plan.md](docs/plan.md) | the plan this was built from, verbatim |
+| [docs/progress.md](docs/progress.md) | what got built, and what was learned doing it |
+| [docs/persistence-decision.md](docs/persistence-decision.md) | why browser-local, and what it costs |
+| [docs/person-model.md](docs/person-model.md) | the append-only fact list |
+| [docs/copy-and-language.md](docs/copy-and-language.md) | both languages, and the `du` decision |
+| [docs/hosting.md](docs/hosting.md) | static export and Pages |
+| [docs/renaming.md](docs/renaming.md) | renaming the folder, package or repo |

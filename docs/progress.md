@@ -1,75 +1,100 @@
 # Progress against `docs/plan.md`
 
-Working notes for resuming. The plan itself is the spec; this file only records
-where the work stopped and what was learned along the way.
+The plan is the spec; this file records what was actually built, where reality
+differed from the plan, and what is left.
 
-Last worked: 2026-08-11 (session stopped for the night, mid-step 6).
+Last worked: 2026-08-11.
 
-## Done
+## State: steps 0–11 done, verification 1–10 and 12 passing
 
-- **Step 0** — plan copied to `docs/plan.md`, committed with the scaffold's
-  initial commit.
-- **Step 1** — pnpm 11.18.0 available via corepack. See the caveat below; this
-  did not go the way the plan assumed.
-- **Step 2** — scaffolded with
-  `pnpm create next-app@latest . --ts --tailwind --eslint --app --empty --import-alias "@/*" --use-pnpm --yes`.
-  Got **Next 16.3.0, React 19.2.8, Tailwind 4.3.3**. No saved
-  create-next-app preferences existed, so `--reset-preferences` was not needed
-  and no `src/` directory was forced. Git was auto-initialized *and* an initial
-  commit was made. `"name": "thrive-prototype"` was set by the CLI already.
-- **Step 3** — `packageManager` is `pnpm@11.18.0`, written by the create
-  command itself, so `corepack use pnpm@11` was not run. The plan's goal (a
-  pinned `packageManager` the CI workflow can read) is satisfied. Pinning the
-  exact locally-installed version is if anything closer to the plan's stated
-  reason for leaving `pnpm/action-setup` unpinned: no drift from local.
-- **Step 5** — `next.config.ts` and `.github/workflows/deploy.yml`, both as
-  specified. Verified against Next 16's own bundled docs
-  (`node_modules/next/dist/docs/01-app/02-guides/static-exports.md`), not from
-  memory — the scaffold ships an `AGENTS.md` warning that Next 16 differs from
-  training data. The static-export config, the unsupported-features list and
-  the GitHub Pages template reference all still hold in 16.3.
-- **First `pnpm build` passes**: zero type errors, `out/` produced, containing
-  `404.html` — both as the plan predicted.
+Step 12 (push, and enabling Pages in the GitHub UI) is the only step not done —
+it is the first outward-facing action, so it waits for a decision.
 
-## In progress
+| Step | |
+| --- | --- |
+| 0. Preserve the plan | `docs/plan.md`, committed with the first commit |
+| 1. pnpm | via corepack, with the caveat below |
+| 2. Scaffold | Next 16.3.0, React 19.2.8, Tailwind 4.3.3 |
+| 3. Pin pnpm | `packageManager: pnpm@11.18.0` |
+| 4. Tidy | `AGENTS.md` kept, `CLAUDE.md` carries the project's own guidance |
+| 5. Config and deploy | `next.config.ts`, `.github/workflows/deploy.yml` |
+| 6. i18n | `lib/i18n/*`, both catalogs complete |
+| 7. The store | `lib/person/store.ts`, both backends, consent gate |
+| 8. The conversation | `app/page.tsx` + four components |
+| 9. `/you` and `/about` | in-page confirm for forgetting |
+| 10. Shell and styling | quiet palette, light/dark with no script |
+| 11. Docs | `CLAUDE.md`, `README.md`, five `docs/*.md` |
+| 12. Commit, push, enable Pages | committed; **push not done** |
 
-- **Step 6 (i18n)** — only `lib/i18n/locale.ts` exists so far (`Locale` type,
-  `isLocale`, `detectLocale` from `navigator.language`). Still to write:
-  `lib/i18n/messages/en.ts`, `messages/de.ts` typed as `Messages = typeof en`,
-  and `lib/i18n/index.tsx` with the provider and `t()`.
+## Verification
 
-## Not started
+`pnpm verify` automates the plan's browser checks: it drives real headless Chrome
+over the DevTools protocol against the *served static export*, with no packages
+added (Node 22 has a global `WebSocket`). **25/25 checks pass**, covering plan
+items 4–10 — including the two the plan singles out:
 
-Steps 4 (the `AGENTS.md` decision), 7–12, and the whole verification list.
+- **no flash on reload** (item 4) — sampled from `requestAnimationFrame` starting
+  before the app's own scripts run, so a wrong-state frame would be caught rather
+  than assumed absent; 35 frames, none containing the consent or naming question;
+- **declining writes nothing** (item 5, "the critical one") — after the full flow
+  in memory mode, `Object.keys(localStorage)` is `[]`. Not "no facts": no key.
 
-## Things learned that the plan could not have known
+The rest by hand or by build:
+
+1. `pnpm build` clean, `pnpm lint` clean, `out/` produced. ✓
+2. The export served from `out/` is what every browser check ran against. ✓
+3. Deleting a key from `de.ts` fails the build with
+   `TS2741: Property 'restart' is missing`. ✓
+11. **Not possible yet** — needs the site deployed. The half that could be checked
+    locally was: building with `PAGES_BASE_PATH=/thrive-prototype` puts every
+    asset under `/thrive-prototype/_next/…`, and `out/you/index.html` exists, so a
+    deep link resolves.
+12. Rename rehearsal ✓ — the repo was copied to a differently-named folder without
+    `node_modules`, `.next` or `tsconfig.tsbuildinfo`; `pnpm install`, `pnpm build`
+    and `pnpm lint` all passed there from scratch.
+
+## Where reality differed from the plan
 
 - **`corepack enable pnpm` fails on this machine** with
-  `EPERM … open 'C:\Program Files\nodejs\pnpm'` — writing the shim into the
-  Node install directory needs an elevated shell. The fix, no admin required:
+  `EPERM … open 'C:\Program Files\nodejs\pnpm'` — the shim goes in the Node install
+  directory, which needs an elevated shell. Fix, no admin required:
+  `corepack enable pnpm --install-directory "$env:APPDATA\npm"`. That directory is
+  npm's user prefix and already on `PATH`. Recorded in `docs/renaming.md` too,
+  since a fresh clone hits it.
+- **Step 3 was already done by step 2.** `pnpm create next-app` writes
+  `packageManager` itself, so `corepack use pnpm@11` was never run. Left at the
+  exact locally-installed 11.18.0, which serves the plan's reason for leaving
+  `pnpm/action-setup` unpinned: CI cannot drift from local. pnpm reports 11.21.0 is
+  available; bumping it means bumping `packageManager` in the same commit.
+- **Step 4's `AGENTS.md` decision: kept, not deleted.** `next dev` rewrites that
+  block on every run, so deleting it just recreates it as an uncommitted change.
+  `CLAUDE.md` holds the project's own guidance above its `@AGENTS.md` reference.
+- **React 19's lint rules rejected the first store.** `react-hooks/set-state-in-effect`
+  and `react-hooks/refs` both fired: loading `localStorage` in a mount effect and
+  setting state from it is exactly the pattern they now flag. Rewritten around
+  `useSyncExternalStore`, which is the honest description of what the store is —
+  an external mutable source with a build-time snapshot. This turned out better
+  than the original: `getServerSnapshot()` makes the "prerendered HTML knows
+  nothing" rule explicit, the load happens in `subscribe()` (which React calls
+  after mount, never during render), and the React context and provider both
+  disappeared. `app/page.tsx` lost its effect too — the opening step is now
+  derived from `(mode, name)` rather than set from an effect.
+- **Two files beyond the plan's list.** `lib/i18n/locale.ts`, because the `Locale`
+  type is needed by both the i18n module and the store, and a leaf module both can
+  import is what stops that being a circular import. And `scripts/verify.mjs`,
+  which is the plan's own verification list turned into something repeatable —
+  worth having before every deploy, not once.
+- **`Messages` cannot be `as const`.** With literal types, `de.ts` could only
+  satisfy `typeof en` by repeating the English strings verbatim. Widened to
+  `string`, it still catches missing and misspelled keys, which is the point.
+- **`innerText` reflects `text-transform`**, which cost two false failures in the
+  verification script before it compared case-insensitively. Worth knowing before
+  writing any further DOM assertions.
 
-  ```powershell
-  corepack enable pnpm --install-directory "C:\Users\flori\AppData\Roaming\npm"
-  ```
+## Open decisions
 
-  That directory is npm's user-global prefix and is already on `PATH`, so
-  `pnpm` resolves normally afterwards. Worth knowing before any fresh clone or
-  a rename rehearsal (verification step 12) sends someone back through setup.
-- **pnpm reports 11.21.0 is available.** Left alone deliberately: bumping it
-  means also updating `packageManager`, and matching CI to local is the point.
-- **The scaffold now writes both `AGENTS.md` and `CLAUDE.md`**, where
-  `CLAUDE.md` is just `@AGENTS.md` and `AGENTS.md` carries a block that
-  `next dev` rewrites on every run. Step 4's decision should account for that
-  regeneration: deleting `AGENTS.md` outright means `next dev` recreates it as
-  an uncommitted change. Keeping it, and writing the project's own guidance
-  into `CLAUDE.md` above the `@AGENTS.md` reference, avoids fighting the tool.
-- **One file beyond the plan's file list**: `lib/i18n/locale.ts`. The `Locale`
-  type is needed by both `lib/i18n` and `lib/person/store.ts` (the store
-  persists the chosen locale), and a leaf module both can import is what keeps
-  that from becoming a circular import between the provider and the store.
-
-## Next action
-
-Finish step 6: write `messages/en.ts`, then `de.ts` typed against it, then
-`lib/i18n/index.tsx`. Then step 7, the store — it is what the conversation in
-step 8 sits on.
+- **Push and enable Pages** (step 12). No git remote exists yet; the repo is meant
+  to be public, which makes it the first irreversible, outward-facing step.
+- **Verification 11** (the live URL, and a deep link to `/you/` surviving a reload)
+  can only be done after that.
+- **pnpm 11.21.0** is available, as above.

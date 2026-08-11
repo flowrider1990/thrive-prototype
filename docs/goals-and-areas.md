@@ -1,10 +1,42 @@
-# Life areas, goals, and next steps
+# Life areas, goals, and what to try
 
 Five fixed life areas. In each, at most one current goal, at most three prepared
-next steps, and at most one being worked on. That is the whole feature.
+things to try, and at most one being worked on. That is the whole feature.
 
 This file holds the parts that are not self-evident from the code: why the keys
 are shaped the way they are, and how current state is derived from them.
+
+## `step` is the internal name for something the UI does not name
+
+The code says `step`, `Step`, `addStep`, `completeStep`, `MAX_OPEN_STEPS`, and the
+persisted keys say `area.<a>.step.<sid>.*`. **The user interface never says "step".**
+
+That is deliberate, and the gap is worth understanding rather than closing.
+
+The long-term model is `Life Area → Goal → Action → current focus`, where an Action
+may be a one-off task, a habit-like behaviour, an experiment, a routine, a tactic, or
+something else entirely. "Next step" leaned task: a step is something you finish, and
+half of what belongs here is not finishable — "eat lower-carb most days", "use less
+screen time in the evening". So the copy stopped naming the concept at all. The
+questions do the work instead:
+
+> What could help you move toward this goal?
+> What you want to try
+> Which one would you like to focus on first?
+> How is it going?
+
+Picking one universal noun would have been wrong for the other kinds, and choosing
+per person is personalisation this stage of the product has not earned.
+
+**The keys were not renamed, and should not be.** `docs/person-model.md` divides
+fact values into *utterances* (rendered as themselves) and *tokens* (never
+rendered). `state` and `step_active` are tokens — `'done'` never reaches a screen,
+so it is an internal enum the interface is free to describe however it likes. The
+word that was locking the product into task semantics was in the copy, not in the
+store. Renaming the identifiers would touch every component and leave the code
+saying `action` while the keys say `step`, which is a worse mismatch than this one.
+
+A code-level rename stays cheap and available. A **key** rename is a migration.
 
 ## The five areas
 
@@ -59,8 +91,8 @@ The model now has both, and the distinction is worth naming:
 - **references and tokens** — `review`, `state`, `step_active`. Written by the app.
   `step_active` holds a `sid`, which is an internal id.
 
-An id must never reach a screen. `components/you-areas.tsx` exists for exactly
-that reason: `/you` renders life-area facts through `readAreaDetail()` rather than
+An id must never reach a screen. `components/stored-areas.tsx` exists for exactly
+that reason: `/data/stored/` renders life-area facts through `readAreaDetail()` rather than
 through its generic group-by-key list, so every reference resolves back to the
 words it points at. `scripts/verify.mjs` check 7f asserts the rendered page
 contains no UUID at all.
@@ -95,6 +127,77 @@ mints a new `sid`.
 None of these is a stored constraint. They fall out of the derivation, which is
 why a hand-edited store degrades rather than becoming invalid.
 
+### One goal per area is a first-iteration constraint, not a domain rule
+
+Recorded because the code reads like a rule and is not one. A later version may
+support **up to three concurrently relevant goals per area, with priority ordering
+the person controls**, and the product should stay able to help someone *compare,
+prioritise and choose between* competing goals and possible actions. None of that is
+built, and none of it should be built without its own approval.
+
+What that means for the two halves of the model is quite different, and it is worth
+knowing which is already ready:
+
+- **Actions are already independent of any one goal.** They hang off the area
+  (`area.<a>.step.<sid>.*`), never off a goal id — see "Changing a goal" below, where
+  a new goal reviews the existing entries rather than replacing them. So "an action
+  may support one or more goals rather than belonging permanently to exactly one" is
+  compatible with the keys as they stand. Expressing *which* goals an action serves
+  would be additive: a new key alongside the existing ones, no migration.
+- **Goals are not.** `area.<a>.goal` is a single key where the newest value wins,
+  which is exactly what makes "one current goal" fall out of the derivation for free.
+  Three concurrent goals needs the same treatment steps already got —
+  `area.<a>.goal.<gid>.text`, plus something for ordering — and that *is* a
+  migration, because existing single-key goal facts would have to be read as one
+  goal under the new shape. `docs/person-model.md` has the rule: a `version` bump is
+  for changes that genuinely cannot be read the old way, and this is one of the few
+  that might qualify.
+
+The lesson from doing it once already applies here: the id belongs in the **key**,
+not in the value, because a fact carries one string and the value has to stay free
+for the person's own words.
+
+## The four outcomes
+
+The home screen asks **"How is it going?"** about whatever is being worked on, and
+offers four answers. They map onto the existing writers with no new fact values:
+
+| answer | writer | what is stored |
+| --- | --- | --- |
+| I have done this | `completeStep` | `state = 'done'` |
+| Still on it | — | **nothing** — see below |
+| I would rather do something else | `chooseStep`, or `addStep` + `chooseStep` | a newer `step_active` |
+| This does not fit anymore | `retireStep` | `state = 'retired'` |
+
+**Why a question rather than a Done button.** Completion used to be the only
+outcome, and it was reached by tapping the row — the whole row, which was a
+full-width button whose only content was the person's own words, with no
+confirmation and no undo. Two problems in one control: *done* is not the only way
+this goes, and nothing said that touching the words would end it. The words are now
+plain text and the control is explicit.
+
+Framing it as a question is also what keeps the door open. A future check-in asks
+the same thing on its own initiative and can offer the same four answers — the
+affordance already exists, so building check-ins does not mean redesigning this.
+That is the compatibility this stage was asked for, and none of it is built:
+no timestamps, no frequency setting, no prompt, no resurfacing.
+
+### "Still on it" writes nothing — for now
+
+Today it is the honest answer. The person confirmed that nothing changed, the active
+pointer already says so, and a fact with no consumer is clutter. The same reasoning
+already covers "Later".
+
+**This is a decision about the current, non-check-in UI, not a rule about the
+model.** Once the app checks in periodically, persisting the answer *and its
+timestamp* stops being redundant and becomes the signal that resurfacing and
+reflection would need — "when did they last confirm they were still on this" cannot
+be reconstructed after the fact. The append-only model already supports it with no
+schema change: a key like `area.<a>.step.<sid>.checkin` whose value is the answer and
+whose `learnedAt` is the timestamp.
+
+So: not stored now, because nothing reads it. Stored later, when something does.
+
 ## Changing a goal
 
 Steps belong to the **area**, not to the goal. A new goal therefore touches no
@@ -110,7 +213,7 @@ discarded. `retired` exists because an append-only log has no delete, and becaus
 "I decided this no longer applies" is itself worth knowing later. The user-facing
 label says "remove from current steps" rather than "remove" for the same reason:
 nothing is deleted, and the copy should not claim otherwise on a page whose
-neighbour is `/you`.
+neighbour is `/data/stored/`.
 
 ## Which goal was current when something happened
 
@@ -131,26 +234,56 @@ summary would read.
 Completions stay in the store, with their timestamps, because reflection, journey
 summaries and any later compression of old activity all need them. **No screen in
 this iteration lists them.** Home shows what is active; the life-area view shows
-the current goal, the active step, and what else is prepared. `/you` is where
+the current goal, what is active, and what else is prepared. `/data/stored/` is where
 everything can be inspected.
 
 The direction that matters here: older activity should eventually be summarised
 into something a person recognises as their own path, not displayed as thousands
 of DONE rows.
 
+## Where this lives
+
+| route | what it is |
+| --- | --- |
+| `/` | the introduction, then the few things being worked on |
+| `/areas/` | the five areas and where each one stands |
+| `/areas/<id>/` | one area, deep-linkable — `components/area-manage.tsx` |
+
+The last two used to be two states inside the home page's state machine, which is
+what made it ten states long; it is seven now. `app/areas/[area]/page.tsx` is a
+server component for one narrow reason — a `'use client'` file cannot export
+`generateStaticParams` — so it does the two things that must happen at build time
+and delegates everything a person reads to `components/area-screen.tsx`.
+
+**The routes are not gated on the introduction; only the navigation is.** Gating a
+route under a static export means a client-side redirect, which is a flash, and
+`CLAUDE.md` §9 rules that out. Opening `/areas/` mid-introduction shows mostly-empty
+areas, which is the same thing `/about` has always done for a fresh visitor.
+
 ## Introduction state
 
 Two derivations that are easy to confuse:
 
-- **whether the introduction is over** — the count of areas with a `review` fact.
-  This is monotonic: a review answer is never taken away.
+- **whether the introduction is over** — `introductionFinished()`: every area has a
+  `review` fact. This is monotonic, because a review answer is never taken away.
 - **where an interrupted pass resumes** — `isSettled()`, which is *not* monotonic.
-  Completing a step and choosing "Later" makes an area unsettled again, which is a
-  perfectly good state to be in.
+  Completing something and choosing "Later" makes an area unsettled again, which is
+  a perfectly good state to be in.
 
 Using `isSettled` for the first would drop someone back into onboarding months
 later. Using the review count for the second would skip an area whose goal was
-answered but whose steps were not.
+answered but whose entries were not.
+
+`introductionFinished()` is a named export rather than a comparison written out at
+each call site because it now has **two** callers that have to agree: `app/page.tsx`
+chooses between the introduction and the home screen, and
+`components/page-shell.tsx` decides whether the navigation exists yet. A nav that
+appeared mid-introduction would offer pages that are empty until it is finished.
+
+It is derived from the person, not from `localStorage`, so it holds in memory mode
+too — someone who declined saving still finishes the introduction and still gets the
+navigation. `scripts/verify.mjs` §26d asserts exactly that, alongside the store
+still being empty.
 
 ### Interrupted setup is accepted, not fixed
 

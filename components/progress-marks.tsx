@@ -9,9 +9,25 @@ export type MarkState = 'done' | 'current' | 'upcoming'
  *
  * Three states, and the current one is deliberately not shown as done: filling a
  * mark before its question is answered would claim something that has not
- * happened. Fill differs as well as colour, so the state does not depend on
- * colour alone, and every state has identical metrics, so advancing cannot
- * reflow the screen (`docs/design-system.md`).
+ * happened.
+ *
+ * Each state differs from the others in **two** ways, never in colour alone
+ * (`CLAUDE.md` §17). Ring thickness carries as much of it as colour does:
+ *
+ *   done      filled, thick ring
+ *   current   unfilled, thick ring
+ *   upcoming  unfilled, thin ring
+ *
+ * The earlier version differed only by colour between *current* and *upcoming*,
+ * which was the one pair a person who cannot distinguish them had no other cue
+ * for. Varying the border width is free because Tailwind's preflight sets
+ * `box-sizing: border-box` — a 12px box is 12px whether its border is 1px or 2px,
+ * so the metrics stay identical in every state and advancing cannot reflow the
+ * question underneath. `scripts/verify.mjs` §31 asserts both halves of that:
+ * identical rects, and a difference beyond colour.
+ *
+ * The marks must stay **direct children** of this element — the verification
+ * helper reads them as `[...el.children]`.
  */
 export function ProgressMarks({
   states,
@@ -39,12 +55,12 @@ export function ProgressMarks({
       {states.map((state, index) => (
         <span
           key={index}
-          className={`h-2.5 w-2.5 rounded-full border transition-colors ${
+          className={`h-3 w-3 rounded-full transition-colors ${
             state === 'done'
-              ? 'border-accent bg-accent'
+              ? 'border-2 border-accent bg-accent'
               : state === 'current'
-                ? 'border-ink bg-transparent'
-                : 'border-line bg-transparent'
+                ? 'border-2 border-ink bg-transparent'
+                : 'border border-line-strong bg-transparent'
           }`}
         />
       ))}

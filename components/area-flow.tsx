@@ -1,22 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { AreaIcon } from '@/components/area-icon'
+import { ActionEntry } from '@/components/action-entry'
+import { AreaLabel } from '@/components/area-label'
 import { Choice } from '@/components/choice'
 import { OptionList } from '@/components/option-list'
 import { QuestionCard } from '@/components/question-card'
 import { TextAnswer } from '@/components/text-answer'
 import type { AreaId } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
-import {
-  addStep,
-  chooseStep,
-  MAX_OPEN_STEPS,
-  readArea,
-  setGoal,
-  setReview,
-  type AreaState,
-} from '@/lib/person/goals'
+import { chooseStep, readArea, setGoal, setReview, type AreaState } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
 type Sub = 'review' | 'goal' | 'steps' | 'focus'
@@ -61,17 +54,18 @@ export function AreaFlow({
     setSub('focus')
   }
 
+  // Every question on this screen is about one area, and each `QuestionCard`
+  // renders it as an eyebrow on its own heading. Passing the same element to each
+  // is what keeps the area tied to the question rather than floating above the
+  // whole screen, which is where it used to sit.
+  const eyebrow = <AreaLabel area={area} size="eyebrow" />
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {progress}
 
-      <p className="flex items-center gap-x-2 text-sm text-muted">
-        <AreaIcon area={area} />
-        {m.areas[area]}
-      </p>
-
       {sub === 'review' && (
-        <QuestionCard question={m.goals.reviewQuestion}>
+        <QuestionCard area={eyebrow} question={m.goals.reviewQuestion}>
           <Choice
             options={[
               {
@@ -96,7 +90,7 @@ export function AreaFlow({
       )}
 
       {sub === 'goal' && (
-        <QuestionCard question={m.goals.goalQuestion}>
+        <QuestionCard area={eyebrow} question={m.goals.goalQuestion}>
           <TextAnswer
             placeholder={m.goals.goalPlaceholder}
             submitLabel={m.goals.goalSubmit}
@@ -109,47 +103,13 @@ export function AreaFlow({
       )}
 
       {sub === 'steps' && (
-        <QuestionCard question={m.goals.stepsQuestion} note={m.goals.stepsNote}>
-          <div className="space-y-6">
-            {state.open.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm text-muted">{m.goals.stepsSoFar}</p>
-                <ul className="space-y-2">
-                  {state.open.map((step) => (
-                    <li key={step.id} className="border-s-2 border-line ps-4 leading-relaxed">
-                      {step.text}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {state.open.length < MAX_OPEN_STEPS ? (
-              // Remounted per step so the field clears itself and takes focus
-              // again, which is also what makes adding three in a row feel like
-              // one action rather than three.
-              <TextAnswer
-                key={state.open.length}
-                placeholder={m.goals.stepsPlaceholder}
-                submitLabel={m.goals.stepsAdd}
-                skipLabel={state.open.length > 0 ? m.goals.stepsEnough : undefined}
-                onSubmit={(value) => {
-                  addStep(area, value)
-                }}
-                onSkip={state.open.length > 0 ? finishSteps : undefined}
-              />
-            ) : (
-              <div className="space-y-4">
-                <p className="text-sm text-muted">{m.goals.stepsFull}</p>
-                <Choice options={[{ label: m.goals.stepsContinue, onSelect: finishSteps }]} />
-              </div>
-            )}
-          </div>
+        <QuestionCard area={eyebrow} question={m.goals.stepsQuestion} note={m.goals.stepsNote}>
+          <ActionEntry area={area} entries={state.open} onEnough={finishSteps} />
         </QuestionCard>
       )}
 
       {sub === 'focus' && (
-        <QuestionCard question={m.goals.focusQuestion}>
+        <QuestionCard area={eyebrow} question={m.goals.focusQuestion}>
           <OptionList
             options={state.open.map((step) => ({ id: step.id, label: step.text }))}
             onSelect={(id) => {

@@ -82,7 +82,7 @@ export function ThemeSwitch() {
       onClick={() => setTheme(target)}
       aria-label={t(m.theme.switchTo, { theme: m.theme[target] })}
       title={t(m.theme.switchTo, { theme: m.theme[target] })}
-      className="inline-flex items-center justify-center rounded-full border border-line p-1.5 text-muted transition-colors hover:border-muted hover:text-ink"
+      className="inline-flex items-center justify-center rounded-full border border-line-strong p-1.5 text-muted transition-colors hover:border-muted hover:text-ink"
     >
       {effective === 'dark' ? <MoonIcon /> : <SunIcon />}
     </button>

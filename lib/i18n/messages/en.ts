@@ -16,7 +16,8 @@ export const en = {
 
   nav: {
     home: 'Start',
-    you: 'You',
+    areas: 'Life areas',
+    data: 'Data protection',
     about: 'About',
     /** Accessible name for the nav dropdown the links collapse into on narrow screens. */
     menu: 'Menu',
@@ -65,8 +66,8 @@ export const en = {
 
   /**
    * Parked, not dead. The name question was removed so the app asks for less,
-   * but the copy stays until we decide whether it returns — and `/you` still
-   * needs `you.keys.preferred_name` to label a name someone already gave.
+   * but the copy stays until we decide whether it returns — and `/data/stored/` still
+   * needs `stored.keys.preferred_name` to label a name someone already gave.
    * Same for `opening` and for the parked entries in `home`.
    */
   name: {
@@ -111,27 +112,48 @@ export const en = {
     goalPlaceholder: 'In your own words',
     goalSubmit: 'Continue',
 
-    stepsQuestion: 'What could be your next steps toward this goal?',
-    stepsNote: 'One is enough. You can note up to three.',
+    /**
+     * Deliberately no noun for the thing being asked for.
+     *
+     * "Next step" leaned task: a step is something you finish, and half of what
+     * belongs here — "eat lower-carb most days", "use less screen time in the
+     * evening" — is not finishable. Rather than pick one universal word (task,
+     * habit, tactic, experiment) and be wrong for the others, the question does
+     * the work and the concept stays unnamed. `docs/goals-and-areas.md`.
+     */
+    stepsQuestion: 'What could help you move toward this goal?',
+    /** The cap, stated before the first entry rather than discovered at the third. */
+    stepsNote: 'One is enough. You can add up to three.',
     stepsPlaceholder: 'Something small and concrete',
-    stepsSoFar: 'So far',
+    /** Heads the numbered list once there is something in it. */
+    entriesLabel: 'What you want to try',
     stepsAdd: 'Add',
+    /** From the second entry on, so the button itself says more is allowed. */
+    stepsAddAnother: 'Add another',
     stepsEnough: 'That is enough',
     stepsFull: 'Three is plenty to start with.',
     stepsContinue: 'Continue',
+    /**
+     * Names what is being edited. Three Edit buttons that all just say "Edit" are
+     * three identical controls to a screen reader, and unclickable by name to the
+     * verification suite.
+     */
+    stepsEdit: 'Edit: {text}',
+    stepsEditQuestion: 'What should it say instead?',
+    stepsEditSubmit: 'Save',
+    stepsEditCancel: 'Cancel',
 
     focusQuestion: 'Which one would you like to focus on first?',
   },
 
   complete: {
-    title: 'That is the whole introduction.',
-    body: 'Your next steps are on the start page. When you have done one, mark it as done — then you can choose another, or leave it for later.',
-    note: 'Goals and next steps can be changed whenever you like, from the start page or from a life area.',
+    title: 'That is it for now.',
+    body: 'What you want to try is on the start page.',
     submit: 'Go to the start page',
   },
 
   home: {
-    title: 'Your next steps',
+    title: 'What you are working on',
     empty: 'Nothing is active right now. That is a fine place to be.',
     /**
      * Shown only when an area holds a goal that never got a next step — that is,
@@ -139,20 +161,34 @@ export const en = {
      * not shown after "Later": leaving an area quiet is a real answer, and
      * pointing at it would be nagging.
      */
-    unfinished: 'One of your life areas has a goal but no next step yet.',
-    /** Says the action, not just the content — the same rule as `theme.switchTo`. */
-    markDone: 'Mark as done: {step}',
-    done: 'Done.',
-    chooseNextQuestion: 'Would you like to choose your next step?',
-    chooseNext: 'Choose next step',
+    unfinished: 'One of your life areas has a goal but nothing to try yet.',
+    /**
+     * The control that opens the outcomes, and the question *is* the control.
+     *
+     * It replaces "Mark as done: {step}" on a full-width button that completed the
+     * thing on any tap. Done was the only outcome available, which quietly made
+     * finishing the model — wrong for anything ongoing. Asking instead means the
+     * four answers below cover both, and it is the same affordance a future
+     * check-in reuses: later it gets *asked* rather than only offered.
+     */
+    check: 'How is it going?',
+    /** The accessible name, so the control says which thing it is about. */
+    checkOn: 'How is it going with: {text}',
+    /** Answers, not commands. Nothing here counts, scores or congratulates. */
+    outcomeDone: 'I have done this',
+    outcomeOngoing: 'Still on it',
+    outcomeSwap: 'I would rather do something else',
+    outcomeAside: 'This does not fit anymore',
+    cancel: 'Cancel',
+    done: 'Noted.',
+    chooseNextQuestion: 'Would you like to choose what to try next?',
+    chooseNext: 'Choose something',
     later: 'Later',
-    newStepQuestion: 'What could be your next step?',
+    newStepQuestion: 'What could help you move toward this goal?',
     newStepPlaceholder: 'Something small and concrete',
     newStepSubmit: 'Save',
-    toAreas: 'Review your life areas',
     savedNote: 'What you told me is on this device only.',
     memoryNote: 'Nothing is being saved. What you told me stays in this tab.',
-    toYou: 'See everything I know',
     // Parked with the name question — see the note above `name`.
     ack: 'Thank you. That is everything I wanted to ask.',
     greeting: 'Hello {name}.',
@@ -162,11 +198,10 @@ export const en = {
 
   manage: {
     pickerTitle: 'Your life areas',
-    pickerNote: 'Open one to change its goal or its next steps.',
+    pickerNote: 'Open one to change its goal, or what you want to try.',
     noGoal: 'No goal yet',
     notNow: 'Not right now',
-    noStep: 'No next step yet',
-    back: 'Back to the start page',
+    noStep: 'Nothing to try yet',
 
     reconsiderQuestion: 'Would you like to change or explore something here now?',
     reconsiderYes: 'Yes',
@@ -177,7 +212,7 @@ export const en = {
     preparedLabel: 'Also prepared',
     changeGoal: 'Change goal',
     changeStep: 'Focus on something else',
-    addStep: 'Add a next step',
+    addStep: 'Add something to try',
     done: 'Done',
 
     goalQuestion: 'What is your goal now?',
@@ -192,8 +227,14 @@ export const en = {
     editSubmit: 'Save',
   },
 
-  you: {
-    title: 'What I know about you',
+  /**
+   * The stored-data view at `/data/stored/`. Named for the page, not for the person:
+   * this used to be the `you` group behind a `/you` route, and a group whose name no
+   * longer matches any route is how a catalog starts drifting from the app.
+   */
+  stored: {
+    title: 'What is stored',
+    back: 'Back to data protection',
     introSaved:
       'In your own words, exactly as you gave them. This has never left this browser: there is no server, no account, and nothing is sent anywhere.',
     introMemory:
@@ -221,13 +262,41 @@ export const en = {
       retired: 'removed from current steps',
       edited: 'reworded from: {text}',
     },
-    forget: {
-      button: 'Forget everything',
-      question:
-        'Everything above will be removed from this device. This cannot be undone.',
-      confirm: 'Yes, forget everything',
+  },
+
+  /**
+   * Two levels on purpose. `/data/` has to stay readable by someone with no interest
+   * in how software works, and the stored-data list grows without bound as the app is
+   * used — putting one inside the other would eventually bury the explanation under
+   * the thing it is explaining.
+   */
+  data: {
+    title: 'Data protection',
+    /** Plain language, present tense, no hedging. Each sentence is one fact. */
+    p1: 'What you write here is stored only in this browser, on this device.',
+    p2: 'It is not sent to us. There is no account and no cloud, and nobody else can see it.',
+    p3: 'If you clear your browser data, it is deleted along with everything else.',
+    p4: 'Another browser, or another device, will not have it.',
+    /** The one thing this page is for, besides being true. */
+    show: 'Show what is stored',
+    memoryNote:
+      'You asked for nothing to be saved, so nothing is being written to this device at all. What you tell the app this visit stays in this tab and is gone when you close it.',
+
+    /**
+     * Deleting is deliberate: two confirmations, and the first one only explains.
+     * The copy stays factual — no warning tone, no attempt to talk anyone out of it.
+     * It is their data.
+     */
+    delete: {
+      button: 'Delete everything',
+      warnTitle: 'This removes everything you have entered.',
+      warnBody:
+        'Your goals, what you wanted to try, and everything on this page. If you change your mind later, you would have to enter it all again.',
+      warnContinue: 'Continue',
       cancel: 'Keep it',
-      done: 'Forgotten. Nothing is left.',
+      finalTitle: 'Delete everything now? This cannot be undone.',
+      finalConfirm: 'Yes, delete everything',
+      done: 'Deleted. Nothing is left.',
     },
   },
 
@@ -241,7 +310,7 @@ export const en = {
     isNotP1: 'There is no habit tracking, no journal, no mood tracking, no reminders and no scoring. It does not ask you to come back every day. Those choices come later, if they earn their place.',
     isNotP2: 'It is also not a medical or therapeutic tool, and no substitute for talking to a person.',
     whereTitle: 'Where your answers live',
-    whereP1: 'In this browser, in a single entry called {key}, on this device. Clearing your browser data removes it, and so does "forget everything" on the You page.',
+    whereP1: 'In this browser, in a single entry called {key}, on this device. Clearing your browser data removes it, and so does "delete everything" under Data protection.',
     whereP2: 'If you declined, not even that entry exists: the app runs in memory for that visit and writes nothing at all. That has one honest consequence — it cannot remember that you declined, so it will ask again next time.',
   },
 }

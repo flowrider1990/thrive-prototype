@@ -27,7 +27,7 @@ it is the first outward-facing action, so it waits for a decision.
 | 6. i18n | `lib/i18n/*`, both catalogs complete |
 | 7. The store | `lib/person/store.ts`, both backends, consent gate |
 | 8. The conversation | `app/page.tsx` + four components |
-| 9. `/you` and `/about` | in-page confirm for forgetting |
+| 9. `/you` and `/about` | in-page confirm for forgetting — `/you` since replaced by `/data/` |
 | 10. Shell and styling | quiet monochrome palette, light/dark with no script |
 | 11. Docs | `CLAUDE.md`, `README.md`, five `docs/*.md` |
 | 12. Commit, push, enable Pages | committed; **push not done** |
@@ -37,9 +37,10 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 78/78** (it was 25 at the
-foundation and 39 after the header controls); the script itself is the only
-authority on that number, so treat any count written in prose as a snapshot.
+the two the plan singles out. **The current count is 125/125** (25 at the
+foundation, 39 after the header controls, 78 after the first product loop); the
+script itself is the only authority on that number, so treat any count written in
+prose as a snapshot.
 
 - **no flash on reload** (item 4) — sampled from `requestAnimationFrame` starting
   before the app's own scripts run, so a wrong-state frame would be caught rather
@@ -244,6 +245,228 @@ recording here is where reality differed from the first plan.
   "Remove from current steps" pill wraps onto its own line, which is what
   `flex-wrap` is for. The habit still earns its place — it is how the disabled-button
   contrast defect was found.
+
+## UX/UI rework (branch `feature/ux-ui-rework`)
+
+Four stages. Stage 1 is visual robustness only — no behaviour change.
+
+### Stage 1: the surface stopped being faint
+
+`pnpm verify` is **85 checks**, up from 78, passing against both the export and
+`pnpm dev`.
+
+- **A third border token, pinned to a number.** `--color-line-strong` sits between
+  `--color-line` and `--color-muted` and must clear **3:1 against the ground**
+  (WCAG 1.4.11 for a non-text UI component boundary); both themes measure 3.05:1.
+  The old shared token measured **1.22:1**, which is the whole of why inactive marks
+  and field borders were invisible. Separators stay on `--color-line`, which is
+  decorative and exempt. Rationale in `docs/design-system.md`.
+- **The progress marks differed by colour alone** between *current* and *upcoming* —
+  §17 forbids exactly that, and the design-system doc claimed otherwise. Border width
+  is now the second cue, which is free because `box-sizing: border-box` keeps a 12px
+  box 12px at any border width.
+- **The area context was detached, and size was not the fix.** It sat in an
+  `space-y-8` stack equidistant from the progress marks and the question, so the
+  question read as having no subject. It moved *inside* `QuestionCard` as an eyebrow,
+  one tight group with the heading. Proximity did the work; the larger icon and
+  `text-ink` only helped.
+
+**Six checks would have kept printing PASS while proving nothing**, and finding that
+was worth more than the checks that were added:
+
+- **4l and 16**, the two rAF frame samplers, filter painted frames against copy
+  strings. A stale needle after a copy change, or a sampler that never ran, leaves an
+  empty array — and "no frame contained X" is trivially true of no frames. 4l is a
+  §16 guarantee. Both now require a frame floor, and 4l has a **positive control**
+  (4a2) proving that this needle and this sampler *can* see the consent screen before
+  its absence is believed.
+- **Check 11** (the header does not wrap at 390px) is measured on an empty store.
+  Once the nav is hidden during onboarding — stage 3 — the header holds only brand,
+  language and theme, so it *cannot* wrap and the check *cannot* fail. Splitting it
+  into an empty-store and an onboarded case is queued with stage 3.
+- **12a**, **20b**, and **7f** have the same shape of problem; all are handled in the
+  stage that breaks them. 7f is the sharpest: it reads `innerText`, and the rework
+  moves a step's own words into **accessible names**, which `innerText` cannot see.
+- **The German theme-toggle selector has never matched anything.** It looked for
+  `aria-label^="Wechsle"`; the German string is *"Zu Dunkel wechseln"*. Checks 22/23
+  passed only because they happen to run in English. Fixed to a substring match.
+
+Also: four dead `EN` fixture entries were left in place for now (`focus`,
+`reconsider`, `leaveIt`, `contNo`) — they are cleaned up in the stage that rewrites
+their sections.
+
+### Stage 2: the app stopped being a to-do list
+
+`pnpm verify` is **97 checks**, passing against both the export and `pnpm dev`.
+
+- **The copy no longer names the concept.** "Next step" leaned task — a step is
+  something you finish, and half of what belongs here is not finishable. Rather than
+  pick one universal noun (task, habit, tactic, experiment) and be wrong for the
+  others, the questions carry it: *What could help you move toward this goal?* /
+  *What you want to try* / *How is it going?* The reasoning and the internal-vs-UI
+  naming gap are in `docs/goals-and-areas.md`.
+- **The persisted keys did not change**, and should not. `state` and `step_active`
+  are *tokens* in the `docs/person-model.md` sense — never rendered — so `'done'` is
+  an internal enum the interface can describe however it likes. The word locking the
+  product into task semantics was in the copy, not the store.
+- **Home's row was a trap.** The person's own words were a full-width button whose
+  only content was those words; any tap completed the thing, with no confirmation, no
+  undo, and looking exactly like the `.option` rows elsewhere that merely select.
+  The words are now plain text and the control is explicit. §24a asserts the markup,
+  §24a2 asserts that clicking the words changes nothing — **that pair is the rework**,
+  and 24a2 is the one assertion that would have failed before it.
+- **"How is it going?" instead of "Done".** Four answers cover both one-off and
+  ongoing things, and map onto existing writers with no new fact values. Framing it
+  as a question is also what keeps a future check-in from being a redesign: it asks
+  the same thing on its own initiative and can offer the same four answers.
+- **"Still on it" writes nothing — for now.** Recorded in
+  `docs/goals-and-areas.md` as a decision with a stated expiry rather than a
+  principle: once check-ins exist, the answer *and its timestamp* become the signal
+  resurfacing needs, and the append-only model already supports it with no schema
+  change.
+- **Entries are a numbered `<ol>` with a per-entry Edit.** They used to render
+  read-only with no affordance at all. The cap is now stated before the first entry
+  instead of discovered at the third, and the add button changes from "Add" to
+  "Add another" — §29b asserts the two labels really differ, because a bug rendering
+  one label in both states would otherwise pass, `__click` finding it either way.
+- **Focus management, which the codebase had nowhere.** Opening the answers moves
+  focus into them; cancelling gives it back to the control that opened them. Both
+  halves have to run *after* the render that changes the DOM, because the answers
+  replace the trigger rather than appearing beside it — an inline `.focus()` on the
+  way out is a no-op on a node React has not created yet.
+
+Three things worth remembering from doing it:
+
+- **Two assertions failed on the first run, and both were the assertion's fault.**
+  7c counted retired facts *globally* and expected 1, which only held while setting
+  something aside from Home went untested; it now measures a delta. 24k expected
+  three `done` facts, from a flow that now produces two done and one retired.
+- **Screenshots earned their place again.** The Edit pills wrapped onto their own
+  line and read as peers of "Add another" — a stack of pills, which is exactly the
+  "heavy and overly boxed" the visual direction rules out. Fixed with a `.btn-sm`
+  size. And opening the answers *replaced* the row, so the question was about
+  something no longer on screen; the text now stays. Neither was visible in 97
+  passing checks.
+- **A dropped view survived only because the suite caught it.** Restructuring
+  `AreaManage` deleted its whole `add` view; check 25e failed immediately.
+
+### Stage 3: the life areas became real routes
+
+`pnpm verify` is **110 checks**, passing against both the export and `pnpm dev`.
+
+- **Ten states to seven.** `/areas/` and `/areas/<id>/` used to be two states inside
+  the home page's machine. `app/areas/[area]/page.tsx` is a server component for one
+  narrow reason — a `'use client'` file cannot export `generateStaticParams`, which
+  is a hard build error the Next docs never mention — so it awaits `params`,
+  narrows the id, and delegates everything a person reads to `AreaScreen`.
+- **Only the nav is gated, never the routes.** Gating a route under a static export
+  means a client-side redirect, which is a flash (§9). `introductionFinished()` is now
+  a named export because two callers have to agree on it, and it is derived from the
+  person rather than from `localStorage` so memory mode gets the navigation too.
+- **`/areas/` rows are `<a>`, not `<button>`.** They navigate; nothing on that page
+  changes anything. §27b asserts the href **set**, not a count — five links all
+  pointing at `body` is the copy-paste bug a count cannot see.
+- **Verification item 11 from the original plan is finally closed** for the part that
+  needed a nested route: §27d/§27e deep-link `/areas/body/` cold and reload it.
+
+Three checks turned out to be unfalsifiable, and finding them was the real work:
+
+- **11 could no longer fail.** With the nav hidden during onboarding, the header at
+  390px holds only the wordmark, the language switch and the theme toggle — it
+  *cannot* wrap. Split into 11a (empty store) and 11b (onboarded, nav present); 11b
+  carries the original guarantee. `seedOnboarded()` exists for this and for 12/13/21/26,
+  so none of them has to replay twelve clicks or couple itself to onboarding copy.
+- **`!visible('Menu')` has always been true**, on every screen the app has ever had.
+  `__visible` matches an element's *text*, and the collapsed-nav trigger is a
+  hamburger whose name lives in `aria-label` — so check 13's "no menu trigger at
+  desktop width" asserted nothing. There is now a `__shown(selector)` helper that
+  asks whether something is laid out, and 13 uses it.
+- **20b's premise depends on an empty store**, which was accidental before and is
+  now deliberate and commented: `/` has to be the consent screen for "this page does
+  not scroll" to hold. Seeding it would have made 20b fail for a reason unrelated to
+  the scrollbar gutter.
+
+And one genuine platform finding, from the new check 9b (no response ≥ 400):
+
+- **The emitted `out/` tree is not platform-identical.** Next builds the RSC
+  segment-prefetch filenames with `path.relative`, which yields `\` on Windows and
+  `/` on Linux — so a Windows-built export nests `out/about/__next.about/__PAGE__.txt`
+  in a *directory* while the client requests the flat `__next.about.__PAGE__.txt`.
+  Verified on disk. **Pre-existing**: it already affects `/about` and `/you`, both
+  older than this branch, and it costs only `<Link>` prefetch warm-up — every cold
+  navigation and reload works, which §27d/§27e assert directly. 9b exempts those
+  payloads and `favicon.ico`, with the reasoning written at the check, and still
+  catches the thing worth catching: a document, script or stylesheet 404ing, which is
+  what a dynamic route missing `generateStaticParams` looks like.
+
+### Stage 4: data protection someone can actually read
+
+`pnpm verify` is **123 checks**, passing against both the export and `pnpm dev`.
+`/you` is gone; the app's routes are `/`, `/areas/`, `/areas/<id>/`, `/data/`,
+`/data/stored/`, `/about/`.
+
+- **Two levels, not one page with a disclosure.** `/data/` explains in four plain
+  sentences and links onward; `/data/stored/` shows the data and holds the delete
+  flow. The stored view grows without bound as the app is used, so folding it into
+  the explanation would have buried the explanation under the thing it explains.
+  §28b asserts the split from the other direction: the plain page must **not**
+  contain the person's goal.
+- **Deleting takes two confirmations, and the first only explains.** §8a and §8b
+  assert `raw()` is **byte-identical** after each — "the key still exists" would not
+  notice it being rewritten — and §8c asserts backing out at the last moment leaves
+  everything. `forgetEverything()` itself is untouched.
+- **The safe choice carries the emphasis.** "Keep it" is `.btn-primary` on both
+  steps; the step toward deletion is quiet. A filled "Yes, delete everything" would
+  be the interface leaning on someone at the one moment it must not.
+- **About moved to the footer**, where — unlike the nav — it is never gated. During
+  the introduction the header has no links at all, and the page explaining what this
+  is should not be the one thing you cannot reach while deciding whether to trust it.
+  §12c asserts it from both sides, because the failure worth catching is it appearing
+  in *both* places.
+- **`about.whereP1` had to change.** It named *"forget everything" on the You page*
+  as the way to remove your data. Deleting that route would have left the app making
+  a false statement about privacy — the reason it was flagged before the work started
+  rather than found afterwards.
+- **The `you` message group is now `stored`.** A catalog group named for a route that
+  no longer exists is how a catalog starts drifting from the app; `you-areas.tsx`
+  became `stored-areas.tsx` for the same reason. Mechanical, and the build enforces it.
+
+New §30 sweeps every route for internal ids in both `innerText` **and** accessible
+names. §7f had done this for one page; the rework added four more surfaces where an
+entry's own words sit next to its id, and moved those words into `aria-label`s, which
+`innerText` cannot see at all.
+
+### What the code review caught (PR #3)
+
+Six findings, all of them real, all fixed before merge. Worth recording because four
+of the six are the same shape: **a claim that was asserted in one place and false in
+another.**
+
+- **`--dark-line-strong` was below its own floor.** 3.05:1 against the ground and
+  **2.77:1 against `--color-surface`** — and `.field`, `.option` and the menu panel are
+  all `bg-surface`, which in dark mode is *lighter* than the page. §31c could not see
+  it: it measures a progress mark, which sits on the page. Fixed to `#6b6b75`
+  (3.39 ground / 3.08 surface), and **§31d now measures the surface path**. Proven able
+  to fail by restoring the old value first — it reported exactly 2.77:1.
+- **Arriving on `/data/stored/` put focus on "Delete everything".** The focus effect's
+  returning branch also ran on mount, so the page scrolled past everything it exists to
+  show and landed on its one destructive control. `next-steps.tsx` already guarded this
+  with an `opened` ref; this effect did not.
+- **The swap answer led to a dead end.** "I would rather do something else" with
+  nothing else prepared dropped the person into a mandatory field with no way back
+  except leaving the page. It was survivable before only because that state was
+  previously reachable only *after* "Later" had been offered.
+- **Both `role="status"` regions announced nothing.** A live region inserted together
+  with its text is not a change to an existing region, which is what assistive tech
+  watches for. Both are now mounted once, visually hidden, with the visible
+  confirmation kept separate.
+- **Check 12b was passing without the menu.** The nav renders twice, so at phone width
+  the first DOM match for a nav label is the *hidden* inline copy, and `__click` had no
+  visibility filter — "the collapsed menu still navigates" would have passed with the
+  panel broken. `__click` now prefers laid-out matches.
+- **`introductionFinished`'s doc named a caller that was not one.** `app/page.tsx` kept
+  its own inline `reviewed === areas.length`, so the two definitions the function exists
+  to unify could have drifted apart. Now actually wired.
 
 ## Supabase: paused deliberately after the proposal (2026-08-11)
 

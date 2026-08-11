@@ -1,6 +1,6 @@
 'use client'
 
-import type { AreaId } from '@/lib/areas'
+import { areas, type AreaId } from '@/lib/areas'
 import { newId, remember, type Person } from './store'
 
 /**
@@ -201,6 +201,24 @@ export function isSettled(state: AreaState): boolean {
   if (!state.review) return false
   if (state.review === 'not_now') return true
   return Boolean(state.goal && state.active)
+}
+
+/**
+ * Is the introduction over?
+ *
+ * The count of areas holding a `review` fact, which **never decreases** — that is
+ * the whole reason this exists as its own function rather than as a comparison
+ * written out at each call site. `isSettled()` looks like it would do the job and
+ * must not be used for it: completing something and choosing "Later" un-settles an
+ * area, which would drop a person back into onboarding months later.
+ *
+ * Two callers rely on it, and they have to agree: `app/page.tsx` decides whether to
+ * show the introduction or the home screen, and `components/page-shell.tsx` decides
+ * whether the navigation exists yet. A nav that appears mid-introduction offers
+ * pages that are empty until it is finished.
+ */
+export function introductionFinished(person: Person): boolean {
+  return areas.every((area) => Boolean(readArea(person, area).review))
 }
 
 /**

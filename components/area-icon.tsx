@@ -15,9 +15,19 @@ const icons: Record<AreaId, string> = {
   creativity: '🎨',
 }
 
-export function AreaIcon({ area }: { area: AreaId }) {
+/**
+ * Sized explicitly rather than inheriting. Every call site used to be `text-sm`,
+ * which rendered the emoji at body-small — small enough that the area context read
+ * as a footnote to its own question.
+ */
+const sizes = {
+  eyebrow: 'text-xl',
+  inline: 'text-base',
+} as const
+
+export function AreaIcon({ area, size = 'inline' }: { area: AreaId; size?: keyof typeof sizes }) {
   return (
-    <span aria-hidden="true" className="select-none">
+    <span aria-hidden="true" className={`select-none leading-none ${sizes[size]}`}>
       {icons[area]}
     </span>
   )

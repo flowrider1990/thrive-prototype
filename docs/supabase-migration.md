@@ -52,7 +52,7 @@ Guarantees currently enforced, all asserted by `pnpm verify` (40 checks):
 | G5 | Corrupt data degrades, never white-screens | `parse()` |
 | G6 | **No request leaves the browser** | check 9 |
 | G7 | No wrong first frame | `status !== 'ready'` gate, theme bootstrap |
-| G8 | `/you` can show everything and delete everything | `/you`, `forgetEverything()` |
+| G8 | `/data/stored/` can show everything and delete everything | `/you`, `forgetEverything()` |
 
 **G6 is the one this proposal breaks by design.** Everything else must survive
 unchanged, and G6 must survive *in local-only mode* — which means check 9 becomes

@@ -17,10 +17,57 @@ a colour.** That is what makes a new theme or skin a change to one file.
 | `--color-ground` | the page |
 | `--color-surface` | anything raised off the page (the menu panel, fields) |
 | `--color-ink` | primary text, and the active-nav underline |
-| `--color-muted` | secondary text, borders that should recede, quiet controls |
-| `--color-line` | hairlines and rests-at-default borders |
+| `--color-muted` | secondary text, and `:hover` on a control |
+| `--color-line` | hairlines and separators — decorative rules only |
+| `--color-line-strong` | the edge of a control at rest |
 | `--color-accent` | emphasis: the filled button's background |
 | `--color-focus` | the focus ring, and nothing else |
+
+### Why there are two border tokens
+
+`--color-line-strong` is the only colour token pinned to a **number** rather than to
+taste: at least **3:1 against every background it is drawn on**, which is WCAG 1.4.11
+for the boundary of a non-text UI component.
+
+"Every background" means two, and that is the part that is easy to get wrong. A
+control edge sits on `--color-surface`, not on the page — and in dark mode the surface
+is *lighter* than the ground, so a value tuned against the ground alone comes out too
+dark on every control that has a border. The first `--dark-line-strong` did exactly
+that: 3.05 against the ground, **2.77** against the surface. Current figures:
+
+| | ground | surface |
+| --- | --- | --- |
+| light `#948f86` | 3.06 | 3.21 |
+| dark `#6b6b75` | 3.39 | 3.08 |
+
+One token could not do both jobs. A hairline between sections is decorative and
+explicitly exempt from any contrast floor; the edge of a field or an option is the
+thing telling you the control is there. While they shared a variable, the control
+edge could only ever be as quiet as the quietest rule on the page — and it was:
+`#e6e3dd` on `#faf9f7` measured **1.22:1**. That is why inactive progress marks and
+field borders were, accurately, described as barely visible.
+
+So the ladder has three rungs, and a control has three states without any of them
+being faint:
+
+```
+  --color-line          separators              (no floor — decorative)
+  --color-line-strong   a control at rest       (≥ 3:1 on ground *and* surface)
+  --color-muted         that control on :hover  (darker again)
+```
+
+`.field`, `.option`, `.btn-quiet`, `.btn-primary:disabled`, the two dropdown
+triggers and the menu panel are on `line-strong`. Every `border-t` / `border-s-2`
+rule stays on `line`.
+
+**Do not "simplify" this by collapsing the two.** `scripts/verify.mjs` §31c asserts
+the ratio against the page and §31d against the surface, both in both themes, so the
+floor cannot drift back on either. They are asserted as *ratios*, not as inequalities
+against the background, because an inequality passed happily at 1.22:1.
+
+Two checks rather than one because one could not see it: §31c measures a progress
+mark, which sits on the page, and was green while every field and option in dark mode
+was below the floor.
 
 `--color-focus` is deliberately **not** an alias of `--color-accent`. They looked
 interchangeable while both were near-ink, but they answer different questions —
@@ -39,6 +86,11 @@ Defined once as `--dark-*` on `:root`, then mapped twice — once under
 attribute selector cannot be combined in one rule, so the mapping is repeated
 rather than shared. **Adding a colour token means adding it in three places**;
 the file says so at each one.
+
+Missing one of the two mappings is close to invisible in review: the token silently
+falls back to its light value in that one path only. §31c and §31d both run in
+**both** themes for exactly this reason — a forgotten `--dark-line-strong` fails
+there rather than shipping.
 
 ## Type
 
@@ -92,6 +144,28 @@ one without shifting the layout, whereas every `.option` state has a border
 already and only its colour changes. `components/option-list.tsx` renders these as
 a real `<ul>`, so a screen reader says how many there are to choose between.
 
+`.option` means exactly one thing: **pick this**. Selecting one chooses something; it
+never spends anything. That is now true, and it was not: the focused next step on the
+home screen used to be a bare `.option` whose only content was the step's own words,
+and tapping anywhere on it completed the step — no confirmation, no undo, and
+visually identical to the rows that merely select. Keep the class for choices only.
+
+It also has an `:active` state. A tap on a phone gets no `:hover`, so without one
+there was no feedback at all between pressing an option and the screen changing.
+Background and border colour only, so it cannot move anything.
+
+`.btn-sm` is a size, not a variant: `px-3 py-1 text-xs`, composing with `.btn-quiet`
+and inheriting the border rule. It exists for a control subordinate to the thing
+beside it — the per-entry Edit in `components/action-entry.tsx`. At full size, three
+of them in a three-item list read as peers of "Add another" and "That is enough", and
+the list became a stack of pills.
+
+**In a destructive flow, the safe choice takes `.btn-primary`.** On both steps of the
+delete confirmation, "Keep it" is the filled button and the step toward deletion is
+`.btn-quiet`. Emphasis marks what is *recommended*, not what is next — a filled
+"Yes, delete everything" would be the interface leaning on someone at the one moment
+it should not.
+
 Two rules that are load-bearing rather than stylistic:
 
 - **`.btn` carries a transparent border always.** The disabled and quiet variants
@@ -124,17 +198,31 @@ item shifts nothing.
 
 ### The progress marks
 
-`components/progress-marks.tsx` follows the same rule. Five marks, three states,
-identical metrics throughout — `h-2.5 w-2.5 border` in every state, so advancing
-cannot reflow the question underneath:
+`components/progress-marks.tsx` follows the same rule. Five marks, three states, and
+a 12×12 box in every one of them, so advancing cannot reflow the question
+underneath:
 
-- **done** — filled: `border-accent bg-accent`
-- **current** — a ring: `border-ink`, no fill
-- **upcoming** — a fainter ring: `border-line`, no fill
+- **done** — filled, thick ring: `border-2 border-accent bg-accent`
+- **current** — unfilled, thick ring: `border-2 border-ink`
+- **upcoming** — unfilled, thin ring: `border border-line-strong`
 
-Fill differs as well as colour, so the state is not carried by colour alone. The
-current area is deliberately *not* filled: painting a mark before its question is
-answered would claim something that has not happened.
+Each state differs from the others in **two** ways, never in colour alone. That is a
+correction: the earlier version differed only by colour between *current* and
+*upcoming*, which was the one pair with no second cue — this file used to claim
+"fill differs as well as colour", which was true of *done* and of nothing else.
+
+**Varying the border width is free.** Tailwind's preflight sets
+`box-sizing: border-box`, so a 12px box is 12px whether its border is 1px or 2px.
+That is what buys a second cue without touching the metrics, and §31a asserts the
+rects are identical so that a future `box-content` or a stray `padding` cannot
+quietly reintroduce reflow-on-advance.
+
+The current area is deliberately *not* filled: painting a mark before its question
+is answered would claim something that has not happened.
+
+The marks must stay **direct children** of the `[role="progressbar"]` element —
+`__progress()` reads them as `[...el.children]`, and wrapping them would break it
+silently rather than loudly.
 
 `docs/plan.md` rejected a progress bar for onboarding — "there is nothing to
 endure" — and that still holds for a flow of unknown length. The five areas are a
@@ -146,6 +234,30 @@ It is a real `role="progressbar"` with `aria-valuenow` and a translated
 `aria-valuetext` ("Area 2 of 5"), because five dots say nothing out loud. What it
 measures is **areas looked at** — "not right now" advances it exactly as much as
 setting a goal does.
+
+## The area label
+
+`components/area-label.tsx` in two sizes. `eyebrow` sits directly above a question
+and is `text-ink`; `row` labels an area inside a list and is `text-sm text-muted`.
+Neither renders a heading element — the eyebrow sits above the `h1` that owns the
+question, and an `h2` in front of it would put the document outline in the wrong
+order.
+
+The eyebrow is passed to `QuestionCard`'s `area` slot rather than rendered beside
+it, and that grouping is the whole point. Rendered by the caller it sat in an
+`space-y-8` stack, equidistant from the progress marks above and the question below,
+so it read as a third unrelated item and the question looked like it had no subject.
+Inside the card it is one tight `space-y-1.5` group with the heading. Size alone did
+not fix this; proximity did.
+
+`components/area-icon.tsx` takes an explicit size for the same reason. Every call
+site used to inherit `text-sm`, which rendered the emoji at body-small — the area
+context was a footnote to its own question.
+
+One variant stays outside this component, in `components/stored-areas.tsx`, where the
+area name is a section `h2` inside a document rather than a label beside something.
+Pulling it in would mean `AreaLabel` rendering headings, which is what would make it
+wrong at the other four call sites.
 
 ## Motion
 
@@ -180,12 +292,23 @@ toggle's computed `transition-duration` is `0s` while it is set, and that it is
 removed again. Checks 23a/23b assert the focus ring survived — the flash must
 never be "fixed" by weakening focus indication.
 
+Both of those depend on the theme toggle being present, which is why the toggle and
+the language switch stay in the header on **every** screen, including during
+onboarding when the nav links are hidden. `__watchThemeSwitch` selects the toggle by
+its accessible name and throws if it is absent, so removing it would surface as a
+confusing exception rather than as a named failure.
+
+*(That selector was also wrong for a year: it matched `aria-label^="Wechsle"`, but
+the German label is "Zu Dunkel wechseln". The German branch never matched anything,
+and the checks passed only because they happen to run in English. It now matches on
+a substring.)*
+
 ## Layout
 
 `html { scrollbar-gutter: stable }`. Every page centres its column with
 `mx-auto max-w-2xl`, and a classic scrollbar appearing on the tall pages but not
 the short ones moved that column sideways between routes: `main` sat at x=264 on
-`/` and x=256.5 on `/you/` and `/about/`. Reserving the gutter everywhere costs
+`/` and x=256.5 on the other routes. Reserving the gutter everywhere costs
 15px of width on pages that do not scroll and nothing at all where scrollbars
 overlay, which is most phones. `scripts/verify.mjs` check 20a asserts the column
 starts at the same x on all three routes, and 20b asserts the pages still differ

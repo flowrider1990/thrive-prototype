@@ -16,7 +16,8 @@ export const de: Messages = {
 
   nav: {
     home: 'Start',
-    you: 'Du',
+    areas: 'Lebensbereiche',
+    data: 'Datenschutz',
     about: 'Über',
     menu: 'Menü',
   },
@@ -99,41 +100,49 @@ export const de: Messages = {
     goalPlaceholder: 'In deinen eigenen Worten',
     goalSubmit: 'Weiter',
 
-    stepsQuestion: 'Was könnten deine nächsten Schritte in Richtung dieses Ziels sein?',
-    stepsNote: 'Einer reicht. Du kannst bis zu drei notieren.',
+    stepsQuestion: 'Was könnte dir helfen, diesem Ziel näherzukommen?',
+    stepsNote: 'Eines reicht. Du kannst bis zu drei hinzufügen.',
     stepsPlaceholder: 'Etwas Kleines und Konkretes',
-    stepsSoFar: 'Bisher',
+    entriesLabel: 'Was du ausprobieren willst',
     stepsAdd: 'Hinzufügen',
+    stepsAddAnother: 'Noch etwas hinzufügen',
     stepsEnough: 'Das reicht',
     stepsFull: 'Drei sind für den Anfang genug.',
     stepsContinue: 'Weiter',
+    stepsEdit: 'Ändern: {text}',
+    stepsEditQuestion: 'Was soll stattdessen dastehen?',
+    stepsEditSubmit: 'Speichern',
+    stepsEditCancel: 'Abbrechen',
 
     focusQuestion: 'Womit möchtest du zuerst anfangen?',
   },
 
   complete: {
-    title: 'Das war die ganze Einführung.',
-    body: 'Deine nächsten Schritte stehen auf der Startseite. Wenn du einen erledigt hast, hak ihn ab — danach kannst du einen neuen wählen oder es erst einmal lassen.',
-    note: 'Ziele und nächste Schritte kannst du jederzeit ändern, von der Startseite aus oder aus einem Lebensbereich heraus.',
+    title: 'Das war’s für den Anfang.',
+    body: 'Was du ausprobieren willst, findest du auf der Startseite.',
     submit: 'Zur Startseite',
   },
 
   home: {
-    title: 'Deine nächsten Schritte',
+    title: 'Woran du gerade dran bist',
     empty: 'Gerade ist nichts aktiv. Auch das ist ein guter Ort.',
-    unfinished: 'In einem deiner Lebensbereiche steht ein Ziel, aber noch kein nächster Schritt.',
-    markDone: 'Als erledigt markieren: {step}',
-    done: 'Erledigt.',
-    chooseNextQuestion: 'Möchtest du deinen nächsten Schritt wählen?',
-    chooseNext: 'Nächsten Schritt wählen',
+    unfinished: 'In einem deiner Lebensbereiche steht ein Ziel, aber noch nichts zum Ausprobieren.',
+    check: 'Wie läuft’s?',
+    checkOn: 'Wie läuft’s mit: {text}',
+    outcomeDone: 'Das habe ich gemacht',
+    outcomeOngoing: 'Bin noch dran',
+    outcomeSwap: 'Ich möchte lieber etwas anderes',
+    outcomeAside: 'Das passt nicht mehr',
+    cancel: 'Abbrechen',
+    done: 'Notiert.',
+    chooseNextQuestion: 'Möchtest du wählen, was du als Nächstes ausprobierst?',
+    chooseNext: 'Etwas wählen',
     later: 'Später',
-    newStepQuestion: 'Was könnte dein nächster Schritt sein?',
+    newStepQuestion: 'Was könnte dir helfen, diesem Ziel näherzukommen?',
     newStepPlaceholder: 'Etwas Kleines und Konkretes',
     newStepSubmit: 'Speichern',
-    toAreas: 'Deine Lebensbereiche ansehen',
     savedNote: 'Was du mir erzählt hast, liegt nur auf diesem Gerät.',
     memoryNote: 'Es wird nichts gespeichert. Was du mir erzählt hast, bleibt in diesem Tab.',
-    toYou: 'Alles ansehen, was ich weiß',
     ack: 'Danke. Das war alles, was ich fragen wollte.',
     greeting: 'Hallo {name}.',
     youSaid: 'Was du beim Ankommen gesagt hast:',
@@ -142,11 +151,10 @@ export const de: Messages = {
 
   manage: {
     pickerTitle: 'Deine Lebensbereiche',
-    pickerNote: 'Öffne einen, um sein Ziel oder seine nächsten Schritte zu ändern.',
+    pickerNote: 'Öffne einen, um sein Ziel zu ändern — oder was du ausprobieren willst.',
     noGoal: 'Noch kein Ziel',
     notNow: 'Gerade nicht',
-    noStep: 'Noch kein nächster Schritt',
-    back: 'Zurück zur Startseite',
+    noStep: 'Noch nichts zum Ausprobieren',
 
     reconsiderQuestion: 'Möchtest du hier jetzt etwas verändern oder ausprobieren?',
     reconsiderYes: 'Ja',
@@ -157,7 +165,7 @@ export const de: Messages = {
     preparedLabel: 'Außerdem notiert',
     changeGoal: 'Ziel ändern',
     changeStep: 'An etwas anderem arbeiten',
-    addStep: 'Nächsten Schritt hinzufügen',
+    addStep: 'Etwas zum Ausprobieren hinzufügen',
     done: 'Fertig',
 
     goalQuestion: 'Was ist jetzt dein Ziel?',
@@ -170,8 +178,9 @@ export const de: Messages = {
     editSubmit: 'Speichern',
   },
 
-  you: {
-    title: 'Was ich über dich weiß',
+  stored: {
+    title: 'Was gespeichert ist',
+    back: 'Zurück zum Datenschutz',
     introSaved:
       'In deinen eigenen Worten, genau so, wie du sie gesagt hast. Das hat diesen Browser nie verlassen: es gibt keinen Server, kein Konto, und nichts wird irgendwohin geschickt.',
     introMemory:
@@ -198,13 +207,28 @@ export const de: Messages = {
       retired: 'aus den aktuellen Schritten entfernt',
       edited: 'umformuliert aus: {text}',
     },
-    forget: {
-      button: 'Alles vergessen',
-      question:
-        'Alles hier oben wird von diesem Gerät entfernt. Das lässt sich nicht rückgängig machen.',
-      confirm: 'Ja, alles vergessen',
+  },
+
+  data: {
+    title: 'Datenschutz',
+    p1: 'Was du hier schreibst, wird nur in diesem Browser auf diesem Gerät gespeichert.',
+    p2: 'Es wird nicht an uns gesendet. Es gibt kein Konto und keine Cloud, und niemand sonst kann es sehen.',
+    p3: 'Wenn du deine Browserdaten löschst, wird es mit allem anderen zusammen gelöscht.',
+    p4: 'Ein anderer Browser oder ein anderes Gerät hat es nicht.',
+    show: 'Zeigen, was gespeichert ist',
+    memoryNote:
+      'Du wolltest nicht, dass etwas gespeichert wird — deshalb wird auf dieses Gerät gar nichts geschrieben. Was du der App diesmal erzählst, bleibt in diesem Tab und ist weg, sobald du ihn schließt.',
+
+    delete: {
+      button: 'Alles löschen',
+      warnTitle: 'Damit wird alles gelöscht, was du eingegeben hast.',
+      warnBody:
+        'Deine Ziele, was du ausprobieren wolltest, und alles auf dieser Seite. Wenn du es dir später anders überlegst, müsstest du alles neu eingeben.',
+      warnContinue: 'Weiter',
       cancel: 'Behalten',
-      done: 'Vergessen. Es ist nichts mehr da.',
+      finalTitle: 'Jetzt alles löschen? Das lässt sich nicht rückgängig machen.',
+      finalConfirm: 'Ja, alles löschen',
+      done: 'Gelöscht. Es ist nichts mehr da.',
     },
   },
 
@@ -218,7 +242,7 @@ export const de: Messages = {
     isNotP1: 'Es gibt kein Gewohnheits-Tracking, kein Tagebuch, keine Stimmungskurve, keine Erinnerungen und keine Punkte. Sie verlangt nicht, dass du jeden Tag wiederkommst. Das kommt später, falls es sich als sinnvoll erweist.',
     isNotP2: 'Sie ist außerdem kein medizinisches oder therapeutisches Werkzeug und kein Ersatz dafür, mit einem Menschen zu sprechen.',
     whereTitle: 'Wo deine Antworten liegen',
-    whereP1: 'In diesem Browser, in einem einzigen Eintrag namens {key}, auf diesem Gerät. Wenn du deine Browserdaten löschst, ist er weg — genauso über „alles vergessen“ auf der Seite Du.',
+    whereP1: 'In diesem Browser, in einem einzigen Eintrag namens {key}, auf diesem Gerät. Wenn du deine Browserdaten löschst, ist er weg — genauso über „alles löschen“ unter Datenschutz.',
     whereP2: 'Wenn du abgelehnt hast, existiert nicht einmal dieser Eintrag: die App läuft dann nur im Arbeitsspeicher und schreibt gar nichts. Das hat eine ehrliche Folge — sie kann sich nicht merken, dass du abgelehnt hast, und fragt dich beim nächsten Mal wieder.',
   },
 }

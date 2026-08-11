@@ -72,7 +72,7 @@ export function Menu({
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((wasOpen) => !wasOpen)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-muted hover:text-ink"
+        className="inline-flex items-center gap-1.5 rounded-full border border-line-strong px-3 py-1.5 text-xs text-muted transition-colors hover:border-muted hover:text-ink"
       >
         {trigger}
       </button>
@@ -80,7 +80,7 @@ export function Menu({
       {open && (
         <div
           id={panelId}
-          className={`menu-panel absolute top-full z-10 mt-2 min-w-36 rounded-lg border border-line bg-surface p-1 shadow-lg ${
+          className={`menu-panel absolute top-full z-10 mt-2 min-w-36 rounded-lg border border-line-strong bg-surface p-1 shadow-lg ${
             align === 'end' ? 'end-0' : 'start-0'
           }`}
         >

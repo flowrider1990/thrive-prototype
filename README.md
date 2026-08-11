@@ -58,6 +58,7 @@ Static export to GitHub Pages via Actions. See [docs/hosting.md](docs/hosting.md
 | [docs/plan.md](docs/plan.md) | the plan this was built from, verbatim |
 | [docs/progress.md](docs/progress.md) | what got built, and what was learned doing it |
 | [docs/persistence-decision.md](docs/persistence-decision.md) | why browser-local, and what it costs |
+| [docs/supabase-migration.md](docs/supabase-migration.md) | proposal for cloud persistence — not implemented |
 | [docs/person-model.md](docs/person-model.md) | the append-only fact list |
 | [docs/copy-and-language.md](docs/copy-and-language.md) | both languages, and the `du` decision |
 | [docs/hosting.md](docs/hosting.md) | static export and Pages |

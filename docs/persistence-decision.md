@@ -47,7 +47,9 @@ Persisting "they said no" would be the single write that proves them right.
 ## What would have to be true to change it
 
 Sync between devices, or any feature that needs data outside the browser, means
-a backend. The shape that would take is recorded at the end of `docs/plan.md`:
+a backend. **`docs/supabase-migration.md` is the full proposal for that**, written
+against this architecture and awaiting approval. The shape it takes was first
+sketched at the end of `docs/plan.md`:
 a third backend behind the existing store interface, RLS as the *only* guard
 because there is no server to add a second layer, and local data offered as a
 one-time import. Consent gating survives unchanged — it already sits above the

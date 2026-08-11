@@ -661,6 +661,9 @@ const EN = {
   delFinal: 'Delete everything now? This cannot be undone.',
   delConfirm: 'Yes, delete everything',
   delDone: 'Deleted. Nothing is left.',
+  storageChange: 'Change storage settings',
+  storageOffTitle: 'Turn saving off?',
+  storageOffConfirm: 'Turn saving off and delete',
 }
 
 /** The collapsed-nav trigger, which is icon-only and so has to be found by name. */
@@ -2004,6 +2007,97 @@ check(
     dataBack.hasArrow === areaBack.hasArrow &&
     dataBack.beforeHeading === areaBack.beforeHeading,
   `areas: ${areaBack.fontSize}/${areaBack.colour} — data: ${dataBack?.fontSize}/${dataBack?.colour}`,
+)
+
+// --- 36. the storage choice can be reopened, and off really means off --------
+//
+// §36d is the one that matters, and it is the §8 guarantee applied to a path that did
+// not exist before: **turning saving off must leave `localStorage` completely empty.**
+// Not "no facts" — no key.
+//
+// `declineConsent()` alone does not do that. `commit()` writes only when the mode is
+// `local` and nothing in it removes anything, so switching with that call alone would
+// leave the stored key on disk while the page said nothing was being saved. Which is
+// why turning off goes through `forgetEverything()` first, and why the cost is stated
+// before it is paid.
+
+await seedOnboarded()
+await goto('/data/')
+screen = await text()
+check(
+  '36a. the page says which storage mode is in force, and offers to change it',
+  screen.includes('Saving is on') && (await visible(EN.storageChange)),
+  screen.replace(/\n/g, ' / ').slice(-160),
+)
+
+// Reopened, it has to be the *same* question — same words as onboarding, not a toggle
+// and not a second phrasing of a decision the app already puts carefully.
+await click(EN.storageChange)
+screen = await text()
+check(
+  '36b. it reopens onboarding’s own question, word for word',
+  screen.includes(EN.consent) && (await visible(EN.yes)) && (await visible(EN.no)),
+  screen.includes(EN.consent) ? 'same question' : 'a different wording appeared',
+)
+check(
+  '36c. and no toggle was introduced beside it',
+  (await count('main input[type="checkbox"]')) === 0 &&
+    (await count('main [role="switch"]')) === 0,
+  `${await count('main input[type="checkbox"]')} checkbox(es), ${await count('main [role="switch"]')} switch(es)`,
+)
+
+// Saying no from a saving store explains the cost first, and changes nothing yet.
+const beforeOff = await raw()
+await click(EN.no)
+screen = await text()
+check(
+  '36d. saying no explains that the stored data goes, and has not touched it yet',
+  screen.includes(EN.storageOffTitle) && (await raw()) === beforeOff,
+  (await raw()) === beforeOff ? 'store untouched' : 'STORE CHANGED BEFORE CONFIRMING',
+)
+
+// Backing out has to leave everything exactly as it was.
+await click(EN.delKeep)
+check(
+  '36e. and backing out leaves the store byte-identical',
+  (await raw()) === beforeOff && (await visible(EN.storageChange)),
+  (await raw()) === beforeOff ? 'store untouched' : 'STORE CHANGED',
+)
+
+// The guarantee. Confirming must leave no key at all, and the page must then say so.
+await click(EN.storageChange)
+await click(EN.no)
+await click(EN.storageOffConfirm)
+await sleep(300)
+screen = await text()
+check(
+  '36f. confirming leaves localStorage completely empty — no key, not just no facts',
+  (await keys()).length === 0,
+  JSON.stringify(await keys()),
+)
+check(
+  '36g. and the page now says saving is off, without claiming data is still kept',
+  screen.includes('Saving is off') && !screen.includes('Saving is on'),
+  screen.replace(/\n/g, ' / ').slice(-160),
+)
+
+// Back on again, from memory mode, and this direction writes rather than deletes.
+await click(EN.storageChange)
+await click(EN.yes)
+await sleep(300)
+check(
+  '36h. turning it back on starts saving again, through the store’s own consent path',
+  (await keys()).length === 1 && JSON.parse(await raw()).consentAt !== null,
+  JSON.stringify(await keys()),
+)
+
+// One source of truth: a reload has to agree with what the page just said, because the
+// mode was never held anywhere but the store.
+await goto('/data/')
+check(
+  '36i. and the mode survives a reload, so nothing here is a second copy of it',
+  (await text()).includes('Saving is on'),
+  (await text()).replace(/\n/g, ' / ').slice(-120),
 )
 
 // --- 30. no internal id reaches any screen, seen or spoken -----------------

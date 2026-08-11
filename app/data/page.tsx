@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { PageShell } from '@/components/page-shell'
+import { StorageChoice } from '@/components/storage-choice'
 import { useI18n } from '@/lib/i18n'
 import { usePerson } from '@/lib/person/store'
 
@@ -36,12 +37,17 @@ export default function DataPage() {
         </div>
 
         {/* Someone who declined saving is told so here rather than being left to
-            infer it from four paragraphs about storage that do not apply to them. */}
+            infer it from four paragraphs about storage that do not apply to them. The
+            block below says which mode is in force; this says what it means for them. */}
         {mode === 'memory' && (
           <p className="max-w-prose border-t border-line pt-6 text-sm leading-relaxed text-muted">
             {m.data.memoryNote}
           </p>
         )}
+
+        {/* The decision itself, reopenable. It reads the mode from the store and calls
+            the store to change it, so there is no second copy of the setting here. */}
+        <StorageChoice />
 
         {/**
          * Reading and leaving are two different reasons to be on this page, so there

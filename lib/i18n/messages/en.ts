@@ -362,6 +362,36 @@ export const en = {
      * noise, and it would imply data exists where none does.
      */
     deleteEntry: 'Delete my data',
+
+    /**
+     * The storage choice, reopened.
+     *
+     * The question and its two answers are **not** here: they are `consent.question`,
+     * `consent.yes` and `consent.no`, reused verbatim from onboarding. The same
+     * decision should be put the same way whenever it is put, and a second wording
+     * of it is a second thing to keep true.
+     */
+    storage: {
+      /** What is happening right now, said plainly before anything is offered. */
+      local: 'Saving is on. What you write is kept in this browser, on this device.',
+      memory: 'Saving is off. Nothing is being written to this device.',
+      undecided: 'You have not decided yet whether anything may be saved.',
+      change: 'Change storage settings',
+      /**
+       * Turning saving off has to delete what was saved, and that is not a warning
+       * dressed up — it is the only honest outcome. "Off" means nothing of yours is
+       * left on the device, so anything already there has to go with it.
+       *
+       * Stated before it happens rather than after, and the way back is the emphasised
+       * button, as everywhere else a step cannot be undone.
+       */
+      offTitle: 'Turn saving off?',
+      offBody:
+        'Saving off means nothing of yours stays on this device, so anything saved here is deleted as part of the change. This visit carries on, and what you do in it stays in this tab until you close it.',
+      offConfirm: 'Turn saving off and delete',
+      onDone: 'Saving is on now.',
+      offDone: 'Saving is off now, and what was stored has been deleted.',
+    },
     memoryNote:
       'You asked for nothing to be saved, so nothing is being written to this device at all. What you tell the app this visit stays in this tab and is gone when you close it.',
 

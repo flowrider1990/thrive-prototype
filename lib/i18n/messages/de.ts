@@ -224,6 +224,19 @@ export const de: Messages = {
     p4: 'Ein anderer Browser oder ein anderes Gerät hat es nicht.',
     show: 'Zeigen, was gespeichert ist',
     deleteEntry: 'Meine Daten löschen',
+
+    storage: {
+      local: 'Speichern ist an. Was du schreibst, bleibt in diesem Browser auf diesem Gerät.',
+      memory: 'Speichern ist aus. Auf dieses Gerät wird nichts geschrieben.',
+      undecided: 'Du hast noch nicht entschieden, ob etwas gespeichert werden darf.',
+      change: 'Speichereinstellungen ändern',
+      offTitle: 'Speichern ausschalten?',
+      offBody:
+        'Speichern aus bedeutet, dass nichts von dir auf diesem Gerät bleibt — deshalb wird alles, was hier gespeichert ist, mit der Umstellung gelöscht. Dieser Besuch geht weiter, und was du darin machst, bleibt in diesem Tab, bis du ihn schließt.',
+      offConfirm: 'Speichern ausschalten und löschen',
+      onDone: 'Speichern ist jetzt an.',
+      offDone: 'Speichern ist jetzt aus, und was gespeichert war, wurde gelöscht.',
+    },
     memoryNote:
       'Du wolltest nicht, dass etwas gespeichert wird — deshalb wird auf dieses Gerät gar nichts geschrieben. Was du der App diesmal erzählst, bleibt in diesem Tab und ist weg, sobald du ihn schließt.',
 

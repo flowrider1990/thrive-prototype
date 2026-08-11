@@ -2,10 +2,18 @@
 
 import { useState } from 'react'
 import { PageShell } from '@/components/page-shell'
+import { YouAreas } from '@/components/you-areas'
 import { formatWhen, useI18n } from '@/lib/i18n'
+import { isAreaKey } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
-/** Known keys first, in the order they come up; anything added later follows. */
+/**
+ * Known keys first, in the order they come up; anything added later follows.
+ *
+ * `preferred_name` and `opening_intent` are parked rather than current — the app
+ * no longer asks either question — but anyone who answered them before still has
+ * the answers, and this page's whole job is to show what is there.
+ */
 const KEY_ORDER = ['preferred_name', 'opening_intent', 'consent_concern']
 
 /**
@@ -21,12 +29,16 @@ export default function YouPage() {
 
   if (status !== 'ready') return <PageShell>{null}</PageShell>
 
-  const groups = [...new Set([...KEY_ORDER, ...facts.map((fact) => fact.key)])]
+  // Life-area facts are shown by `<YouAreas/>` instead: their keys carry internal
+  // step ids, and printing an id at someone is not showing them anything.
+  const plain = facts.filter((fact) => !isAreaKey(fact.key))
+
+  const groups = [...new Set([...KEY_ORDER, ...plain.map((fact) => fact.key)])]
     .map((key) => ({
       key,
       // Newest first, so a changed answer reads as the current one — with the
       // earlier answer still there underneath it.
-      entries: facts.filter((fact) => fact.key === key).reverse(),
+      entries: plain.filter((fact) => fact.key === key).reverse(),
     }))
     .filter((group) => group.entries.length > 0)
 
@@ -48,9 +60,9 @@ export default function YouPage() {
           {forgotten && <p className="text-sm text-accent">{m.you.forget.done}</p>}
         </header>
 
-        {groups.length === 0 ? (
-          <p className="text-muted">{m.you.empty}</p>
-        ) : (
+        {facts.length === 0 && <p className="text-muted">{m.you.empty}</p>}
+
+        {groups.length > 0 && (
           <dl className="space-y-10">
             {groups.map((group) => (
               <div key={group.key} className="space-y-4">
@@ -70,7 +82,9 @@ export default function YouPage() {
           </dl>
         )}
 
-        {groups.length > 0 && (
+        <YouAreas />
+
+        {facts.length > 0 && (
           <section className="space-y-4 border-t border-line pt-6">
             {confirming ? (
               <>

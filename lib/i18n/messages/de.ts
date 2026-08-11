@@ -34,6 +34,7 @@ export const de: Messages = {
   },
 
   consent: {
+    welcome: 'Willkommen — und danke, dass du das hier ausprobierst.',
     question:
       'Das hier ist ein Prototyp einer App, nur für den persönlichen Gebrauch. Was du mir erzählst, wird ausschließlich auf dem Gerät gespeichert, das du gerade benutzt. Ist das okay für dich?',
     yes: 'Ja, das ist okay',
@@ -72,15 +73,101 @@ export const de: Messages = {
     skip: 'Gerade nichts',
   },
 
+  areas: {
+    body: 'Körper & Gesundheit',
+    relationships: 'Beziehungen & Soziales',
+    work: 'Arbeit & Beruf',
+    finances: 'Finanzen',
+    creativity: 'Hobbys & Kreativität',
+  },
+
+  intro: {
+    question: 'Als Nächstes schauen wir uns fünf Bereiche deines Lebens an, einen nach dem anderen.',
+    note: 'Du brauchst nicht in jedem ein Ziel. „Gerade nicht“ ist eine echte Antwort, und alles, was du notierst, kannst du später ändern.',
+    submit: 'Okay',
+  },
+
+  goals: {
+    progressLabel: 'Angesehene Lebensbereiche',
+    progressValue: 'Bereich {current} von {total}',
+
+    reviewQuestion: 'Möchtest du hier gerade etwas verändern oder ausprobieren?',
+    reviewYes: 'Ja',
+    reviewNo: 'Gerade nicht',
+
+    goalQuestion: 'Was ist dein Ziel?',
+    goalPlaceholder: 'In deinen eigenen Worten',
+    goalSubmit: 'Weiter',
+
+    stepsQuestion: 'Was könnten deine nächsten Schritte in Richtung dieses Ziels sein?',
+    stepsNote: 'Einer reicht. Du kannst bis zu drei notieren.',
+    stepsPlaceholder: 'Etwas Kleines und Konkretes',
+    stepsSoFar: 'Bisher',
+    stepsAdd: 'Hinzufügen',
+    stepsEnough: 'Das reicht',
+    stepsFull: 'Drei sind für den Anfang genug.',
+    stepsContinue: 'Weiter',
+
+    focusQuestion: 'Womit möchtest du zuerst anfangen?',
+  },
+
+  complete: {
+    title: 'Das war die ganze Einführung.',
+    body: 'Deine nächsten Schritte stehen auf der Startseite. Wenn du einen erledigt hast, hak ihn ab — danach kannst du einen neuen wählen oder es erst einmal lassen.',
+    note: 'Ziele und nächste Schritte kannst du jederzeit ändern, von der Startseite aus oder aus einem Lebensbereich heraus.',
+    submit: 'Zur Startseite',
+  },
+
   home: {
-    ack: 'Danke. Das war alles, was ich fragen wollte.',
-    greeting: 'Hallo {name}.',
-    body: 'Hier gibt es noch nichts weiter zu tun. Was bisher steht, ist das Grundgerüst: eine App, die fragt, bevor sie sich etwas merkt — und die sich nur hier etwas merkt.',
-    youSaid: 'Was du beim Ankommen gesagt hast:',
+    title: 'Deine nächsten Schritte',
+    empty: 'Gerade ist nichts aktiv. Auch das ist ein guter Ort.',
+    unfinished: 'In einem deiner Lebensbereiche steht ein Ziel, aber noch kein nächster Schritt.',
+    markDone: 'Als erledigt markieren: {step}',
+    done: 'Erledigt.',
+    chooseNextQuestion: 'Möchtest du deinen nächsten Schritt wählen?',
+    chooseNext: 'Nächsten Schritt wählen',
+    later: 'Später',
+    newStepQuestion: 'Was könnte dein nächster Schritt sein?',
+    newStepPlaceholder: 'Etwas Kleines und Konkretes',
+    newStepSubmit: 'Speichern',
+    toAreas: 'Deine Lebensbereiche ansehen',
     savedNote: 'Was du mir erzählt hast, liegt nur auf diesem Gerät.',
     memoryNote: 'Es wird nichts gespeichert. Was du mir erzählt hast, bleibt in diesem Tab.',
     toYou: 'Alles ansehen, was ich weiß',
+    ack: 'Danke. Das war alles, was ich fragen wollte.',
+    greeting: 'Hallo {name}.',
+    youSaid: 'Was du beim Ankommen gesagt hast:',
     rename: 'Nenn mich anders',
+  },
+
+  manage: {
+    pickerTitle: 'Deine Lebensbereiche',
+    pickerNote: 'Öffne einen, um sein Ziel oder seine nächsten Schritte zu ändern.',
+    noGoal: 'Noch kein Ziel',
+    notNow: 'Gerade nicht',
+    noStep: 'Noch kein nächster Schritt',
+    back: 'Zurück zur Startseite',
+
+    reconsiderQuestion: 'Möchtest du hier jetzt etwas verändern oder ausprobieren?',
+    reconsiderYes: 'Ja',
+    reconsiderNo: 'Erst einmal so lassen',
+
+    goalLabel: 'Dein Ziel',
+    activeLabel: 'Daran arbeitest du gerade',
+    preparedLabel: 'Außerdem notiert',
+    changeGoal: 'Ziel ändern',
+    changeStep: 'An etwas anderem arbeiten',
+    addStep: 'Nächsten Schritt hinzufügen',
+    done: 'Fertig',
+
+    goalQuestion: 'Was ist jetzt dein Ziel?',
+
+    reviewQuestion: 'Dein Ziel hat sich geändert. Ist das hier noch nützlich?',
+    reviewKeep: 'Behalten',
+    reviewEdit: 'Ändern',
+    reviewRemove: 'Aus den aktuellen Schritten entfernen',
+    editQuestion: 'Was soll stattdessen dastehen?',
+    editSubmit: 'Speichern',
   },
 
   you: {
@@ -98,6 +185,19 @@ export const de: Messages = {
       opening_intent: 'Was du beim Ankommen wolltest',
       consent_concern: 'Was du zum Speichern gesagt hast',
     },
+    areas: {
+      review: 'Du hast gesagt',
+      yes: 'Ja',
+      notNow: 'Gerade nicht',
+      goal: 'Dein Ziel',
+      earlier: 'vorher: {goal}',
+      steps: 'Nächste Schritte',
+      active: 'daran arbeitest du',
+      open: 'notiert',
+      done: 'erledigt',
+      retired: 'aus den aktuellen Schritten entfernt',
+      edited: 'umformuliert aus: {text}',
+    },
     forget: {
       button: 'Alles vergessen',
       question:
@@ -111,11 +211,11 @@ export const de: Messages = {
   about: {
     title: 'Über {app}',
     isTitle: 'Was das hier ist',
-    isP1: '{app} ist der Prototyp einer App, die einen Menschen dabei unterstützen soll, gut zu leben. Was du gesehen hast, ist ihr Grundgerüst: die Frage nach deinem Einverständnis, dein Name und eine offene Frage.',
+    isP1: '{app} ist der Prototyp einer App, die einen Menschen dabei unterstützen soll, gut zu leben. Was du gesehen hast, ist ihr Anfang: die Frage nach deinem Einverständnis und fünf Lebensbereiche, die man sich nacheinander ansieht.',
     isP2: 'Sie läuft vollständig in deinem Browser. Es gibt keinen Server, kein Konto, keine Auswertung und keine KI. Nichts, was du schreibst, wird irgendwohin geschickt, und auf dein Gerät wird nichts geschrieben, solange du nicht ja gesagt hast.',
     isP3: 'Was du erzählst, bleibt in deinen eigenen Worten. Antworten werden ergänzt statt überschrieben, damit eine spätere Antwort eine frühere nie löscht — wie sich etwas verändert hat, ist ja das Interessante.',
     isNotTitle: 'Was sie noch nicht ist',
-    isNotP1: 'Es gibt noch keine Funktion für irgendetwas Bestimmtes: keine Gewohnheiten, kein Tagebuch, keine Stimmungskurve, keine Erinnerungen. Das kommt später, wenn das Grundgerüst verlässlich steht.',
+    isNotP1: 'Es gibt kein Gewohnheits-Tracking, kein Tagebuch, keine Stimmungskurve, keine Erinnerungen und keine Punkte. Sie verlangt nicht, dass du jeden Tag wiederkommst. Das kommt später, falls es sich als sinnvoll erweist.',
     isNotP2: 'Sie ist außerdem kein medizinisches oder therapeutisches Werkzeug und kein Ersatz dafür, mit einem Menschen zu sprechen.',
     whereTitle: 'Wo deine Antworten liegen',
     whereP1: 'In diesem Browser, in einem einzigen Eintrag namens {key}, auf diesem Gerät. Wenn du deine Browserdaten löschst, ist er weg — genauso über „alles vergessen“ auf der Seite Du.',

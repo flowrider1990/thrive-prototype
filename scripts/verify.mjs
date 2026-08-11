@@ -254,6 +254,36 @@ const HELPERS = `
     };
   };
   window.__bg = () => getComputedStyle(document.body).backgroundColor;
+  /**
+   * Clicks a stacked option. Unlike __click these are matched loosely, because an
+   * option can carry an icon and a second line, so its textContent is the label
+   * run together with everything around it rather than the label alone.
+   */
+  window.__clickOption = (text) => {
+    const el = [...document.querySelectorAll('button.option')]
+      .find((e) => e.textContent.includes(text));
+    if (!el) throw new Error('no option containing: ' + text + ' | seen: ' +
+      [...document.querySelectorAll('button.option')].map(e => e.textContent.trim()).join(' / '));
+    el.click();
+    return true;
+  };
+  /**
+   * The progress marks, including how each one is actually painted — the point
+   * being that the area currently being asked about must not look completed.
+   */
+  window.__progress = () => {
+    const el = document.querySelector('[role="progressbar"]');
+    if (!el) return null;
+    return {
+      now: Number(el.getAttribute('aria-valuenow')),
+      max: Number(el.getAttribute('aria-valuemax')),
+      text: el.getAttribute('aria-valuetext'),
+      marks: [...el.children].map((mark) => {
+        const style = getComputedStyle(mark);
+        return style.backgroundColor + ' | ' + style.borderColor;
+      }),
+    };
+  };
   /** For icon-only controls, whose accessible name is the only stable handle. */
   window.__clickAria = (label) => {
     const el = document.querySelector('[aria-label="' + label + '"]');
@@ -296,6 +326,15 @@ async function clickAria(label) {
   await evaluate(HELPERS)
   await evaluate(`__clickAria(${JSON.stringify(label)})`)
   await sleep(220)
+}
+async function clickOption(text) {
+  await evaluate(HELPERS)
+  await evaluate(`__clickOption(${JSON.stringify(text)})`)
+  await sleep(220)
+}
+const progress = async () => {
+  await evaluate(HELPERS)
+  return evaluate('__progress()')
 }
 const headerRows = async () => {
   await evaluate(HELPERS)
@@ -367,82 +406,315 @@ const raw = () => evaluate(`localStorage.getItem(${JSON.stringify(STORAGE_KEY)})
 const frames = () => evaluate('window.__frames || []')
 
 const EN = {
+  welcome: 'Welcome, and thank you for trying this out.',
   consent: 'Is this okay for you?',
   yes: 'Yes, that is okay',
   no: 'No',
-  name: 'How should I call you?',
+  intro: 'Next we will look at five areas of your life',
+  introOk: 'Okay',
+  review: 'Would you like to change or explore something here?',
+  reviewYes: 'Yes',
+  reviewNo: 'Not right now',
+  goal: 'What is your goal?',
   cont: 'Continue',
-  skip: 'Nothing right now',
+  steps: 'What could be your next steps toward this goal?',
+  add: 'Add',
+  enough: 'That is enough',
+  focus: 'Which one would you like to focus on first?',
+  complete: 'That is the whole introduction.',
+  toHome: 'Go to the start page',
+  home: 'Your next steps',
+  chooseNext: 'Choose next step',
+  later: 'Later',
+  save: 'Save',
+  toAreas: 'Review your life areas',
+  picker: 'Your life areas',
+  changeGoal: 'Change goal',
+  addStep: 'Add a next step',
+  manageDone: 'Done',
+  goalChanged: 'Your goal changed. Is this still useful?',
+  keep: 'Keep',
+  removeStep: 'Remove from current steps',
+  reconsider: 'Would you like to change or explore something here now?',
+  leaveIt: 'Leave it for now',
   contYes: 'Yes, let us go on',
   contNo: 'No, that is it for now',
-  rename: 'Call me something else',
   forget: 'Forget everything',
   forgetConfirm: 'Yes, forget everything',
 }
+
+/** Any internal id leaking into rendered copy would look like this. */
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
 
 async function clearStorage() {
   await goto('/')
   await evaluate('localStorage.clear()')
 }
 
-// --- 4. consent yes: full flow, then reload with no flash -------------------
+/**
+ * Walks one life area: yes, a goal, some next steps, and the one to start with.
+ *
+ * The last click differs by count on purpose, and that difference is itself part
+ * of the design: one step is made active without asking, and at three the field
+ * gives way to a plain Continue.
+ */
+async function runArea(goal, steps, focusOn) {
+  await click(EN.reviewYes)
+  await type(goal)
+  await click(EN.cont)
+  for (const step of steps) {
+    await type(step)
+    await click(EN.add)
+  }
+  await click(steps.length >= 3 ? EN.cont : EN.enough)
+  if (steps.length > 1) await click(focusOn ?? steps[0])
+}
+
+// --- 4. consent yes: the whole introduction, then reload with no flash ------
 
 await clearStorage()
 await goto('/')
-check('4a. consent question is shown on a fresh visit', (await text()).includes(EN.consent))
+let screen = await text()
+check(
+  '4a. a fresh visit welcomes, then asks about saving',
+  screen.includes(EN.welcome) && screen.includes(EN.consent),
+)
 
 await click(EN.yes)
-check('4b. saying yes leads to the name question', (await text()).includes(EN.name))
-
-await type('Florian')
-await click(EN.cont)
-let screen = await text()
-check('4c. the open question greets by name', screen.includes('Hello Florian, how can I help you today?'))
-
-await type('I want to sleep better and worry less.')
-await click(EN.cont)
 screen = await text()
-check('4d. the flow ends on the greeting', screen.includes('Hello Florian.'))
+check(
+  '4b. saying yes is acknowledged and explains what comes next',
+  screen.includes('Thank you for your trust') && screen.includes(EN.intro),
+)
+
+await click(EN.introOk)
+screen = await text()
+check(
+  '4c. the first life area is asked about',
+  screen.includes('Body & Health') && screen.includes(EN.review),
+)
+
+let marks = await progress()
+check(
+  '4d. progress starts at none reviewed, and says which area this is',
+  marks.now === 0 && marks.max === 5 && marks.text === 'Area 1 of 5',
+  JSON.stringify(marks && { now: marks.now, max: marks.max, text: marks.text }),
+)
+check(
+  '4e. the area being asked about is distinguished but NOT painted as completed',
+  marks.marks[0] !== marks.marks[1] && marks.marks[1] === marks.marks[4],
+  `current=${marks.marks[0]} upcoming=${marks.marks[1]}`,
+)
+
+await runArea('Sleep better', ['Walk for 20 minutes', 'Read before bed'], 'Walk for 20 minutes')
+marks = await progress()
+check(
+  '4f. answering an area fills its mark and moves to the next',
+  marks.now === 1 && marks.text === 'Area 2 of 5' && marks.marks[0] !== marks.marks[1],
+  JSON.stringify({ now: marks.now, text: marks.text }),
+)
+
+// "Not right now" advances exactly as much as a goal does — reviewing is the
+// progress, and nothing about declining an area is a skipped state.
+await click(EN.reviewNo)
+screen = await text()
+marks = await progress()
+check(
+  '4g. "Not right now" moves straight on without asking for a goal',
+  !screen.includes(EN.goal) && screen.includes('Work & Career') && marks.now === 2,
+  `${marks.now} reviewed`,
+)
+
+await runArea('Get the portfolio finished', ['Finish the case study'])
+await click(EN.reviewNo)
+await click(EN.reviewNo)
+screen = await text()
+check('4h. after the fifth area the introduction closes', screen.includes(EN.complete))
+
+await click(EN.toHome)
+screen = await text()
+check(
+  '4i. home surfaces one active step per area that has one, and nothing else',
+  screen.includes(EN.home) &&
+    screen.includes('Walk for 20 minutes') &&
+    screen.includes('Finish the case study') &&
+    // prepared but not the one being worked on
+    !screen.includes('Read before bed') &&
+    // reviewed with "not right now" — present, but not shown as a gap
+    !screen.includes('Finances'),
+  screen.replace(/\n/g, ' / ').slice(0, 120),
+)
 
 const stored = JSON.parse(await raw())
+const factsFor = (store, suffix) => store.facts.filter((f) => f.key.endsWith(suffix))
 check(
-  '4e. the store holds consent, locale and both answers verbatim',
+  '4j. the store holds the answers verbatim, one goal and one pointer per area',
   stored.version === 1 &&
     typeof stored.consentAt === 'string' &&
-    stored.facts.length === 2 &&
-    stored.facts.some((f) => f.key === 'preferred_name' && f.value === 'Florian') &&
-    stored.facts.some((f) => f.key === 'opening_intent' && f.value === 'I want to sleep better and worry less.'),
+    factsFor(stored, '.review').length === 5 &&
+    stored.facts.some((f) => f.key === 'area.body.goal' && f.value === 'Sleep better') &&
+    stored.facts.some((f) => f.key === 'area.finances.review' && f.value === 'not_now') &&
+    factsFor(stored, '.text').length === 3 &&
+    factsFor(stored, '.step_active').length === 2,
   `${stored.facts.length} facts`,
+)
+// A step's id is in its key, which is what leaves the value free to be the
+// person's own words — and what makes rewording a step expressible at all. The
+// one place an id is a *value* is the pointer at the active step; check 7f is
+// what guarantees no id ever reaches the screen.
+check(
+  '4k. step ids live in keys; the only fact whose value is an id is the pointer',
+  stored.facts.some((f) => /^area\.body\.step\.[^.]+\.text$/.test(f.key)) &&
+    stored.facts
+      .filter((f) => UUID.test(f.value))
+      .every((f) => f.key.endsWith('.step_active')),
+  stored.facts
+    .filter((f) => UUID.test(f.value))
+    .map((f) => f.key)
+    .join(', '),
 )
 
 await goto('/')
 const painted = await frames()
-const flashed = painted.filter((f) => f.includes(EN.consent) || f.includes(EN.name))
+const flashed = painted.filter((f) => f.includes(EN.consent) || f.includes(EN.review))
 check(
-  '4f. reload shows the greeting with NO flash of consent or naming',
-  flashed.length === 0 && (await text()).includes('Hello Florian.'),
+  '4l. reload shows the next steps with NO flash of consent or the area question',
+  flashed.length === 0 && (await text()).includes('Walk for 20 minutes'),
   flashed.length ? `flashed ${flashed.length} frame(s)` : `${painted.length} frames sampled`,
 )
 
-// --- 7. append-only ---------------------------------------------------------
+// --- 24. next steps: identity, completion, and the caps -------------------
 
-await click(EN.rename)
-await type('Flo')
+await clickAria('Mark as done: Walk for 20 minutes')
+screen = await text()
+check(
+  '24a. completing a step offers another one rather than creating one',
+  screen.includes('Done.') && screen.includes(EN.chooseNext) && screen.includes(EN.later),
+)
+
+let store = JSON.parse(await raw())
+const doneFacts = store.facts.filter((f) => f.key.endsWith('.state') && f.value === 'done')
+check(
+  '24b. the completed step is kept, not removed: its text is still there',
+  doneFacts.length === 1 &&
+    store.facts.some((f) => f.value === 'Walk for 20 minutes') &&
+    // the state key names the same step the pointer named
+    doneFacts[0].key.startsWith('area.body.step.'),
+  `${doneFacts.length} done`,
+)
+
+// "Later" is a real answer and costs nothing: the area already has no active
+// step, so there is nothing left to record.
+const beforeLater = JSON.parse(await raw()).facts.length
+await click(EN.later)
+screen = await text()
+store = JSON.parse(await raw())
+check(
+  '24c. "Later" writes nothing and leaves the area with no active step',
+  store.facts.length === beforeLater && !screen.includes('Walk for 20 minutes'),
+  `${store.facts.length} facts vs ${beforeLater}`,
+)
+
+await clickAria('Mark as done: Finish the case study')
+await click(EN.chooseNext)
+screen = await text()
+check(
+  '24d. with no prepared steps left, a new one is asked for instead of offered',
+  screen.includes('What could be your next step?'),
+)
+await type('Write the intro')
+await click(EN.save)
+check('24e. and the new step becomes the active one', (await text()).includes('Write the intro'))
+
+// The same words at two points in time are two different steps. Doing something
+// useful again later is a new thing to do, not a repeat of the old one.
+await clickOption('Write the intro')
+await click(EN.chooseNext)
+await type('Write the intro')
+await click(EN.save)
+store = JSON.parse(await raw())
+const written = store.facts.filter((f) => f.value === 'Write the intro')
+const ids = new Set(written.map((f) => f.key))
+check(
+  '24f. the same text twice is two steps with different ids, not one reused',
+  written.length === 2 && ids.size === 2,
+  `${written.length} facts, ${ids.size} distinct keys`,
+)
+check(
+  '24g. and the first is still done while the second is active',
+  store.facts.filter((f) => f.key.endsWith('.state') && f.value === 'done').length === 3,
+)
+
+await goto('/')
+check(
+  '24h. the active step survives a reload — it is derived, not held in the page',
+  (await text()).includes('Write the intro'),
+)
+
+// The cap: three open at a time, counting the one being worked on.
+await click(EN.toAreas)
+check('24i. the picker lists all five areas with their state', (await text()).includes(EN.picker))
+await clickOption('Work & Career')
+await click(EN.addStep)
+await type('Ask Sam for feedback')
+await click(EN.save)
+await click(EN.addStep)
+await type('Pick the three best pieces')
+await click(EN.save)
+check(
+  '24j. at three open steps there is no way to add a fourth',
+  !(await visible(EN.addStep)),
+  (await text()).replace(/\n/g, ' / ').slice(0, 140),
+)
+
+// --- 7. changing a goal: append-only, and open steps are reviewed ----------
+
+await click(EN.changeGoal)
+await type('Get hired somewhere I like')
 await click(EN.cont)
 screen = await text()
-check('7a. renaming returns to the greeting, using the newer name', screen.includes('Hello Flo.'))
+check(
+  '7a. a changed goal asks about each still-open step rather than assuming',
+  screen.includes(EN.goalChanged) && screen.includes('Write the intro'),
+)
 
+await click(EN.keep)
+screen = await text()
+check('7b. Keep moves to the next open step without writing anything', screen.includes(EN.goalChanged))
+
+const beforeRemove = JSON.parse(await raw()).facts.length
+await click(EN.removeStep)
+await click(EN.keep)
+store = JSON.parse(await raw())
+check(
+  '7c. Remove retires the step — one fact added, nothing deleted',
+  store.facts.length === beforeRemove + 1 &&
+    store.facts.filter((f) => f.key.endsWith('.state') && f.value === 'retired').length === 1,
+  `${store.facts.length} facts vs ${beforeRemove}`,
+)
+check(
+  '7d. both goals are kept, and the newer one is the current one',
+  store.facts.filter((f) => f.key === 'area.work.goal').length === 2,
+  `${store.facts.filter((f) => f.key === 'area.work.goal').length} goal facts`,
+)
+
+await click(EN.manageDone)
 await goto('/you/')
 screen = await text()
 check(
-  '7b. /you shows both names with timestamps',
-  screen.includes('Florian') && screen.includes('Flo') && /noted /.test(screen),
+  '7e. /you shows the current goal and the one it replaced, with dates',
+  screen.includes('Get hired somewhere I like') &&
+    screen.includes('Get the portfolio finished') &&
+    /noted /.test(screen),
 )
-const after = JSON.parse(await raw())
 check(
-  '7c. nothing was overwritten: three facts, two of them names',
-  after.facts.length === 3 && after.facts.filter((f) => f.key === 'preferred_name').length === 2,
-  `${after.facts.length} facts`,
+  '7f. /you resolves every id into words — no internal id is ever shown',
+  !UUID.test(screen),
+  UUID.exec(screen)?.[0] ?? 'clean',
+)
+check(
+  '7g. and it says what became of each step',
+  screen.includes('focusing on') && screen.includes('done') && screen.includes('removed'),
 )
 
 // --- 8. forget everything --------------------------------------------------
@@ -467,14 +739,21 @@ screen = await text()
 check('5b. the reason is acknowledged and going on is offered', screen.includes('Would you like to go on anyway?'))
 
 await click(EN.contYes)
-await type('Anon')
-await click(EN.cont)
-await type('Just looking around.')
-await click(EN.cont)
+await click(EN.introOk)
+await runArea('Move more', ['Walk after lunch'])
+await click(EN.reviewNo)
+await click(EN.reviewNo)
+await click(EN.reviewNo)
+await click(EN.reviewNo)
+await click(EN.toHome)
 screen = await text()
-check('5c. the whole flow works in memory-only mode', screen.includes('Hello Anon.'))
+check('5c. the whole introduction works in memory-only mode', screen.includes('Walk after lunch'))
 check('5d. and it says nothing is being saved', screen.includes('Nothing is being saved'))
 
+// Not "no goal facts": no key. The whole area flow ran, including completing a
+// step, and the device still knows nothing.
+await clickAria('Mark as done: Walk after lunch')
+await click(EN.later)
 const keysAfterDecline = await keys()
 check(
   '5e. localStorage is COMPLETELY empty — no key at all, not even consent or locale',
@@ -488,7 +767,7 @@ await clickNav('You')
 screen = await text()
 check(
   '5f. /you says this list lives in the tab only, and still shows their words',
-  screen.includes('lives in this tab only') && screen.includes('Anon'),
+  screen.includes('lives in this tab only') && screen.includes('Walk after lunch'),
 )
 
 await goto('/')
@@ -501,29 +780,127 @@ await chooseIn('Language', 'Deutsch')
 screen = await text()
 check('6a. German works on the consent screen itself', screen.includes('Ist das okay für dich?'))
 await click('Ja, das ist okay')
-await type('Florian')
-await click('Weiter')
+await click('Okay')
 screen = await text()
+marks = await progress()
 check(
   '6b. interpolation reads correctly in German',
-  screen.includes('Hallo Florian, wie kann ich dir heute helfen?'),
+  marks.text === 'Bereich 1 von 5',
+  marks.text,
 )
-await click('Gerade nichts')
+check(
+  '6c. the life areas and their question are German, with no English leaking',
+  screen.includes('Körper & Gesundheit') &&
+    screen.includes('Möchtest du hier gerade etwas verändern') &&
+    !screen.includes('Body & Health'),
+)
+
+await click('Ja')
+await type('Besser schlafen')
+await click('Weiter')
+await type('20 Minuten spazieren gehen')
+await click('Hinzufügen')
+await click('Das reicht')
+for (let area = 0; area < 4; area++) await click('Gerade nicht')
+await click('Zur Startseite')
+screen = await text()
+check(
+  '6d. the whole flow reads in German and the step comes back verbatim',
+  screen.includes('Deine nächsten Schritte') &&
+    screen.includes('20 Minuten spazieren gehen') &&
+    !screen.includes('Your next steps'),
+)
+
 await goto('/you/')
 screen = await text()
 check(
-  '6c. /you is German too, with no English leaking',
-  screen.includes('Was ich über dich weiß') && !screen.includes('What I know about you'),
+  '6e. /you is German too, including the life-area labels',
+  screen.includes('Was ich über dich weiß') &&
+    !screen.includes('What I know about you') &&
+    screen.includes('Dein Ziel') &&
+    screen.includes('Besser schlafen'),
 )
 await goto('/about/')
 // innerText reflects text-transform, and the section headings are uppercased in
 // CSS — so compare case-insensitively rather than chasing a styling artefact.
 screen = (await text()).toLowerCase()
 check(
-  '6d. /about is German too',
+  '6f. /about is German too',
   screen.includes('was das hier ist') && !screen.includes('what this is'),
 )
-check('6e. the locale was persisted with consent', JSON.parse(await raw()).locale === 'de')
+check('6g. the locale was persisted with consent', JSON.parse(await raw()).locale === 'de')
+
+// --- 25. onboarding ends once, and never comes back -----------------------
+
+/**
+ * Closing the tab midway through the **fifth** area is a deliberately accepted
+ * edge: by then all five areas have a review answer, so the introduction is over
+ * and the app lands on home rather than resuming. Nothing is lost, and the four
+ * properties that make that acceptable are what this section pins down.
+ *
+ * The fourth is the important regression guard. "Introduction finished" has to be
+ * derived from something monotonic — the count of areas with a review answer —
+ * because an area legitimately loses its active step whenever someone completes a
+ * step and chooses "Later". Deriving it from "every area settled" would drop
+ * someone back into onboarding months later.
+ */
+await clearStorage()
+await goto('/')
+await click(EN.yes)
+await click(EN.introOk)
+for (let area = 0; area < 4; area++) await click(EN.reviewNo)
+// The fifth area: answered, a goal given, then interrupted before any next step.
+await click(EN.reviewYes)
+await type('Draw something every week')
+await click(EN.cont)
+await goto('/')
+screen = await text()
+check(
+  '25a. five review answers end the introduction, even with one area left unfinished',
+  screen.includes(EN.home) && !screen.includes(EN.review) && !screen.includes(EN.steps),
+  screen.replace(/\n/g, ' / ').slice(0, 100),
+)
+check(
+  '25b. and home says so, rather than reporting that everything is settled',
+  screen.includes('has a goal but no next step yet'),
+)
+
+await click(EN.toAreas)
+screen = await text()
+check(
+  '25c. the unfinished area is reachable and says what is missing',
+  screen.includes('Hobbies & Creativity') && screen.includes('No next step yet'),
+)
+await clickOption('Hobbies & Creativity')
+screen = await text()
+check(
+  '25d. its goal survived, and finishing the setup is one action away',
+  screen.includes('Draw something every week') && (await visible(EN.addStep)),
+)
+await click(EN.addStep)
+await type('Sketch on Sunday morning')
+await click(EN.save)
+await click(EN.manageDone)
+screen = await text()
+check(
+  '25e. adding the missing step makes it the active one, with nothing else asked',
+  screen.includes('Sketch on Sunday morning') && !screen.includes('has a goal but no next step'),
+)
+
+// The guard: an area with no active step must never be read as "not onboarded".
+await clickAria('Mark as done: Sketch on Sunday morning')
+await click(EN.later)
+await goto('/')
+screen = await text()
+check(
+  '25f. after completing a step and choosing "Later", a reload still lands on home',
+  screen.includes(EN.home) && !screen.includes(EN.review) && !screen.includes(EN.intro),
+  screen.replace(/\n/g, ' / ').slice(0, 100),
+)
+check(
+  '25g. and "Later" is not reported as unfinished setup — it is a real answer',
+  !screen.includes('has a goal but no next step'),
+)
 
 // --- 10. corrupt store ----------------------------------------------------
 
@@ -741,10 +1118,19 @@ await evaluate(`localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, JSON.string
   facts: [{ id: 'a', key: 'preferred_name', value: 'Ada', source: 'onboarding', learnedAt: '2026-01-01T00:00:00.000Z' }],
 }))`)
 await goto('/')
+screen = await text()
 check(
-  '18. a v1 store with no theme field loads and follows the OS',
-  (await text()).includes('Hello Ada.') && (await dataTheme()) === null,
+  '18a. a v1 store with no theme field loads and follows the OS',
+  // Past the consent question, so `parse()` accepted the store rather than
+  // rejecting it and starting over — which is the whole point of `theme` being
+  // optional instead of a version bump.
+  !screen.includes(EN.consent) && screen.includes(EN.intro) && (await dataTheme()) === null,
+  screen.replace(/\n/g, ' / ').slice(0, 100),
 )
+// The app no longer asks for a name, but a name someone already gave is still
+// theirs and still shown. Parked, not discarded.
+await goto('/you/')
+check('18b. and a parked answer inside it still shows on /you', (await text()).includes('Ada'))
 
 // --- 9. nothing leaves the browser ---------------------------------------
 

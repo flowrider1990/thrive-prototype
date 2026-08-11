@@ -57,13 +57,40 @@ small assumption about a person that they never got to correct.
 
 The language a person answers in is deliberately not detected and not recorded.
 
+### Two kinds of value
+
+Since life areas arrived, a value is one of two things, and the rule above governs
+the first:
+
+- **an utterance** — the person's own words, verbatim: a goal, a next step, a name.
+  Never parsed, and always rendered as itself.
+- **a token or a reference** — written by the app: `'yes'`, `'done'`, or a step's
+  internal id. Never shown as itself.
+
+A reference must never reach a screen. That is why `/you` renders life-area facts
+through `lib/person/goals.ts` rather than through its generic key-grouped list —
+see `docs/goals-and-areas.md`.
+
 ## Keys
 
 | key | asked by | notes |
 | --- | --- | --- |
-| `preferred_name` | the name question | may appear more than once |
-| `opening_intent` | the one open question | absent if they skipped it |
+| `area.<a>.review` | each life area | `'yes'` or `'not_now'` — both real answers |
+| `area.<a>.goal` | the goal question | one current goal per area; earlier ones kept |
+| `area.<a>.step.<sid>.text` | the next-step question | the step's words; re-appended when reworded |
+| `area.<a>.step.<sid>.state` | done, or removed from current steps | `'done'` / `'retired'`; absent means open |
+| `area.<a>.step_active` | choosing what to work on | holds a step id, so it is never rendered raw |
 | `consent_concern` | the question after declining | **memory mode only** — never written to the device |
+| `preferred_name` | *parked* — the name question was removed | still shown on `/you` if it is there |
+| `opening_intent` | *parked* — the open question was removed | still shown on `/you` if it is there |
+
+The area keys are documented in full in `docs/goals-and-areas.md`, including why a
+step's id lives in its key rather than in a value.
+
+**Parked is not deleted.** The app no longer asks for a name or for what someone
+wanted when they arrived, but an answer already given is still theirs: the keys,
+their `/you` labels and their copy all stay. Removing them would silently drop real
+answers from someone's store.
 
 New keys need no migration: the store is a list, and `/you` labels unknown keys
 with the raw key until a translation is added for it.
@@ -72,9 +99,15 @@ with the raw key until a translation is added for it.
 
 ```ts
 const { status, mode, facts, current, history } = usePerson()
-remember('preferred_name', 'Flo')     // appends
-forgetEverything()                     // removes the key, returns to a fresh state
+remember('area.body.goal', 'Sleep better')   // appends
+forgetEverything()                            // removes the key, back to a fresh state
 ```
+
+`newId()` is exported too, for the one case where a caller needs an id *before*
+the write: a next step's id is part of its keys, so it has to exist before the
+first fact about that step can be written. It is the same generator the store uses
+for `PersonFact.id`, kept in one place so the insecure-context fallback is not
+duplicated.
 
 Two rules for anything built on this:
 

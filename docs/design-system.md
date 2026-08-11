@@ -79,8 +79,18 @@ not a step on a scale.
 
 `@layer components` in `app/globals.css` owns anything that appears more than
 once: `.heading`, `.nav-link`, `.field`, `.btn` + `.btn-primary` / `.btn-quiet`,
-`.menu-panel`. One-off layout stays as utilities on the element — a class per
-element would be a second, worse component system.
+`.option`, `.menu-panel`. One-off layout stays as utilities on the element — a
+class per element would be a second, worse component system.
+
+`.option` is the pill's opposite number, for a choice whose text is a sentence
+rather than a word. `.btn` is sized for "Continue"; three next steps like "Walk for
+20 minutes after dinner" wrap into an unreadable row at 390px. So: full width,
+left-aligned, stacked, `rounded-md` like a field rather than `rounded-full`.
+It carries a **visible** border at rest, which is the one place it deliberately
+departs from `.btn` — `.btn` needs a transparent border so its variants can gain
+one without shifting the layout, whereas every `.option` state has a border
+already and only its colour changes. `components/option-list.tsx` renders these as
+a real `<ul>`, so a screen reader says how many there are to choose between.
 
 Two rules that are load-bearing rather than stylistic:
 
@@ -111,6 +121,31 @@ than a class saying one thing and the accessibility tree another. §17 forbids
 encoding meaning by colour alone, which the underline satisfies; in the collapsed
 menu the same job is done by `<Check>`, whose slot is always present so marking an
 item shifts nothing.
+
+### The progress marks
+
+`components/progress-marks.tsx` follows the same rule. Five marks, three states,
+identical metrics throughout — `h-2.5 w-2.5 border` in every state, so advancing
+cannot reflow the question underneath:
+
+- **done** — filled: `border-accent bg-accent`
+- **current** — a ring: `border-ink`, no fill
+- **upcoming** — a fainter ring: `border-line`, no fill
+
+Fill differs as well as colour, so the state is not carried by colour alone. The
+current area is deliberately *not* filled: painting a mark before its question is
+answered would claim something that has not happened.
+
+`docs/plan.md` rejected a progress bar for onboarding — "there is nothing to
+endure" — and that still holds for a flow of unknown length. The five areas are a
+known, small, finite set, and knowing how many are left is orientation rather than
+a demand. Percentages were considered and rejected: they frame reviewing your own
+life as a task to complete.
+
+It is a real `role="progressbar"` with `aria-valuenow` and a translated
+`aria-valuetext` ("Area 2 of 5"), because five dots say nothing out loud. What it
+measures is **areas looked at** — "not right now" advances it exactly as much as
+setting a goal does.
 
 ## Motion
 

@@ -36,6 +36,8 @@ export const en = {
   },
 
   consent: {
+    /** Rides above the question in the acknowledgement slot, so it costs no screen. */
+    welcome: 'Welcome, and thank you for trying this out.',
     question:
       'This is an app prototype, only for personal use. Information you give is saved only on the device you are using right now. Is this okay for you?',
     yes: 'Yes, that is okay',
@@ -61,6 +63,12 @@ export const en = {
     restart: 'Start again',
   },
 
+  /**
+   * Parked, not dead. The name question was removed so the app asks for less,
+   * but the copy stays until we decide whether it returns — and `/you` still
+   * needs `you.keys.preferred_name` to label a name someone already gave.
+   * Same for `opening` and for the parked entries in `home`.
+   */
   name: {
     question: 'How should I call you?',
     placeholder: 'Your name, or whatever you like',
@@ -74,15 +82,114 @@ export const en = {
     skip: 'Nothing right now',
   },
 
+  areas: {
+    body: 'Body & Health',
+    relationships: 'Relationships & Social Life',
+    work: 'Work & Career',
+    finances: 'Finances',
+    creativity: 'Hobbies & Creativity',
+  },
+
+  intro: {
+    // The thanks is the consent acknowledgement above this question, so it is
+    // not repeated here.
+    question: 'Next we will look at five areas of your life, one at a time.',
+    note: 'You do not need a goal in every one. "Not right now" is a real answer, and anything you note can be changed later.',
+    submit: 'Okay',
+  },
+
+  goals: {
+    /** The five marks are a progressbar; these are its accessible name and value. */
+    progressLabel: 'Life areas looked at',
+    progressValue: 'Area {current} of {total}',
+
+    reviewQuestion: 'Would you like to change or explore something here?',
+    reviewYes: 'Yes',
+    reviewNo: 'Not right now',
+
+    goalQuestion: 'What is your goal?',
+    goalPlaceholder: 'In your own words',
+    goalSubmit: 'Continue',
+
+    stepsQuestion: 'What could be your next steps toward this goal?',
+    stepsNote: 'One is enough. You can note up to three.',
+    stepsPlaceholder: 'Something small and concrete',
+    stepsSoFar: 'So far',
+    stepsAdd: 'Add',
+    stepsEnough: 'That is enough',
+    stepsFull: 'Three is plenty to start with.',
+    stepsContinue: 'Continue',
+
+    focusQuestion: 'Which one would you like to focus on first?',
+  },
+
+  complete: {
+    title: 'That is the whole introduction.',
+    body: 'Your next steps are on the start page. When you have done one, mark it as done — then you can choose another, or leave it for later.',
+    note: 'Goals and next steps can be changed whenever you like, from the start page or from a life area.',
+    submit: 'Go to the start page',
+  },
+
   home: {
-    ack: 'Thank you. That is everything I wanted to ask.',
-    greeting: 'Hello {name}.',
-    body: 'There is nothing more to do here yet. What stands so far is the shell: an app that asks before it remembers anything, and remembers only here.',
-    youSaid: 'What you said when you arrived:',
+    title: 'Your next steps',
+    empty: 'Nothing is active right now. That is a fine place to be.',
+    /**
+     * Shown only when an area holds a goal that never got a next step — that is,
+     * setup that was interrupted rather than a pause someone chose. Deliberately
+     * not shown after "Later": leaving an area quiet is a real answer, and
+     * pointing at it would be nagging.
+     */
+    unfinished: 'One of your life areas has a goal but no next step yet.',
+    /** Says the action, not just the content — the same rule as `theme.switchTo`. */
+    markDone: 'Mark as done: {step}',
+    done: 'Done.',
+    chooseNextQuestion: 'Would you like to choose your next step?',
+    chooseNext: 'Choose next step',
+    later: 'Later',
+    newStepQuestion: 'What could be your next step?',
+    newStepPlaceholder: 'Something small and concrete',
+    newStepSubmit: 'Save',
+    toAreas: 'Review your life areas',
     savedNote: 'What you told me is on this device only.',
     memoryNote: 'Nothing is being saved. What you told me stays in this tab.',
     toYou: 'See everything I know',
+    // Parked with the name question — see the note above `name`.
+    ack: 'Thank you. That is everything I wanted to ask.',
+    greeting: 'Hello {name}.',
+    youSaid: 'What you said when you arrived:',
     rename: 'Call me something else',
+  },
+
+  manage: {
+    pickerTitle: 'Your life areas',
+    pickerNote: 'Open one to change its goal or its next steps.',
+    noGoal: 'No goal yet',
+    notNow: 'Not right now',
+    noStep: 'No next step yet',
+    back: 'Back to the start page',
+
+    reconsiderQuestion: 'Would you like to change or explore something here now?',
+    reconsiderYes: 'Yes',
+    reconsiderNo: 'Leave it for now',
+
+    goalLabel: 'Your goal',
+    activeLabel: 'Focusing on',
+    preparedLabel: 'Also prepared',
+    changeGoal: 'Change goal',
+    changeStep: 'Focus on something else',
+    addStep: 'Add a next step',
+    done: 'Done',
+
+    goalQuestion: 'What is your goal now?',
+
+    /** One step per screen. Nothing is carried over silently, nothing is dropped silently. */
+    reviewQuestion: 'Your goal changed. Is this still useful?',
+    reviewKeep: 'Keep',
+    reviewEdit: 'Edit',
+    /** Deliberately not "Remove": nothing is deleted, and the copy should not pretend otherwise. */
+    reviewRemove: 'Remove from current steps',
+    editQuestion: 'What should it say instead?',
+    editSubmit: 'Save',
   },
 
   you: {
@@ -100,6 +207,20 @@ export const en = {
       opening_intent: 'What you wanted when you arrived',
       consent_concern: 'What you said about saving',
     },
+    /** Life-area facts are shown through the domain layer, so no internal id is ever printed. */
+    areas: {
+      review: 'You said',
+      yes: 'Yes',
+      notNow: 'Not right now',
+      goal: 'Your goal',
+      earlier: 'earlier: {goal}',
+      steps: 'Next steps',
+      active: 'focusing on',
+      open: 'prepared',
+      done: 'done',
+      retired: 'removed from current steps',
+      edited: 'reworded from: {text}',
+    },
     forget: {
       button: 'Forget everything',
       question:
@@ -113,11 +234,11 @@ export const en = {
   about: {
     title: 'About {app}',
     isTitle: 'What this is',
-    isP1: '{app} is a prototype of an app meant to support a person in living and thriving. What you have seen is its shell: a question about consent, your name, and one open question.',
+    isP1: '{app} is a prototype of an app meant to support a person in living and thriving. What you have seen is its beginning: a question about consent, and five areas of a life to look at one at a time.',
     isP2: 'It runs entirely in your browser. There is no server, no account, no analytics and no AI. Nothing you type is sent anywhere, and nothing is written to your device unless you said it was okay.',
     isP3: 'What you tell it is kept in your own words. Answers are added to a list rather than overwritten, so a later answer never erases an earlier one — how something changed is the interesting part.',
     isNotTitle: 'What it is not yet',
-    isNotP1: 'There is no feature for anything in particular yet: no habits, no journal, no mood tracking, no reminders. Those choices come later, once the shell can be trusted.',
+    isNotP1: 'There is no habit tracking, no journal, no mood tracking, no reminders and no scoring. It does not ask you to come back every day. Those choices come later, if they earn their place.',
     isNotP2: 'It is also not a medical or therapeutic tool, and no substitute for talking to a person.',
     whereTitle: 'Where your answers live',
     whereP1: 'In this browser, in a single entry called {key}, on this device. Clearing your browser data removes it, and so does "forget everything" on the You page.',

@@ -239,6 +239,26 @@
   }
 
   /**
+   * A choice whose text is a sentence rather than a word.
+   *
+   * `.btn` is a pill sized for "Continue"; three next steps like "Walk for 20
+   * minutes in the evening" wrap into an unreadable row at phone width. Same job,
+   * different shape: full width, left-aligned, stacked.
+   *
+   * Unlike `.btn`, the border is visible at rest. `.btn` needs a transparent one
+   * so its variants can take a border without shifting the layout; here every
+   * state has a border already, so only its colour changes.
+   */
+  .option {
+    @apply w-full rounded-md border border-line bg-surface px-4 py-3 text-start;
+    @apply leading-relaxed text-ink transition-colors;
+  }
+
+  .option:hover {
+    @apply border-muted;
+  }
+
+  /**
    * The menu panel's entrance. Opacity and transform only — nothing that could
    * move the trigger or the header — and short enough to read as "this came from
    * there" rather than as an animation. Off entirely under reduced motion.

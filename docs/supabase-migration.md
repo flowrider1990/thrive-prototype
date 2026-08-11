@@ -1,13 +1,31 @@
-# Proposal: cloud persistence with Supabase
+# Cloud persistence with Supabase
 
-**Status: proposal. Nothing here is implemented.** No Auth, no tables, no
-migrations, no RLS, no client code, no sync. The CLI is installed and the project
-is linked (`oejjomqrugsgpunzmhnd`), which is tooling and changes nothing about the
-app.
+**Status: direction approved 2026-08-11. Nothing is implemented yet.** No Auth, no
+tables, no migrations, no RLS, no Edge Function, no client code, no sync. The CLI
+is installed and the project is linked (`oejjomqrugsgpunzmhnd`), which is tooling
+and changes nothing about the app.
 
 This document exists because `CLAUDE.md` §8 requires the migration boundary to be
-proposed before implementation. The decisions still needing your approval are
-collected at the end.
+proposed before implementation. The approved decisions are recorded below, the
+phases are in §20, and the few questions still open are at the end.
+
+## Decisions (approved 2026-08-11)
+
+| # | Decision | Section |
+| --- | --- | --- |
+| D1 | **Local-first**, with Supabase as a cloud **mirror** — the device stays the source of truth | §11 |
+| D2 | Cloud functionality **requires the existing device-persistence consent**; it is never offered to someone who declined | §9 |
+| D3 | `@supabase/supabase-js` is approved as the **first runtime dependency** | §17 |
+| D4 | **Email OTP** initially, not magic links or OAuth | §3 |
+| D5 | `locale` and `theme` stay **device-local** and never sync | §12 |
+| D6 | `PersonFact` stays **append-only**; no `UPDATE` is granted to anyone | §5, §7 |
+| D7 | Existing local data is imported **only after explicit confirmation** | §21 |
+| D8 | The app **keeps working locally** when Supabase is unavailable | §14, §15 |
+| D9 | Full "forget everything" **eventually deletes cloud data and the auth account** | §16 |
+| D10 | A **narrowly scoped Edge Function** may hold the privileged credential for D9 — **for that purpose only**, and this does not open the door to a general server-side architecture | §16, §18 |
+
+D10 is a deliberately small exception to "no server". The guard against it
+spreading is written into §16 and §18 as requirements, not left to memory.
 
 ---
 
@@ -75,7 +93,7 @@ the hosted schema is never edited by hand in the dashboard.
 
 ## 3. Authentication
 
-**Recommendation: email one-time code (OTP), no password, no OAuth initially.**
+**Decided (D4): email one-time code (OTP), no password, no OAuth initially.**
 
 Why, specifically for a static site on a subpath:
 
@@ -102,8 +120,11 @@ write to the device:
 | `persistSession: true` | Stays signed in across reloads. Writes `sb-*` keys to `localStorage`, so the app no longer owns exactly one key — G2's test needs restating as "no `thrive.*` key and no `sb-*` key". |
 | `persistSession: false` | Session lives in memory; a reload signs you out. Preserves the current "one key, and only with consent" cleanliness at a real usability cost. |
 
-Recommendation: `persistSession: true`, **but only reachable after device consent**
-(see §9), and `/you` must disclose the session keys as something stored.
+**Still open (O1).** D2 settles the precondition — sign-in is only reachable after
+device consent — which makes `persistSession: true` coherent, since consent to
+device writes already exists. That is the default this plan assumes, and it needs
+one word of confirmation before Phase 3. Either way `/you` must disclose the
+session keys as something stored (§10).
 
 ---
 
@@ -254,12 +275,17 @@ it in two, and conflating them would be the dishonest move.
 | Asked | first screen, as today | only when signing in |
 | Declining | memory mode, nothing written | local mode, no account |
 
-**Recommendation: cloud requires device consent first, and is never offered to
+**Decided (D2): cloud requires device consent first, and is never offered to
 someone who declined.** Two reasons. A session token is a device write, so
 offering an account to someone who declined device storage would require either
 breaking G2 or a memory-only session that logs them out on reload. And someone
 who just said "don't write to my device" is not the person to ask "may I put this
 on a server".
+
+One consequence D2 forces, worth naming because it is easy to miss: **"forget
+everything" must also sign out.** It returns the store to `undecided`, and cloud
+mode requires consent — so staying signed in afterwards would be a state this
+decision says cannot exist.
 
 So the modes become, in increasing order of what is stored:
 
@@ -307,7 +333,7 @@ The existing German/English tone rules apply — plain, unhurried, `du`.
 | Network | none | on load, on write, on sign-in |
 | Works offline | completely | completely, see §14 |
 
-**Recommendation: local-first with a cloud mirror, not cloud-as-source-of-truth.**
+**Decided (D1): local-first with a cloud mirror, not cloud-as-source-of-truth.**
 The local path already works, is already tested, and is what keeps the app usable
 with no network and instant on every interaction. Making the server authoritative
 would introduce loading states and failure modes on every screen for a benefit
@@ -315,11 +341,11 @@ would introduce loading states and failure modes on every screen for a benefit
 
 ---
 
-## 12. What stays local, permanently
+## 12. What stays local, permanently — decided (D5)
 
 - **`theme`** — a device preference. A phone at night and a laptop at work
   legitimately differ; syncing it would be a bug that looks like a feature.
-- **`locale`** — same argument, weaker. Recommended local for now.
+- **`locale`** — same argument, weaker, and decided the same way.
 - **`consentAt`** — describes *this device*, so it cannot be meaningful elsewhere.
 - **The store `version`** — a local format concern.
 
@@ -395,15 +421,39 @@ ordering matters: if the local clear happened first and the server delete failed
 the data would be silently retained on a server the person believes they emptied.
 If the server delete fails, say so and change nothing.
 
-**There is a hard limitation to decide on.** Deleting the rows is possible from
-the client; deleting the **auth user** is not — `auth.admin.deleteUser` needs the
-service role key, which must never reach the browser (§18). With no server, there
-are two options:
+**Deleting the auth user: decided (D9, D10).** Rows can be deleted from the client;
+the `auth.users` row cannot — `auth.admin.deleteUser` needs the service role key,
+which must never reach a browser (§18). So a **single Edge Function** is approved
+to hold that credential, for this purpose only.
 
-| Option | Consequence |
-| --- | --- |
-| Accept it | Rows are gone, the account row and its email remain in `auth.users`. "Forget everything" must then say exactly that, or it is a lie. |
-| One Edge Function | A `delete-account` function holding the service role key server-side. Genuinely deletes the user, `on delete cascade` removes the facts. **But it introduces server-side code**, which the current phase excludes — an explicit architectural decision. |
+### The `delete-account` function: scope and requirements
+
+This is the only server-side code in the project, and D10 says it stays that way.
+These are requirements, because a function that deletes accounts is the most
+dangerous thing here by a wide margin:
+
+- **It takes no user identifier.** The caller's identity comes from verifying the
+  `Authorization` bearer token and reading `auth.uid()` from it. A function that
+  accepts an id in the body is account-deletion-as-a-service for anyone who finds
+  the URL. Any id in the request body must be ignored, not validated.
+- **No token, no work.** A missing, malformed or expired JWT returns 401 before
+  anything else happens.
+- **It deletes exactly one account** — the caller's — and nothing else. It runs no
+  queries a client could have run itself, and takes no other parameters.
+- **The service role key comes from function secrets** at runtime, never from the
+  repository and never from a build.
+- **`on delete cascade`** on `person_facts.user_id` is what removes the facts, so
+  the function does not need table access at all.
+- It is deployed with `supabase functions deploy delete-account`, and its source
+  lives in `supabase/functions/delete-account/`.
+- **Not a precedent.** Any second function, or any widening of this one, is a new
+  architectural decision needing its own approval. If a future task reaches for
+  "just add an endpoint", that is the signal to stop and ask.
+
+Because deletion is now genuine, the copy can say plainly that everything is
+gone — which is the point of D9. Ordering: cloud rows first (or the cascade), then
+the local clear, then sign-out (§9). If the server step fails, nothing local is
+touched and the person is told.
 
 **Logout** is separate from deletion and must not be confused with it in the UI:
 sign out, clear the `sb-*` keys, and **keep the local data**, since device consent
@@ -414,7 +464,10 @@ which of the two just happened.
 
 ## 17. Static-export compatibility
 
-Everything proposed here is client-side and compatible:
+Everything in the **app** stays client-side, and the static export is unaffected.
+D10's Edge Function is not part of the export at all: it is deployed to Supabase,
+not to Pages, and the app reaches it with one authenticated `fetch`. So the export
+keeps its property that the whole build is `out/` and any static host can serve it.
 
 - No route handlers, no server actions, no middleware, no cookies. Sessions live
   in `localStorage` (or memory), not cookies, which is exactly why no server
@@ -436,14 +489,17 @@ Everything proposed here is client-side and compatible:
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://oejjomqrugsgpunzmhnd.supabase.co` | Yes — public by design |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | the publishable (anon) key | Yes — grants nothing without a session and RLS |
-| `SUPABASE_SERVICE_ROLE_KEY` | — | **Never.** Not in the client, not in the repo, not in a Pages build. |
+| `SUPABASE_SERVICE_ROLE_KEY` | the service role key | **Never in the browser, never in the repo, never in a Pages build.** It exists in exactly one place: the `delete-account` Edge Function's secrets (D10). |
 
 - Both public values are **inlined into the JavaScript** by the static export.
   Treat them as printed on the page, because effectively they are.
-- The service role key bypasses RLS entirely. In this architecture there is
-  nowhere legitimate to use it, so the correct handling is that it never enters
-  the project at all. If §16's Edge Function is approved, it lives in Supabase's
-  function secrets and nowhere else.
+- The service role key bypasses RLS entirely, so there is exactly one legitimate
+  use of it (§16) and exactly one place it may live: the Edge Function's secrets,
+  set with `supabase secrets set`. It must never appear in `.env` files that the
+  Next build reads, because anything the build can read can end up in the bundle.
+- **A key named `NEXT_PUBLIC_*` that holds a service role key would be a
+  catastrophe**, since the export inlines it. The build guard below exists to make
+  that impossible rather than merely forbidden.
 - `.env*` is already gitignored; `supabase/.gitignore` additionally excludes
   `.env.keys` and `.env*.local`.
 - For the Pages build these are repository **variables**, not secrets — marking a
@@ -469,28 +525,102 @@ Everything proposed here is client-side and compatible:
 
 ---
 
-## 20. Smallest recommended implementation sequence
+## 20. Implementation phases
 
-Each step is independently reviewable, and the app keeps working after every one.
+Seven phases. Each is independently reviewable, each ends with the app working and
+`pnpm verify` green, and **each keeps G1–G8 true** (§1) — with G6 becoming
+mode-conditional in Phase 2 and nowhere else.
 
-1. **Database only, no app code.** Local stack, the migration in §5, the policies
-   in §7, and the isolation suite in §8 as a script. Nothing imports Supabase in
-   the app yet. *This step is where the security model is either right or wrong,
-   so it lands alone.*
-2. **The store gains a `cloud` mode** behind the existing interface, with no UI
-   and no sign-in — reachable only from a test. `pnpm verify`'s check 9 becomes
-   mode-conditional here.
-3. **Sign-in and sign-out**, with copy in both languages, plus §10's mode-aware
-   `/you` and `/about`. Still no sync: signing in changes only what is displayed.
-4. **Push, then pull.** One-time import of existing local facts (§21), then the
-   union merge from §13.
-5. **Forget-everything and logout semantics** from §16.
-6. **A cloud-mode verification suite** against the local stack, mirroring the
-   existing 40 checks: two users, offline behaviour, unavailable-server behaviour.
+The ordering has one principle: the security model is settled before a single line
+of the app can touch it, and the honesty of the copy never lags behind what is
+actually stored.
+
+### Phase 1 — Database and isolation, with no app code
+
+- `supabase/migrations/0001_person_facts.sql`: the table (§5), the index, RLS
+  enabled, `revoke update`, the three policies (§7), and the
+  `person_current` view **with `security_invoker = on`**.
+- `scripts/verify-rls.mjs`: the nine isolation requirements (§8), run against the
+  **local** stack with two throwaway users, over PostgREST — the same wire the app
+  will use, not just SQL-level policy checks.
+- A build guard that fails if any file in `out/` contains a `service_role` JWT.
+- **Exit:** I1–I9 pass locally; `pnpm verify` still 40/40; nothing in `app/`,
+  `components/` or `lib/` has changed; `grep -r supabase app components lib` is
+  still empty.
+- **Blocked by:** nothing. Needs Docker running.
+
+### Phase 2 — A `cloud` mode in the store, with no UI
+
+- `@supabase/supabase-js` added (D3); a client factory reading the two public env
+  vars; **nothing in the UI imports it**.
+- `Mode` gains `'cloud'`; a remote interface with a no-op default; optional sync
+  bookkeeping fields on the persisted shape (still `version: 1`, §19).
+- `pnpm verify` check 9 becomes mode-conditional: **still zero external requests
+  in local and memory mode**, which is the regression that would otherwise slip
+  through unnoticed.
+- **Exit:** 40/40 in local mode with zero network; cloud mode reachable only from
+  a test.
+
+### Phase 3 — Sign in, sign out, and honest copy
+
+- Email OTP screens (D4) reusing `QuestionCard`/`TextAnswer`; sign-in reachable
+  **only after device consent** (D2).
+- §10's mode-aware `/you` and `/about`, in both catalogs.
+- **The copy must describe this phase, not the next one.** After Phase 3 someone
+  can be signed in while their answers are still only on the device, so the copy
+  says exactly that. Claiming cloud storage before Phase 4 exists would be the
+  dishonesty this whole document is trying to avoid.
+- **Exit:** sign in and out work; `/you` is accurate in all three modes; no facts
+  have left the device yet.
+- **Blocked by:** O1 (session persistence) and O4 (the `/you` wording).
+
+### Phase 4 — Import, push, pull
+
+- The confirmation screen (D7): *N answers on this device — add them to your
+  account?*, with declining leaving them local.
+- Push with `on conflict (id) do nothing`; pull by `created_at` window; the union
+  merge (§13).
+- Offline and unavailable behaviour (D8, §14, §15): writes land locally and are
+  acknowledged immediately, always.
+- **Exit:** two browsers converge on the same set; airplane mode loses nothing;
+  stopping the local stack mid-session changes nothing a person can see.
+
+### Phase 5 — Forget everything and logout, client side
+
+- Cloud rows deleted first, then the local clear, then sign-out (§9, §16). A
+  failed server step changes nothing locally and says so.
+- Logout keeps local data and clears the `sb-*` keys.
+- **The copy must admit what this phase cannot do.** Until Phase 6 lands, the
+  account row survives a "forget everything", so the copy says so. The same rule as
+  Phase 3: the words describe the phase that exists, not the one that is coming.
+- **Exit:** both paths verified, and the copy distinguishes them.
+
+### Phase 6 — The `delete-account` Edge Function
+
+- `supabase/functions/delete-account/`, to the requirements in §16: identity from
+  the verified JWT only, no id parameter, 401 without a token, one account, service
+  role from function secrets.
+- Tests: A cannot delete B; an unauthenticated call is refused; a deleted account's
+  facts are gone by cascade.
+- **Exit:** "forget everything" is literally true, and the copy can say so.
+- **Blocked by:** Phase 5.
+
+### Phase 7 — Cloud-mode verification suite
+
+- The existing 40 checks mirrored for cloud mode against the local stack: two
+  users, offline, server unreachable, expired session.
+- **Exit:** one command covers both modes.
+
+### Documentation, per phase
+
+`CLAUDE.md` §8, §9 and §12 describe a no-server, browser-only app. From Phase 2 on
+they are progressively untrue, so each phase updates `CLAUDE.md`, this file, and
+`docs/person-model.md` in the same commit — §18 requires it, and stale constraints
+are worse than none because they get trusted.
 
 ---
 
-## 21. One-time import after first login
+## 21. One-time import after first login — decided (D7)
 
 On the first sign-in on a device that has local facts:
 
@@ -505,26 +635,38 @@ On the first sign-in on a device that has local facts:
 
 ---
 
-## Decisions that need your approval before implementation
+## Still open
 
-1. **Auth method** — email OTP (recommended), or magic link / OAuth despite the
-   redirect-URL cost on a Pages subpath?
-2. **Session persistence** — `persistSession: true` with `sb-*` keys on the device
-   (recommended), or memory-only sessions that log out on reload?
-3. **Cloud requires device consent** (recommended), or should someone who declined
-   still be offered an account?
-4. **Local-first with a cloud mirror** (recommended), or cloud as the source of
-   truth?
-5. **Account deletion** — accept that the `auth.users` row survives and say so in
-   the copy, or approve **one Edge Function** with the service role key, which
-   introduces server-side code this phase currently excludes?
-6. **Do `locale` and `theme` stay device-local** (recommended), or sync?
-7. **Per-fact deletion** — out of scope, keeping sync conflict-free (recommended),
-   or in scope with tombstones?
-8. **Accepting the first runtime dependency** (`@supabase/supabase-js`), against
-   `CLAUDE.md`'s note that there are deliberately none.
-9. **Custom SMTP** before anyone but you signs in — needed, or is the built-in
-   rate-limited sender fine for now?
-10. **The claim on `/you`** — I need your wording direction for cloud mode, since
-    "never left this browser" becomes false and this is the sentence the product's
-    credibility rests on.
+Four questions remain. **None of them blocks Phase 1 or Phase 2**, which is why
+those can start as soon as the plan is accepted.
+
+| # | Question | Default if you say nothing | Blocks |
+| --- | --- | --- | --- |
+| **O1** | Session persistence: `sb-*` keys on the device, or memory-only sessions that sign out on reload? | `persistSession: true` — coherent with D2, since device consent already exists | Phase 3 |
+| **O2** | Per-fact deletion: out of scope (keeps the merge conflict-free, §13), or in scope with tombstones? | out of scope; D9 covers deleting everything | Phase 5 |
+| **O3** | Custom SMTP before anyone but you signs in? | built-in rate-limited sender while it is only you | Phase 3 for others, not for you |
+| **O4** | The wording on `/you` in cloud mode — a draft is below | your call; I will not ship my own wording for this one | Phase 3 |
+
+### O4: draft wording for review
+
+`/you` currently says, in local mode:
+
+> In your own words, exactly as you gave them. This has never left this browser:
+> there is no server, no account, and nothing is sent anywhere.
+
+Proposed cloud-mode replacement, for you to correct rather than approve blindly:
+
+> In your own words, exactly as you gave them. These are on this device and in your
+> account, on a server in Frankfurt. Nobody else signed in can read them, and
+> nothing here is used to build a profile of you. You can take it all back at any
+> time — forgetting everything deletes the account too.
+
+And Phase 3 only, when signed in but not yet syncing:
+
+> You are signed in, but nothing has been sent anywhere yet — your answers are
+> still only on this device.
+
+Three things I deliberately did **not** write, and want your view on: naming
+Supabase as the provider, naming the region more precisely than "Frankfurt", and
+whether to state that the operator (you) could technically read the database. The
+third is the most honest and the most awkward.

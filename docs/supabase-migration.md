@@ -488,7 +488,7 @@ keeps its property that the whole build is `out/` and any static host can serve 
 | Variable | Value | Browser-safe? |
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://oejjomqrugsgpunzmhnd.supabase.co` | Yes — public by design |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | the publishable (anon) key | Yes — grants nothing without a session and RLS |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | the publishable key (`sb_publishable_…`) | Yes — grants nothing without a session and RLS |
 | `SUPABASE_SERVICE_ROLE_KEY` | the service role key | **Never in the browser, never in the repo, never in a Pages build.** It exists in exactly one place: the `delete-account` Edge Function's secrets (D10). |
 
 - Both public values are **inlined into the JavaScript** by the static export.
@@ -507,6 +507,31 @@ keeps its property that the whole build is `out/` and any static host can serve 
   about which values are which.
 - Guard to add: a check that fails the build if any bundled file contains a
   `service_role` JWT, so the boundary is enforced rather than remembered.
+
+### Publishable key, not the legacy anon key (settled during connectivity work)
+
+This section originally said "the publishable (anon) key", treating the two as one
+thing. They are not. The project has four keys: legacy `anon` and `service_role`
+JWTs, and the current `sb_publishable_…` / `sb_secret_…` pair. **The publishable
+key is what the browser gets**; the legacy `anon` JWT exists for compatibility
+only. `scripts/check-supabase.mjs` asserts the configured key starts with
+`sb_publishable_`, so a legacy JWT is now a failure rather than a silent
+substitution.
+
+Two platform changes found in the Supabase changelog while wiring this up, both of
+which affect this plan:
+
+- **The OpenAPI spec at `/rest/v1/` is secret-key-only** (removed for anon keys,
+  effective 2026-04-08). It answers a publishable key with
+  `401 Secret API key required`. That rules it out as a reachability probe — and
+  makes it a useful *positive control* instead: check 6 fails only if our key is
+  ever **accepted** there, which would mean it is not really a publishable key.
+- **Tables are no longer auto-exposed to the Data API** (2026-04-28, opt-in
+  required by 2026-10-30). So Phase 1's migration must explicitly grant `anon` and
+  `authenticated` access to `person_facts` in addition to enabling RLS — these are
+  two separate things, and RLS on an unexposed table is not the same as an exposed
+  table with policies. Getting this wrong looks like a table that simply does not
+  exist.
 
 ---
 

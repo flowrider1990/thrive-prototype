@@ -258,7 +258,11 @@ Current stack:
 - static export hosted/planned for GitHub Pages,
 - Git / GitHub.
 
-There are deliberately no additional runtime dependencies at the current stage.
+`@supabase/supabase-js` is the one runtime dependency beyond the framework, added
+for cloud connectivity (decision D3 in `docs/supabase-migration.md`). Nothing in
+`app/` or `components/` imports it yet, so it is not in the shipped bundle.
+Beyond that, there are deliberately no additional runtime dependencies at the
+current stage.
 
 ### Current persistence model
 - `lib/person/store.ts` is the only storage boundary.

@@ -740,6 +740,10 @@ right.
 
 ## Supabase: paused deliberately after the proposal (2026-08-11)
 
+**Superseded in part — connectivity has since been established on
+`feature/cloud-foundation`; see the section below.** The pause held for everything
+else, and the reasoning here is why the resumed work is deliberately tiny.
+
 **This is a deliberate deferral, not a blocked task.** The approved plan's Phase 1
 turned out to be more infrastructure than this stage of the project warrants, so
 runtime work stops after the documentation and decisions.
@@ -756,12 +760,16 @@ Kept, so this resumes without redoing setup:
 - the official Supabase agent skill (below).
 
 **Not started:** local Supabase, schema, RLS, isolation tests, Edge Functions,
-Auth, sync, and any database application code.
+Auth, sync, and any database application code. (Connectivity — the client
+boundary, the env vars and `pnpm check:supabase` — has since been done; everything
+in that list is still untouched.)
 
 ### When it resumes, in small steps
 
-1. one basic table,
-2. basic Auth,
+0. ~~runtime connectivity~~ — **done**, see below,
+1. one basic table — note it now needs an explicit Data API grant as well as RLS,
+   since tables stopped being auto-exposed (2026-04-28),
+2. basic Auth — and with it, the `persistSession` decision (O1),
 3. basic RLS,
 4. one authenticated read/write flow,
 5. only then sync, migrations, Edge Functions, and advanced security testing.
@@ -776,6 +784,55 @@ installed (Windows 10 Home, where Docker Desktop requires WSL2). There is no loc
 Postgres either. So step 1 above needs either a container runtime installed first,
 or a decision to work directly against the hosted project. Recorded as context, not
 as a task.
+
+### Connectivity established (branch `feature/cloud-foundation`)
+
+The first resumed step, and deliberately the smallest one: the app *can* reach the
+project, and nothing else changed. No table, no Auth, no RLS, no sync, no UI. The
+person store, `app/`, `components/` and `lib/i18n/` are untouched, and
+`scripts/verify.mjs` is unchanged and still **125/125** — including check 9, "no
+request went anywhere but the app's own assets" (1401 requests, all local).
+
+- **`lib/supabase/client.ts`** is the whole boundary. Two properties do the work:
+  nothing happens on import (the client is built on the first `getSupabase()` call,
+  not at module scope), and it uses the publishable key only. Because nothing in
+  `app/` or `components/` imports it, `out/` contains no `sb_publishable_`, no
+  `supabase.co` and no `@supabase` — checked, not assumed. G6 therefore survives by
+  construction rather than by care.
+- **`persistSession: false`, plus `autoRefreshToken` and `detectSessionInUrl` off.**
+  There is no Auth yet, so the client must write nothing to the device; `sb-*` keys
+  in `localStorage` would put "declining leaves localStorage completely empty" (G2)
+  at risk. Approved for this phase only — **revisit explicitly when Auth lands**
+  (open point O1).
+- **`pnpm check:supabase` is separate from `pnpm verify` on purpose.** The verify
+  suite asserts that nothing leaves the browser; a connectivity check that makes
+  real network calls belongs beside it, not inside it.
+- **It imports the real `client.ts`** rather than building its own client, so what
+  it proves is the boundary the app will use. That needs Node's
+  `--experimental-strip-types` (Node 22.14 here; unflagged from 22.18), which is why
+  the script carries flags. The two warnings it would otherwise print are silenced
+  individually rather than with a blanket `--no-warnings`.
+
+Three things worth remembering from doing it:
+
+- **The lasting success contract cannot mention the schema.** The obvious probe —
+  "`person_facts` is not found" — is true today and false the moment Phase 1 lands,
+  so the check would start failing for the very reason it was supposed to allow.
+  Check 5 asserts instead that *PostgREST answered and accepted our credential*,
+  which holds whether the table is absent (404 `PGRST205`, today), present (200), or
+  empty under RLS (200). The table's absence is reported, never asserted.
+- **Both negative controls were run, and both fired.** A wrong publishable key fails
+  checks 4 and 5 with `key rejected (401): Invalid API key`; a fabricated
+  `sb_secret_…` value fails 3a, and a fabricated `service_role` JWT placed in a
+  variable named `SOME_INNOCENT_LOOKING_NAME` fails 3b. The secret scanner matches on
+  **values, not variable names**, which is the case that actually matters. *Not*
+  proven: check 6's failure branch, which would need the real secret key to trigger
+  and was deliberately not exercised.
+- **PowerShell 5.1's `ConvertFrom-Json` does not unroll an array into the pipeline.**
+  `@(… | ConvertFrom-Json)` wraps all four key records as one element, so
+  `Where-Object { $_.type -eq 'publishable' }` matched everything via member
+  enumeration and handed back the legacy anon JWT instead. Cost two failed attempts
+  at reading the key. Assign the result and `foreach` over it.
 
 ### The Supabase agent skill
 
@@ -812,9 +869,13 @@ backend is the architectural change that section governs — see
 `docs/supabase-migration.md` for the proposal that has to be approved first.
 
 - The link state lives in `supabase/.temp/`, which `supabase/.gitignore` excludes,
-  so it stays machine-local. `config.toml` is committed, including the project
-  ref: it is not a secret (it appears in the project URL) and committing it is
-  what makes migrations reproducible.
+  so it stays machine-local. `config.toml` is committed and is what makes
+  migrations reproducible — but it does **not** contain the hosted project ref, as
+  this file previously claimed: its `project_id` is `"thrive-prototype"`, the local
+  project name. The hosted ref appears only in `supabase/.temp/project-ref`
+  (ignored) and in the docs. That is why `scripts/check-supabase.mjs` carries the
+  ref as a committed constant; without it, a fresh clone could not tell the
+  intended project from any other.
 - `npm install` was **not** used despite the instruction, because this repo pins
   `packageManager` and CI runs `pnpm install --frozen-lockfile`; an npm lockfile
   would have left the dependency invisible to CI. Same end state via pnpm.

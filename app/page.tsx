@@ -170,9 +170,7 @@ export default function Home() {
         <section className="space-y-8">
           <div className="space-y-4">
             {ackText && <p className="text-sm text-accent">{ackText}</p>}
-            <h1 className="text-2xl font-normal leading-snug tracking-tight text-ink sm:text-3xl">
-              {t(m.home.greeting, { name: name ?? '' })}
-            </h1>
+            <h1 className="heading">{t(m.home.greeting, { name: name ?? '' })}</h1>
             <p className="max-w-prose leading-relaxed text-muted">{m.home.body}</p>
           </div>
 

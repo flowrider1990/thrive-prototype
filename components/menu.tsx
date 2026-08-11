@@ -80,7 +80,7 @@ export function Menu({
       {open && (
         <div
           id={panelId}
-          className={`absolute top-full z-10 mt-2 min-w-36 rounded-xl border border-line bg-surface p-1 shadow-lg ${
+          className={`menu-panel absolute top-full z-10 mt-2 min-w-36 rounded-lg border border-line bg-surface p-1 shadow-lg ${
             align === 'end' ? 'end-0' : 'start-0'
           }`}
         >
@@ -93,7 +93,7 @@ export function Menu({
 
 /** Shared look for anything inside a menu panel, be it a button or a link. */
 export const menuItemClass =
-  'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm text-muted transition-colors hover:bg-ground hover:text-ink'
+  'flex w-full items-center gap-2 rounded-sm px-3 py-2 text-start text-sm text-muted transition-colors hover:bg-ground hover:text-ink'
 
 /**
  * Marks the chosen item in a panel. Deliberately a shape and not just a brighter

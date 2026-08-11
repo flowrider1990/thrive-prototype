@@ -30,9 +30,7 @@ export default function AboutPage() {
   return (
     <PageShell>
       <div className="space-y-10">
-        <h1 className="text-2xl font-normal leading-snug tracking-tight text-ink sm:text-3xl">
-          {t(m.about.title, vars)}
-        </h1>
+        <h1 className="heading">{t(m.about.title, vars)}</h1>
         {sections.map((section) => (
           <section key={section.title} className="space-y-3">
             <h2 className="text-sm uppercase tracking-wide text-muted">{section.title}</h2>

@@ -47,8 +47,33 @@ export function ThemeSwitch() {
     // The bootstrap script in `app/layout.tsx` already did this before the first
     // paint; this keeps it true afterwards, including when a choice is forgotten.
     const root = document.documentElement
+
+    // Applying the new palette is one attribute change, but it inverts every
+    // colour token at once — and anything carrying `transition-colors` would
+    // interpolate across that inversion, which is the visible flash. So the
+    // whole page gets transitions switched off for exactly the frame that
+    // carries the change (see `:root[data-theme-switching]` in globals.css).
+    //
+    // The order matters: suppress, mutate, then read a layout property to force
+    // the style recalculation to happen *now*, while the suppression still
+    // applies. Without that read, the browser could batch both changes into one
+    // recalc and start the transitions anyway.
+    root.dataset.themeSwitching = ''
+
     if (theme) root.dataset.theme = theme
     else delete root.dataset.theme
+
+    void root.offsetHeight
+
+    const frame = requestAnimationFrame(() => {
+      delete root.dataset.themeSwitching
+    })
+    return () => {
+      cancelAnimationFrame(frame)
+      // Never leave the page with transitions suppressed, even if the frame
+      // never arrives because the theme changed again or this unmounted.
+      delete root.dataset.themeSwitching
+    }
   }, [theme])
 
   return (

@@ -1,12 +1,23 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { APP_NAME } from '@/lib/app'
 import { useI18n } from '@/lib/i18n'
 import { LanguageSwitch } from './language-switch'
-import { Menu, menuItemClass } from './menu'
+import { Check, Menu, menuItemClass } from './menu'
 import { ThemeSwitch } from './theme-switch'
+
+/**
+ * `trailingSlash: true` means the browser is on `/you/` while the links are
+ * written as `/you`, and `basePath` is already stripped from what `usePathname`
+ * returns. Comparing normalised forms keeps both ends readable.
+ */
+function samePath(a: string, b: string): boolean {
+  const trim = (path: string) => path.replace(/\/+$/, '') || '/'
+  return trim(a) === trim(b)
+}
 
 /**
  * The frame every page sits in. Its chrome waits for `status === 'ready'` for
@@ -16,13 +27,14 @@ import { ThemeSwitch } from './theme-switch'
 export function PageShell({ children }: { children: ReactNode }) {
   const { m, status } = useI18n()
   const ready = status === 'ready'
+  const pathname = usePathname()
 
   // Defined once and rendered twice — inline on wide screens, inside the dropdown
   // on narrow ones — so a new entry never has to be added in two places.
   const navLinks = [
     { href: '/you', label: m.nav.you },
     { href: '/about', label: m.nav.about },
-  ]
+  ].map((link) => ({ ...link, current: samePath(pathname, link.href) }))
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -39,9 +51,18 @@ export function PageShell({ children }: { children: ReactNode }) {
                 {APP_NAME}
               </Link>
 
-              <nav className="hidden items-center gap-5 text-sm text-muted sm:flex">
+              <nav className="hidden items-center gap-5 text-sm sm:flex">
                 {navLinks.map((link) => (
-                  <Link key={link.href} href={link.href} className="transition-colors hover:text-ink">
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    // The state lives in `aria-current`, and `.nav-link` styles
+                    // off it: one source of truth for the underline and for a
+                    // screen reader, rather than a class saying one thing and
+                    // the accessibility tree another.
+                    aria-current={link.current ? 'page' : undefined}
+                    className="nav-link"
+                  >
                     {link.label}
                   </Link>
                 ))}
@@ -58,8 +79,13 @@ export function PageShell({ children }: { children: ReactNode }) {
                         key={link.href}
                         href={link.href}
                         onClick={close}
-                        className={menuItemClass}
+                        aria-current={link.current ? 'page' : undefined}
+                        // Same tick as the language panel uses, for the same
+                        // reason: §17 forbids marking a state by colour alone,
+                        // and the slot is always there so nothing shifts.
+                        className={`${menuItemClass} ${link.current ? 'text-ink' : ''}`}
                       >
+                        <Check checked={link.current} />
                         {link.label}
                       </Link>
                     ))

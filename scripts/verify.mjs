@@ -191,6 +191,68 @@ const HELPERS = `
     return new Set(centres).size;
   };
   window.__theme = () => document.documentElement.dataset.theme || null;
+  /**
+   * Where the centred column starts. A scrollbar appearing on the tall pages and
+   * not on the short ones used to move this by ~7.5px between routes, which is
+   * the "layout shifts when switching nav items" defect.
+   */
+  window.__mainX = () => document.querySelector('main').getBoundingClientRect().x;
+  /** Everything about a nav link that a paint depends on, to the sub-pixel. */
+  window.__navBox = (text) => {
+    const el = [...document.querySelectorAll('header a')]
+      .find((e) => e.textContent.trim() === text);
+    if (!el) throw new Error('no nav link: ' + text);
+    const box = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    return {
+      w: box.width, h: box.height,
+      current: el.getAttribute('aria-current'),
+      weight: style.fontWeight,
+      borderBottom: style.borderBottomWidth,
+      pad: style.paddingTop + '/' + style.paddingBottom,
+    };
+  };
+  /**
+   * Flips the theme and watches the root element for the suppression attribute,
+   * sampling
+   * the toggle's transition-duration while it is set. Observed from inside the
+   * page because the whole window is a single frame — far too short to poll for
+   * over CDP.
+   */
+  window.__watchThemeSwitch = () => new Promise((resolve) => {
+    const root = document.documentElement;
+    const toggle = document.querySelector('button[aria-label^="Switch to"], button[aria-label^="Wechsle"]');
+    const seen = [];
+    const observer = new MutationObserver(() => {
+      seen.push({
+        switching: root.hasAttribute('data-theme-switching'),
+        theme: root.dataset.theme || null,
+        duration: getComputedStyle(toggle).transitionDuration,
+      });
+    });
+    observer.observe(root, { attributes: true });
+    toggle.click();
+    setTimeout(() => {
+      observer.disconnect();
+      resolve({
+        seen,
+        stillSwitching: root.hasAttribute('data-theme-switching'),
+        theme: root.dataset.theme || null,
+      });
+    }, 600);
+  });
+  /** What ring, if any, the browser is painting on whatever currently has focus. */
+  window.__activeRing = () => {
+    const el = document.activeElement;
+    const style = getComputedStyle(el);
+    return {
+      label: el.getAttribute('aria-label') || el.textContent.trim(),
+      focusVisible: el.matches(':focus-visible'),
+      width: style.outlineWidth,
+      style: style.outlineStyle,
+      color: style.outlineColor,
+    };
+  };
   window.__bg = () => getComputedStyle(document.body).backgroundColor;
   /** For icon-only controls, whose accessible name is the only stable handle. */
   window.__clickAria = (label) => {
@@ -238,6 +300,47 @@ async function clickAria(label) {
 const headerRows = async () => {
   await evaluate(HELPERS)
   return evaluate('__headerRows()')
+}
+const mainX = async () => {
+  await evaluate(HELPERS)
+  return evaluate('__mainX()')
+}
+const navBox = async (label) => {
+  await evaluate(HELPERS)
+  return evaluate(`__navBox(${JSON.stringify(label)})`)
+}
+const watchThemeSwitch = async () => {
+  await evaluate(HELPERS)
+  return evaluate('__watchThemeSwitch()')
+}
+const activeRing = async () => {
+  await evaluate(HELPERS)
+  return evaluate('__activeRing()')
+}
+/**
+ * Presses Tab for real, until the wanted element has focus. Real key events
+ * rather than `.focus()`, because `:focus-visible` is precisely a judgement about
+ * *how* focus arrived — a scripted focus after a scripted click does not qualify,
+ * and asserting on it would prove nothing about a keyboard user.
+ */
+async function tabTo(selector, max = 25) {
+  for (let pressed = 1; pressed <= max; pressed++) {
+    for (const type of ['rawKeyDown', 'keyUp']) {
+      await send('Input.dispatchKeyEvent', {
+        type,
+        key: 'Tab',
+        code: 'Tab',
+        windowsVirtualKeyCode: 9,
+        nativeVirtualKeyCode: 9,
+      })
+    }
+    await sleep(40)
+    const arrived = await evaluate(
+      `!!document.activeElement && document.activeElement.matches(${JSON.stringify(selector)})`,
+    )
+    if (arrived) return pressed
+  }
+  return 0
 }
 const visible = async (label) => {
   await evaluate(HELPERS)
@@ -455,6 +558,115 @@ check(
   '13. the links sit inline at desktop width, with no menu trigger',
   (await visible('You')) && (await visible('About')) && !(await visible('Menu')),
 )
+
+// --- 20. the centred column does not move between routes ------------------
+
+/**
+ * The reported "slight layout shift when switching nav items". `/about` is tall
+ * enough to scroll and `/` and `/you` (empty here) are not, so a classic
+ * scrollbar used to appear on one page and not the others — and since every page
+ * centres its column with `mx-auto`, the whole layout slid sideways. Measured
+ * before `scrollbar-gutter: stable`: 264 on `/`, 256.5 on the other two.
+ */
+const columnX = {}
+for (const route of ['/', '/you/', '/about/']) {
+  await goto(route)
+  columnX[route] = await mainX()
+}
+const columnPositions = [...new Set(Object.values(columnX))]
+check(
+  '20a. the centred column starts at the same x on every route',
+  columnPositions.length === 1,
+  Object.entries(columnX)
+    .map(([route, x]) => `${route}=${x}`)
+    .join(' '),
+)
+// Guards the mechanism as well as the symptom: a future `overflow: hidden`
+// somewhere would also equalise the numbers, and hide the bug rather than fix it.
+const scrollHeights = {}
+for (const route of ['/', '/about/']) {
+  await goto(route)
+  scrollHeights[route] = await evaluate(
+    '[document.documentElement.scrollHeight > document.documentElement.clientHeight,' +
+      ' getComputedStyle(document.documentElement).scrollbarGutter]',
+  )
+}
+check(
+  '20b. and they still differ in height — the gutter is reserved, not the overflow removed',
+  scrollHeights['/'][0] === false &&
+    scrollHeights['/about/'][0] === true &&
+    scrollHeights['/'][1] === 'stable',
+  JSON.stringify(scrollHeights),
+)
+
+// --- 21. marking the current page costs no layout -------------------------
+
+await goto('/about/')
+const inactiveYou = await navBox('You')
+await goto('/you/')
+const activeYou = await navBox('You')
+check(
+  '21a. the active nav link occupies exactly the same box as the inactive one',
+  inactiveYou.w === activeYou.w &&
+    inactiveYou.h === activeYou.h &&
+    inactiveYou.weight === activeYou.weight &&
+    inactiveYou.borderBottom === activeYou.borderBottom &&
+    inactiveYou.pad === activeYou.pad,
+  `${JSON.stringify(inactiveYou)} vs ${JSON.stringify(activeYou)}`,
+)
+check(
+  '21b. and it is actually marked, for the accessibility tree too',
+  activeYou.current === 'page' && inactiveYou.current === null,
+  `on /you/: ${activeYou.current}, on /about/: ${inactiveYou.current}`,
+)
+
+// --- 22. a theme change is instant, never animated ------------------------
+
+/**
+ * The reported flash. Before the fix, `.btn-primary` interpolated across the
+ * token inversion and spent a frame at rgb(141,139,135) on rgb(133,133,133) —
+ * an unreadable label — while the focus ring on the just-pressed toggle swept
+ * from near-ink to near-paper.
+ */
+await goto('/')
+const switched = await watchThemeSwitch()
+const whileSwitching = switched.seen.filter((s) => s.switching)
+check(
+  '22a. transitions are suppressed for the frame that carries the new palette',
+  whileSwitching.length > 0 && whileSwitching.every((s) => s.duration === '0s'),
+  JSON.stringify(switched.seen),
+)
+check(
+  '22b. and the suppression is removed again, leaving transitions working',
+  switched.stillSwitching === false &&
+    switched.theme !== null &&
+    switched.seen.some((s) => !s.switching && s.duration !== '0s'),
+  `theme=${switched.theme} stillSwitching=${switched.stillSwitching}`,
+)
+
+// --- 23. the focus ring is still there -----------------------------------
+
+// The guard against "fixing" the flash by deleting focus indication. §17
+// requires visible focus states; nothing above may have weakened one.
+await goto('/')
+const TOGGLE = 'button[aria-label^="Switch to"]'
+const presses = await tabTo(TOGGLE)
+const ring = await activeRing()
+check(
+  '23a. the theme toggle is reachable by Tab alone',
+  presses > 0,
+  presses ? `${presses} press(es)` : 'never reached',
+)
+check(
+  '23b. and keyboard focus still paints a visible ring on it',
+  ring.focusVisible === true && parseFloat(ring.width) > 0 && ring.style !== 'none',
+  JSON.stringify(ring),
+)
+
+// Back to where section 14 expects to be: `/` at 1200px, nothing stored, no
+// explicit theme — 15a asserts exactly that.
+await clearStorage()
+await goto('/')
 
 // --- 14. the language dropdown --------------------------------------------
 

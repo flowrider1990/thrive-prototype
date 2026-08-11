@@ -54,10 +54,17 @@ The rest by hand or by build:
 2. The export served from `out/` is what every browser check ran against. ✓
 3. Deleting a key from `de.ts` fails the build with
    `TS2741: Property 'restart' is missing`. ✓
-11. **Not possible yet** — needs the site deployed. The half that could be checked
-    locally was: building with `PAGES_BASE_PATH=/thrive-prototype` puts every
-    asset under `/thrive-prototype/_next/…`, and `out/you/index.html` exists, so a
-    deep link resolves.
+11. **Still needs the site deployed** for the live-URL half. Two notes, one
+    historical and one current:
+    - *At the foundation:* building with `PAGES_BASE_PATH=/thrive-prototype` put every
+      asset under `/thrive-prototype/_next/…`, and `out/you/index.html` existed, so a
+      deep link resolved. **`/you` no longer exists** — it was replaced by `/data/` in
+      the UX/UI rework — so read that as a record of what was checked then, not as a
+      path to look for now.
+    - *Now:* the deep-link half no longer waits for a deployment. `/areas/<id>/` is a
+      real nested route, and `scripts/verify.mjs` §27d/§27e load it cold and reload it
+      on every run. What is left for a live URL is the `basePath` behaviour under a
+      real subpath.
 12. Rename rehearsal ✓ — the repo was copied to a differently-named folder without
     `node_modules`, `.next` or `tsconfig.tsbuildinfo`; `pnpm install`, `pnpm build`
     and `pnpm lint` all passed there from scratch.

@@ -263,10 +263,10 @@ const HELPERS = `
    * run together with everything around it rather than the label alone.
    */
   window.__clickOption = (text) => {
-    const el = [...document.querySelectorAll('button.option')]
+    const el = [...document.querySelectorAll('.option')]
       .find((e) => e.textContent.includes(text));
     if (!el) throw new Error('no option containing: ' + text + ' | seen: ' +
-      [...document.querySelectorAll('button.option')].map(e => e.textContent.trim()).join(' / '));
+      [...document.querySelectorAll('.option')].map(e => e.textContent.trim()).join(' / '));
     el.click();
     return true;
   };
@@ -326,6 +326,18 @@ const HELPERS = `
   };
   window.__count = (selector) => document.querySelectorAll(selector).length;
   /**
+   * Is the first match actually laid out?
+   *
+   * __visible matches on an element's *text*, which cannot see an icon-only
+   * control: the collapsed-nav trigger is a hamburger whose name lives in
+   * aria-label, so __visible('Menu') was always false and every assertion built
+   * on it could never fail.
+   */
+  window.__shown = (selector) => {
+    const el = document.querySelector(selector);
+    return Boolean(el && el.offsetParent !== null);
+  };
+  /**
    * Clicks whatever element holds exactly this text, button or not.
    *
    * Every other click helper refuses to click a non-control, which is usually the
@@ -354,6 +366,12 @@ const HELPERS = `
    */
   window.__ariaLabels = () => [...document.querySelectorAll('[aria-label]')]
     .map((e) => e.getAttribute('aria-label'));
+  /** Every header nav link, with where it points and whether it is marked current. */
+  window.__navLinks = () => [...document.querySelectorAll('header nav a')].map((a) => ({
+    text: a.textContent.trim(),
+    href: a.getAttribute('href'),
+    current: a.getAttribute('aria-current'),
+  }));
   /** For icon-only controls, whose accessible name is the only stable handle. */
   window.__clickAria = (label) => {
     const el = document.querySelector('[aria-label="' + label + '"]');
@@ -447,6 +465,14 @@ const focused = async (selector) => {
   await evaluate(HELPERS)
   return evaluate(`__focus(${JSON.stringify(selector)})`)
 }
+const navLinks = async () => {
+  await evaluate(HELPERS)
+  return evaluate('__navLinks()')
+}
+const shown = async (selector) => {
+  await evaluate(HELPERS)
+  return evaluate(`__shown(${JSON.stringify(selector)})`)
+}
 /**
  * Presses Tab for real, until the wanted element has focus. Real key events
  * rather than `.focus()`, because `:focus-visible` is precisely a judgement about
@@ -531,7 +557,8 @@ const EN = {
   chooseNext: 'Choose something',
   later: 'Later',
   save: 'Save',
-  toAreas: 'Review your life areas',
+  navHome: 'Start',
+  navAreas: 'Life areas',
   picker: 'Your life areas',
   changeGoal: 'Change goal',
   addStep: 'Add something to try',
@@ -544,12 +571,54 @@ const EN = {
   forgetConfirm: 'Yes, forget everything',
 }
 
+/** The collapsed-nav trigger, which is icon-only and so has to be found by name. */
+const MENU = 'button[aria-label="Menu"], button[aria-label="Menü"]'
+
 /** Any internal id leaking into rendered copy would look like this. */
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
 
 async function clearStorage() {
   await goto('/')
   await evaluate('localStorage.clear()')
+}
+
+/**
+ * Writes a store that has finished the introduction, then loads `/`.
+ *
+ * Several checks need the app *past* onboarding — the navigation only exists then —
+ * and replaying twelve clicks for each of them is slow and, worse, couples them to
+ * onboarding copy they are not about. The shape is kept in step with
+ * `lib/person/schema.ts` by hand, exactly as `STORAGE_KEY` is.
+ *
+ * One area is given a goal and something active so the home screen has a row.
+ */
+async function seedOnboarded() {
+  const at = '2026-01-01T00:00:00.000Z'
+  const step = 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa'
+  const facts = [
+    ...['body', 'relationships', 'work', 'finances', 'creativity'].map((area, i) => ({
+      id: `seed-review-${i}`,
+      key: `area.${area}.review`,
+      value: area === 'body' ? 'yes' : 'not_now',
+      source: 'goals',
+      learnedAt: at,
+    })),
+    { id: 'seed-goal', key: 'area.body.goal', value: 'Sleep better', source: 'goals', learnedAt: at },
+    {
+      id: 'seed-text',
+      key: `area.body.step.${step}.text`,
+      value: 'Walk after dinner',
+      source: 'goals',
+      learnedAt: at,
+    },
+    { id: 'seed-active', key: 'area.body.step_active', value: step, source: 'goals', learnedAt: at },
+  ]
+  const store = { version: 1, consentAt: at, locale: 'en', facts }
+  await goto('/')
+  await evaluate(
+    `localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, ${JSON.stringify(JSON.stringify(store))})`,
+  )
+  await goto('/')
 }
 
 /**
@@ -882,8 +951,8 @@ check(
 )
 
 // The cap: three open at a time, counting the one being worked on.
-await click(EN.toAreas)
-check('24m. the picker lists all five areas with their state', (await text()).includes(EN.picker))
+await clickNav(EN.navAreas)
+check('24m. Life areas lists all five with their state', (await text()).includes(EN.picker))
 await clickOption('Work & Career')
 await click(EN.addStep)
 await type('Ask Sam for feedback')
@@ -1188,7 +1257,7 @@ check(
   screen.includes('has a goal but nothing to try yet'),
 )
 
-await click(EN.toAreas)
+await clickNav(EN.navAreas)
 screen = await text()
 check(
   '25c. the unfinished area is reachable and says what is missing',
@@ -1203,11 +1272,23 @@ check(
 await click(EN.addStep)
 await type('Sketch on Sunday morning')
 await click(EN.save)
+// "Done" now returns to the areas list rather than to home, because the area is its
+// own route. The list is where it shows up first.
 await click(EN.manageDone)
+await sleep(400)
 screen = await text()
 check(
   '25e. adding the missing entry makes it the active one, with nothing else asked',
+  screen.includes('Sketch on Sunday morning') && screen.includes(EN.picker),
+  screen.replace(/\n/g, ' / ').slice(0, 120),
+)
+
+await clickNav(EN.navHome)
+screen = await text()
+check(
+  '25e2. and home stops reporting it as unfinished setup',
   screen.includes('Sketch on Sunday morning') && !screen.includes('has a goal but nothing to try'),
+  screen.replace(/\n/g, ' / ').slice(0, 120),
 )
 
 // The guard: an area with nothing active must never be read as "not onboarded".
@@ -1283,13 +1364,132 @@ check(
   screen.slice(0, 60).replace(/\n/g, ' '),
 )
 
-// --- 11. the header at phone width — the wrap this change exists to fix ----
+// --- 26. the navigation appears only once the introduction is over ---------
+//
+// Nothing to navigate to before then: the destinations exist but are empty. Only
+// the *nav* is gated — the routes are not, because gating a route in a static
+// export means a client-side redirect, which is a flash (§9).
 
 await setScheme('light')
+await setViewport(390)
+await clearStorage()
+await goto('/')
+check(
+  '26a. during the introduction there are no nav links at all',
+  (await count('header nav a')) === 0 && (await count(MENU)) === 0,
+  `${await count('header nav a')} link(s), ${await count(MENU)} menu trigger(s)`,
+)
+// The controls that must survive the gate. 22 and 23 both select the theme toggle by
+// name and throw if it is absent, so a regression here would otherwise surface as a
+// confusing exception several sections later rather than as a named failure. And the
+// language switch has to work on every screen, consent included.
+check(
+  '26b. but the language switch and theme toggle are still there',
+  (await count('button[aria-label="Language"]')) === 1 &&
+    (await count('button[aria-label^="Switch to"]')) === 1,
+  `${await count('button[aria-label="Language"]')} language, ${await count('button[aria-label^="Switch to"]')} theme`,
+)
+
+await seedOnboarded()
+check(
+  '26c. once it is finished the links are there',
+  (await count('header nav a')) === 4,
+  (await navLinks()).map((l) => `${l.text}→${l.href}`).join(' '),
+)
+
+// Memory mode has to get the navigation too: the gate is derived from the person,
+// not from `localStorage`, and someone who declined saving still finishes the
+// introduction.
+await clearStorage()
+await goto('/')
+await click(EN.no)
+await click(EN.cont)
+await click(EN.contYes)
+await click(EN.introOk)
+for (let area = 0; area < 5; area++) await click(EN.reviewNo)
+await click(EN.toHome)
+check(
+  '26d. and in memory mode as well — the gate is about the person, not the store',
+  (await count('header nav a')) === 4 && (await keys()).length === 0,
+  `${await count('header nav a')} link(s), ${(await keys()).length} storage key(s)`,
+)
+
+// --- 27. the life areas are real routes ------------------------------------
+//
+// They used to be two states inside the home page's state machine. Making them
+// routes is what took that machine from ten states to seven, and it is also the
+// first thing in this app that is deep-linkable.
+
+await setViewport(1200, 800)
+await seedOnboarded()
+await clickNav('Life areas')
+screen = await text()
+check(
+  '27a. Life areas lists all five with their state',
+  screen.includes('Body & Health') &&
+    screen.includes('Relationships & Social Life') &&
+    screen.includes('Work & Career') &&
+    screen.includes('Finances') &&
+    screen.includes('Hobbies & Creativity'),
+  screen.replace(/\n/g, ' / ').slice(0, 160),
+)
+
+// A set, not a count. Five links all pointing at `body` is the copy-paste bug a
+// count cannot see, and it is the likeliest one in a mapped list.
+const areaHrefs = await evaluate(
+  `[...document.querySelectorAll('main a[href]')].map((a) => new URL(a.href).pathname)`,
+)
+const wanted = ['body', 'relationships', 'work', 'finances', 'creativity'].map(
+  (a) => `/areas/${a}/`,
+)
+check(
+  '27b. every row is a real link, and each points at its own area',
+  wanted.every((href) => areaHrefs.includes(href)) && new Set(areaHrefs).size === areaHrefs.length,
+  areaHrefs.join(' '),
+)
+
+// Rows navigate rather than select, so they are `<a>`. Nothing on this page changes
+// anything, which is the whole difference from the `.option` buttons elsewhere.
+check(
+  '27c. and the rows are links, not buttons — this page changes nothing',
+  (await count('main a[href]')) === 5 && (await count('main button')) === 0,
+  `${await count('main a[href]')} link(s), ${await count('main button')} button(s)`,
+)
+
+// The deep link, cold. This is the half of the original plan's verification item 11
+// that could never be checked before, because there was no nested route to check.
+await goto('/areas/body/')
+screen = await text()
+check(
+  '27d. a deep link to one area loads it directly, on a cold navigation',
+  screen.includes('Body & Health') && screen.includes('Sleep better'),
+  screen.replace(/\n/g, ' / ').slice(0, 120),
+)
+await goto('/areas/body/')
+check('27e. and survives a reload of that URL', (await text()).includes('Sleep better'))
+
+// --- 11. the header at phone width — the wrap this change exists to fix ----
+//
+// Split in two, because the interesting case is the one with the nav present. With
+// an empty store the header holds only the wordmark, the language switch and the
+// theme toggle, so it **cannot** wrap — and a check that cannot fail is not a check.
+// 11b is the one carrying the original guarantee.
+
 await clearStorage()
 await setViewport(390)
 await goto('/')
-check('11. the header stays on one row at 390px', (await headerRows()) === 1, `${await headerRows()} row(s)`)
+check(
+  '11a. the header stays on one row at 390px during the introduction',
+  (await headerRows()) === 1,
+  `${await headerRows()} row(s)`,
+)
+
+await seedOnboarded()
+check(
+  '11b. and with the nav present, which is the case that can actually wrap',
+  (await headerRows()) === 1 && (await shown(MENU)),
+  `${await headerRows()} row(s), menu trigger shown ${await shown(MENU)}`,
+)
 
 // Paired with a positive, because "not visible" and "does not exist" are the same
 // thing to `__visible`, and the collapse is only being tested if the links are
@@ -1297,7 +1497,10 @@ check('11. the header stays on one row at 390px', (await headerRows()) === 1, `$
 // header has been broken and renders no nav at all.
 check(
   '12a. the nav links exist but are not in the bar at 390px',
-  !(await visible('You')) && !(await visible('About')) && (await count('header nav a')) > 0,
+  !(await visible('You')) &&
+    !(await visible('About')) &&
+    !(await visible('Life areas')) &&
+    (await count('header nav a')) === 4,
   `${await count('header nav a')} link(s) in the DOM, none of them laid out`,
 )
 await chooseIn('Menu', 'About')
@@ -1305,10 +1508,16 @@ await sleep(500)
 check('12b. the collapsed menu still navigates', (await text()).includes('About thrive'))
 
 await setViewport(1200, 800)
-await goto('/')
+await seedOnboarded()
 check(
-  '13. the links sit inline at desktop width, with no menu trigger',
-  (await visible('You')) && (await visible('About')) && !(await visible('Menu')),
+  '13. the links sit inline at desktop width, with the collapsed trigger hidden',
+  (await visible('You')) &&
+    (await visible('About')) &&
+    (await visible('Life areas')) &&
+    // By selector, not by text. `!visible('Menu')` was true on every screen the app
+    // has ever had, because the trigger is a hamburger with no text in it.
+    !(await shown(MENU)),
+  `menu trigger shown: ${await shown(MENU)}`,
 )
 
 // --- 20. the centred column does not move between routes ------------------
@@ -1320,8 +1529,13 @@ check(
  * centres its column with `mx-auto`, the whole layout slid sideways. Measured
  * before `scrollbar-gutter: stable`: 264 on `/`, 256.5 on the other two.
  */
+// Deliberately on an **empty** store, which is what makes 20b's premise hold: `/` is
+// the consent screen and short enough not to scroll. Seeding it would fill the home
+// screen with rows, and 20b would start failing for a reason that has nothing to do
+// with the scrollbar gutter.
+await clearStorage()
 const columnX = {}
-for (const route of ['/', '/you/', '/about/']) {
+for (const route of ['/', '/areas/', '/areas/body/', '/you/', '/about/']) {
   await goto(route)
   columnX[route] = await mainX()
 }
@@ -1353,6 +1567,8 @@ check(
 
 // --- 21. marking the current page costs no layout -------------------------
 
+// Needs the nav, so it needs a finished introduction.
+await seedOnboarded()
 await goto('/about/')
 const inactiveYou = await navBox('You')
 await goto('/you/')
@@ -1370,6 +1586,22 @@ check(
   '21b. and it is actually marked, for the accessibility tree too',
   activeYou.current === 'page' && inactiveYou.current === null,
   `on /you/: ${activeYou.current}, on /about/: ${inactiveYou.current}`,
+)
+
+// A section, not a page. `/areas` has children, and an exact match would drop its
+// underline the moment an area is opened — the nav would claim you were nowhere.
+// Three states, because two would leave the child case untested, which is exactly how
+// a nav that never marks its deep routes ships unnoticed.
+await goto('/areas/')
+const onList = (await navLinks()).find((l) => l.text === 'Life areas')
+await goto('/areas/body/')
+const onArea = (await navLinks()).find((l) => l.text === 'Life areas')
+await goto('/about/')
+const offAreas = (await navLinks()).find((l) => l.text === 'Life areas')
+check(
+  '21c. Life areas stays marked inside an area, and only inside that section',
+  onList.current === 'page' && onArea.current === 'page' && offAreas.current === null,
+  `/areas/: ${onList.current}, /areas/body/: ${onArea.current}, /about/: ${offAreas.current}`,
 )
 
 // --- 22. a theme change is instant, never animated ------------------------
@@ -1526,6 +1758,39 @@ check(
   '9. no request went anywhere but the app’s own assets',
   external.length === 0,
   external.length ? [...new Set(external)].join(', ') : `${requested.length} requests, all local`,
+)
+
+// Check 9 proves nothing left the machine; it does not notice that something failed
+// to arrive. Two lines, and the only thing standing between us and a dynamic route
+// that was never statically generated — `<Link>` prefetches a path that does not
+// exist, gets a 404, and every visible assertion still passes because a cold
+// navigation to the same URL works fine.
+/**
+ * Two exemptions, both narrow and both explained, because an exemption nobody can
+ * justify is how a check like this rots into decoration.
+ *
+ * - `favicon.ico` — the browser asks unprompted and the project ships none.
+ * - The RSC segment-prefetch payloads. Next builds their filenames with
+ *   `path.relative`, which yields `\` on Windows and `/` on Linux, so a
+ *   Windows-built `out/` nests `__next.about/__PAGE__.txt` in a directory where the
+ *   client requests the flat `__next.about.__PAGE__.txt`. **Pre-existing** — it
+ *   already affects `/about` and `/you`, which are older than this branch — and it
+ *   costs only `<Link>` prefetch warm-up: every cold navigation and reload still
+ *   works, which §27d and §27e assert directly.
+ *
+ * What is left is the part that matters: a document, script or stylesheet the app
+ * actually needs coming back 404. That is what a dynamic route missing
+ * `generateStaticParams` looks like.
+ */
+const exempt = (url) => url.endsWith('/favicon.ico') || /\/__next\..*\.txt/.test(url)
+const badResponses = events
+  .filter((e) => e.method === 'Network.responseReceived' && e.params.response.status >= 400)
+  .map((e) => `${e.params.response.status} ${e.params.response.url}`)
+  .filter((entry) => !exempt(entry))
+check(
+  '9b. and nothing the app actually needs came back missing or broken',
+  badResponses.length === 0,
+  badResponses.length ? [...new Set(badResponses)].join(', ') : 'no unexpected response >= 400',
 )
 
 // --- 19. the browser console is quiet ------------------------------------

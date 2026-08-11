@@ -16,6 +16,7 @@ export const en = {
 
   nav: {
     home: 'Start',
+    areas: 'Life areas',
     you: 'You',
     about: 'About',
     /** Accessible name for the nav dropdown the links collapse into on narrow screens. */
@@ -186,10 +187,8 @@ export const en = {
     newStepQuestion: 'What could help you move toward this goal?',
     newStepPlaceholder: 'Something small and concrete',
     newStepSubmit: 'Save',
-    toAreas: 'Review your life areas',
     savedNote: 'What you told me is on this device only.',
     memoryNote: 'Nothing is being saved. What you told me stays in this tab.',
-    toYou: 'See everything I know',
     // Parked with the name question — see the note above `name`.
     ack: 'Thank you. That is everything I wanted to ask.',
     greeting: 'Hello {name}.',
@@ -199,11 +198,10 @@ export const en = {
 
   manage: {
     pickerTitle: 'Your life areas',
-    pickerNote: 'Open one to change its goal or its next steps.',
+    pickerNote: 'Open one to change its goal, or what you want to try.',
     noGoal: 'No goal yet',
     notNow: 'Not right now',
     noStep: 'Nothing to try yet',
-    back: 'Back to the start page',
 
     reconsiderQuestion: 'Would you like to change or explore something here now?',
     reconsiderYes: 'Yes',

@@ -1,18 +1,14 @@
 'use client'
 
-import Link from 'next/link'
 import { useState } from 'react'
 import { AreaFlow } from '@/components/area-flow'
-import { AreaIcon } from '@/components/area-icon'
-import { AreaManage } from '@/components/area-manage'
 import { Choice } from '@/components/choice'
 import { NextSteps } from '@/components/next-steps'
-import { OptionList } from '@/components/option-list'
 import { PageShell } from '@/components/page-shell'
 import { ProgressMarks, type MarkState } from '@/components/progress-marks'
 import { QuestionCard } from '@/components/question-card'
 import { TextAnswer } from '@/components/text-answer'
-import { areas, isAreaId, type AreaId } from '@/lib/areas'
+import { areas, type AreaId } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
 import { isSettled, readArea } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
@@ -28,9 +24,6 @@ type Step =
   | 'area'
   | 'complete'
   | 'home'
-  /** All five areas with their state, reached from home. */
-  | 'areas'
-  | 'manage'
 
 /**
  * Acknowledgements are held as a key, not as a translated string: storing the
@@ -226,63 +219,25 @@ export default function Home() {
         </QuestionCard>
       )}
 
+      {/* One purpose: the few things being worked on. What used to sit under it —
+          a button into the life areas, a note about storage, a link to everything
+          stored — are navigation destinations now, which is what stops this page
+          being a form, a task list and a settings page at once. */}
       {step === 'home' && (
         <section className="space-y-10">
           <h1 className="heading">{m.home.title}</h1>
-
           <NextSteps />
 
-          <div className="border-t border-line pt-6">
-            <button type="button" className="btn btn-quiet" onClick={() => setStep('areas')}>
-              {m.home.toAreas}
-            </button>
-          </div>
-
-          <div className="space-y-4 border-t border-line pt-6">
-            <p className="text-sm text-muted">
-              {mode === 'local' ? m.home.savedNote : m.home.memoryNote}
-            </p>
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-              <Link href="/you" className="btn btn-primary">
-                {m.home.toYou}
-              </Link>
-            </div>
-          </div>
+          {/* The note stays; the buttons that used to sit with it are gone. A
+              competing call to action was the problem, and one quiet line saying
+              where what you typed lives is not one — least of all in memory mode,
+              where it is the only thing telling the person nothing is being kept. */}
+          <p className="border-t border-line pt-6 text-sm text-muted">
+            {mode === 'local' ? m.home.savedNote : m.home.memoryNote}
+          </p>
         </section>
       )}
 
-      {step === 'areas' && (
-        <section className="space-y-8">
-          <div className="space-y-4">
-            <h1 className="heading">{m.manage.pickerTitle}</h1>
-            <p className="max-w-prose leading-relaxed text-muted">{m.manage.pickerNote}</p>
-          </div>
-
-          <OptionList
-            options={states.map((state) => ({
-              id: state.area,
-              label: m.areas[state.area],
-              note: state.active
-                ? state.active.text
-                : state.review === 'not_now'
-                  ? m.manage.notNow
-                  : state.goal
-                    ? m.manage.noStep
-                    : m.manage.noGoal,
-              icon: <AreaIcon area={state.area} />,
-            }))}
-            onSelect={(id) => {
-              if (!isAreaId(id)) return
-              setChosenArea(id)
-              setStep('manage')
-            }}
-          />
-
-          <Choice options={[{ label: m.manage.back, tone: 'quiet', onSelect: toHome }]} />
-        </section>
-      )}
-
-      {step === 'manage' && <AreaManage key={area} area={area} onDone={toHome} />}
     </PageShell>
   )
 }

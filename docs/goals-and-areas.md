@@ -211,19 +211,49 @@ The direction that matters here: older activity should eventually be summarised
 into something a person recognises as their own path, not displayed as thousands
 of DONE rows.
 
+## Where this lives
+
+| route | what it is |
+| --- | --- |
+| `/` | the introduction, then the few things being worked on |
+| `/areas/` | the five areas and where each one stands |
+| `/areas/<id>/` | one area, deep-linkable — `components/area-manage.tsx` |
+
+The last two used to be two states inside the home page's state machine, which is
+what made it ten states long; it is seven now. `app/areas/[area]/page.tsx` is a
+server component for one narrow reason — a `'use client'` file cannot export
+`generateStaticParams` — so it does the two things that must happen at build time
+and delegates everything a person reads to `components/area-screen.tsx`.
+
+**The routes are not gated on the introduction; only the navigation is.** Gating a
+route under a static export means a client-side redirect, which is a flash, and
+`CLAUDE.md` §9 rules that out. Opening `/areas/` mid-introduction shows mostly-empty
+areas, which is the same thing `/about` has always done for a fresh visitor.
+
 ## Introduction state
 
 Two derivations that are easy to confuse:
 
-- **whether the introduction is over** — the count of areas with a `review` fact.
-  This is monotonic: a review answer is never taken away.
+- **whether the introduction is over** — `introductionFinished()`: every area has a
+  `review` fact. This is monotonic, because a review answer is never taken away.
 - **where an interrupted pass resumes** — `isSettled()`, which is *not* monotonic.
-  Completing a step and choosing "Later" makes an area unsettled again, which is a
-  perfectly good state to be in.
+  Completing something and choosing "Later" makes an area unsettled again, which is
+  a perfectly good state to be in.
 
 Using `isSettled` for the first would drop someone back into onboarding months
 later. Using the review count for the second would skip an area whose goal was
-answered but whose steps were not.
+answered but whose entries were not.
+
+`introductionFinished()` is a named export rather than a comparison written out at
+each call site because it now has **two** callers that have to agree: `app/page.tsx`
+chooses between the introduction and the home screen, and
+`components/page-shell.tsx` decides whether the navigation exists yet. A nav that
+appeared mid-introduction would offer pages that are empty until it is finished.
+
+It is derived from the person, not from `localStorage`, so it holds in memory mode
+too — someone who declined saving still finishes the introduction and still gets the
+navigation. `scripts/verify.mjs` §26d asserts exactly that, alongside the store
+still being empty.
 
 ### Interrupted setup is accepted, not fixed
 

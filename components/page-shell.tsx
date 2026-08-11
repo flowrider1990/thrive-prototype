@@ -5,9 +5,13 @@ import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { APP_NAME } from '@/lib/app'
 import { useI18n } from '@/lib/i18n'
+import { introductionFinished } from '@/lib/person/goals'
+import { usePerson } from '@/lib/person/store'
 import { LanguageSwitch } from './language-switch'
 import { Check, Menu, menuItemClass } from './menu'
 import { ThemeSwitch } from './theme-switch'
+
+const trim = (path: string) => path.replace(/\/+$/, '') || '/'
 
 /**
  * `trailingSlash: true` means the browser is on `/you/` while the links are
@@ -15,8 +19,21 @@ import { ThemeSwitch } from './theme-switch'
  * returns. Comparing normalised forms keeps both ends readable.
  */
 function samePath(a: string, b: string): boolean {
-  const trim = (path: string) => path.replace(/\/+$/, '') || '/'
   return trim(a) === trim(b)
+}
+
+/**
+ * Anywhere at or under this path.
+ *
+ * `/areas` has children, and an exact match would drop its underline the moment you
+ * opened an area — the nav would claim you were nowhere. Declared per link rather
+ * than applied globally, because a naive prefix test matches every path against `/`
+ * and would mark Home current on every page in the app.
+ */
+function inSection(pathname: string, href: string): boolean {
+  const here = trim(pathname)
+  const section = trim(href)
+  return here === section || here.startsWith(`${section}/`)
 }
 
 /**
@@ -26,15 +43,33 @@ function samePath(a: string, b: string): boolean {
  */
 export function PageShell({ children }: { children: ReactNode }) {
   const { m, status } = useI18n()
+  const person = usePerson()
   const ready = status === 'ready'
   const pathname = usePathname()
 
+  // Nothing to navigate *to* until the introduction is over: the destinations exist
+  // but are empty, and offering a half-filled Life Areas page mid-introduction is a
+  // worse first impression than offering nothing.
+  //
+  // Derived from the person, not from `localStorage`, so it holds in memory mode
+  // too — someone who declined saving still finishes the introduction and still
+  // gets the navigation.
+  //
+  // The routes themselves are **not** gated. Gating one would mean a client-side
+  // redirect, which is a flash, which `CLAUDE.md` §9 rules out.
+  const navigable = ready && introductionFinished(person)
+
   // Defined once and rendered twice — inline on wide screens, inside the dropdown
   // on narrow ones — so a new entry never has to be added in two places.
-  const navLinks = [
-    { href: '/you', label: m.nav.you },
-    { href: '/about', label: m.nav.about },
-  ].map((link) => ({ ...link, current: samePath(pathname, link.href) }))
+  const navLinks = navigable
+    ? [
+        // Exact, or it would match everything.
+        { href: '/', label: m.nav.home, current: samePath(pathname, '/') },
+        { href: '/areas', label: m.nav.areas, current: inSection(pathname, '/areas') },
+        { href: '/you', label: m.nav.you, current: samePath(pathname, '/you') },
+        { href: '/about', label: m.nav.about, current: samePath(pathname, '/about') },
+      ]
+    : []
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -51,6 +86,8 @@ export function PageShell({ children }: { children: ReactNode }) {
                 {APP_NAME}
               </Link>
 
+              {navLinks.length > 0 && (
+                <>
               <nav className="hidden items-center gap-5 text-sm sm:flex">
                 {navLinks.map((link) => (
                   <Link
@@ -92,7 +129,15 @@ export function PageShell({ children }: { children: ReactNode }) {
                   }
                 </Menu>
               </div>
+                </>
+              )}
 
+              {/* Never gated. The copy rules require the language switch on every
+                  screen — nobody should have to agree to something in a language
+                  they did not choose — and the theme toggle keeps it company so the
+                  header does not restructure when the nav appears. Checks 22 and 23
+                  select the toggle by name and would fail confusingly if it were
+                  ever conditional. */}
               <div className="ms-auto flex items-center gap-2">
                 <LanguageSwitch />
                 <ThemeSwitch />

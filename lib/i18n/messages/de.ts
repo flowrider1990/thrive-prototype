@@ -16,6 +16,7 @@ export const de: Messages = {
 
   nav: {
     home: 'Start',
+    areas: 'Lebensbereiche',
     you: 'Du',
     about: 'Über',
     menu: 'Menü',
@@ -140,10 +141,8 @@ export const de: Messages = {
     newStepQuestion: 'Was könnte dir helfen, diesem Ziel näherzukommen?',
     newStepPlaceholder: 'Etwas Kleines und Konkretes',
     newStepSubmit: 'Speichern',
-    toAreas: 'Deine Lebensbereiche ansehen',
     savedNote: 'Was du mir erzählt hast, liegt nur auf diesem Gerät.',
     memoryNote: 'Es wird nichts gespeichert. Was du mir erzählt hast, bleibt in diesem Tab.',
-    toYou: 'Alles ansehen, was ich weiß',
     ack: 'Danke. Das war alles, was ich fragen wollte.',
     greeting: 'Hallo {name}.',
     youSaid: 'Was du beim Ankommen gesagt hast:',
@@ -152,11 +151,10 @@ export const de: Messages = {
 
   manage: {
     pickerTitle: 'Deine Lebensbereiche',
-    pickerNote: 'Öffne einen, um sein Ziel oder seine nächsten Schritte zu ändern.',
+    pickerNote: 'Öffne einen, um sein Ziel zu ändern — oder was du ausprobieren willst.',
     noGoal: 'Noch kein Ziel',
     notNow: 'Gerade nicht',
     noStep: 'Noch nichts zum Ausprobieren',
-    back: 'Zurück zur Startseite',
 
     reconsiderQuestion: 'Möchtest du hier jetzt etwas verändern oder ausprobieren?',
     reconsiderYes: 'Ja',

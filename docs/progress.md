@@ -349,6 +349,55 @@ Three things worth remembering from doing it:
 - **A dropped view survived only because the suite caught it.** Restructuring
   `AreaManage` deleted its whole `add` view; check 25e failed immediately.
 
+### Stage 3: the life areas became real routes
+
+`pnpm verify` is **110 checks**, passing against both the export and `pnpm dev`.
+
+- **Ten states to seven.** `/areas/` and `/areas/<id>/` used to be two states inside
+  the home page's machine. `app/areas/[area]/page.tsx` is a server component for one
+  narrow reason — a `'use client'` file cannot export `generateStaticParams`, which
+  is a hard build error the Next docs never mention — so it awaits `params`,
+  narrows the id, and delegates everything a person reads to `AreaScreen`.
+- **Only the nav is gated, never the routes.** Gating a route under a static export
+  means a client-side redirect, which is a flash (§9). `introductionFinished()` is now
+  a named export because two callers have to agree on it, and it is derived from the
+  person rather than from `localStorage` so memory mode gets the navigation too.
+- **`/areas/` rows are `<a>`, not `<button>`.** They navigate; nothing on that page
+  changes anything. §27b asserts the href **set**, not a count — five links all
+  pointing at `body` is the copy-paste bug a count cannot see.
+- **Verification item 11 from the original plan is finally closed** for the part that
+  needed a nested route: §27d/§27e deep-link `/areas/body/` cold and reload it.
+
+Three checks turned out to be unfalsifiable, and finding them was the real work:
+
+- **11 could no longer fail.** With the nav hidden during onboarding, the header at
+  390px holds only the wordmark, the language switch and the theme toggle — it
+  *cannot* wrap. Split into 11a (empty store) and 11b (onboarded, nav present); 11b
+  carries the original guarantee. `seedOnboarded()` exists for this and for 12/13/21/26,
+  so none of them has to replay twelve clicks or couple itself to onboarding copy.
+- **`!visible('Menu')` has always been true**, on every screen the app has ever had.
+  `__visible` matches an element's *text*, and the collapsed-nav trigger is a
+  hamburger whose name lives in `aria-label` — so check 13's "no menu trigger at
+  desktop width" asserted nothing. There is now a `__shown(selector)` helper that
+  asks whether something is laid out, and 13 uses it.
+- **20b's premise depends on an empty store**, which was accidental before and is
+  now deliberate and commented: `/` has to be the consent screen for "this page does
+  not scroll" to hold. Seeding it would have made 20b fail for a reason unrelated to
+  the scrollbar gutter.
+
+And one genuine platform finding, from the new check 9b (no response ≥ 400):
+
+- **The emitted `out/` tree is not platform-identical.** Next builds the RSC
+  segment-prefetch filenames with `path.relative`, which yields `\` on Windows and
+  `/` on Linux — so a Windows-built export nests `out/about/__next.about/__PAGE__.txt`
+  in a *directory* while the client requests the flat `__next.about.__PAGE__.txt`.
+  Verified on disk. **Pre-existing**: it already affects `/about` and `/you`, both
+  older than this branch, and it costs only `<Link>` prefetch warm-up — every cold
+  navigation and reload works, which §27d/§27e assert directly. 9b exempts those
+  payloads and `favicon.ico`, with the reasoning written at the check, and still
+  catches the thing worth catching: a document, script or stylesheet 404ing, which is
+  what a dynamic route missing `generateStaticParams` looks like.
+
 ## Supabase: paused deliberately after the proposal (2026-08-11)
 
 **This is a deliberate deferral, not a blocked task.** The approved plan's Phase 1

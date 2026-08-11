@@ -129,8 +129,10 @@ export default function Home() {
             multiline
             allowEmpty
             onSubmit={(value) => {
-              // Memory mode, so this is never written to the device. It is kept
-              // for the visit because their reason is worth having on /you.
+              // Never written to the device, and not because the mode happens to be
+              // memory right now — saving can be turned on later from /data/. The key
+              // is in `MEMORY_ONLY_KEYS`, so the store drops it on every write. It is
+              // kept for the visit because their reason is worth having on /you.
               if (value) remember('consent_concern', value)
               setAck(value ? 'declined' : null)
               setStep('continue')

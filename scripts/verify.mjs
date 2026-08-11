@@ -1378,6 +1378,98 @@ check(
 await goto('/')
 check('5g. reloading starts over, since the decision itself was not stored', (await text()).includes(EN.consent))
 
+// --- 39. turning saving on keeps the answers and leaves the concern behind ---
+//
+// One key is promised never to reach the device: `consent_concern`, what someone said
+// when they declined saving. Until this section existed that promise rested on the mode
+// never changing — and `/data/` exists to change it. `grantConsent()` persists the
+// in-memory snapshot as it stands, deliberately, so answers given this visit are kept
+// rather than asked for again; but that snapshot can hold an objection given precisely
+// because nothing was being written. Declining, saying why, and later turning saving on
+// wrote it to disk.
+//
+// §39c is the other half of the fix and not a formality. Dropping everything gathered
+// before consent would also keep the concern off the device, and would be the wrong
+// repair: what was said this visit is exactly what turning saving on is meant to keep.
+//
+// The whole flow is one tab. A reload would drop the memory snapshot and the section
+// would pass without ever testing anything.
+
+const CONCERN = 'Because I do not trust apps with this.'
+
+await clearStorage()
+await goto('/')
+await click(EN.no)
+await type(CONCERN)
+await click(EN.cont)
+await click(EN.contYes)
+await click(EN.introOk)
+await runArea('Move more', ['Walk after lunch'])
+await click(EN.reviewNo)
+await click(EN.reviewNo)
+await click(EN.reviewNo)
+await click(EN.reviewNo)
+await click(EN.toHome)
+
+// The precondition, stated rather than assumed: in memory mode the concern and a real
+// answer are held exactly alike, and the device holds neither. Without this, §39b would
+// pass just as well against a concern that was never recorded.
+await clickNav(EN.navData)
+await click(EN.dataShow)
+await expandAll()
+screen = await text()
+check(
+  '39a. before consent, the concern and a real answer are both held, with nothing on the device',
+  screen.includes(CONCERN) && screen.includes('Walk after lunch') && (await keys()).length === 0,
+  `concern ${screen.includes(CONCERN) ? 'held' : 'MISSING'}, answer ${screen.includes('Walk after lunch') ? 'held' : 'MISSING'}, keys ${JSON.stringify(await keys())}`,
+)
+
+await clickNav(EN.navData)
+await click(EN.storageChange)
+await clickOption(EN.storageOptionLocal)
+await sleep(300)
+const afterOn = JSON.parse(await raw())
+check(
+  '39b. turning saving on does not write the concern to the device',
+  !afterOn.facts.some((fact) => fact.key === 'consent_concern') && !(await raw()).includes(CONCERN),
+  afterOn.facts.some((fact) => fact.key === 'consent_concern')
+    ? 'THE CONCERN WAS PERSISTED'
+    : `${afterOn.facts.length} facts written, none of them the concern`,
+)
+check(
+  '39c. and the answers given before consent are kept, not thrown away with it',
+  afterOn.facts.some((fact) => fact.value === 'Move more') &&
+    afterOn.facts.some((fact) => fact.value === 'Walk after lunch'),
+  JSON.stringify(afterOn.facts.map((fact) => fact.value)),
+)
+
+// Not persisted is not the same as taken away: it stays for the visit, which is what it
+// was kept for. This is also what separates the fix from clearing the snapshot.
+await click(EN.dataShow)
+await expandAll()
+check(
+  '39d. the concern is still there for the rest of the visit',
+  (await text()).includes(CONCERN),
+  (await text()).includes(CONCERN) ? 'still shown' : 'the visit lost it',
+)
+
+// The guarantee as the person meets it: it was never on the device, so a reload cannot
+// bring it back — while everything that was legitimately saved survives.
+await goto('/data/stored/')
+await expandAll()
+screen = await text()
+check(
+  '39e. and after a reload it is gone, while what was saved survives',
+  !screen.includes(CONCERN) && screen.includes('Walk after lunch'),
+  `concern ${screen.includes(CONCERN) ? 'CAME BACK FROM THE DEVICE' : 'gone'}, answer ${screen.includes('Walk after lunch') ? 'survived' : 'MISSING'}`,
+)
+
+// This section is spliced into a chain that runs in order, and unlike §5 it ends
+// consented, onboarded and on a nested page. §6 opens on the consent screen, so hand
+// back the state this borrowed rather than making the next section defend itself.
+await clearStorage()
+await goto('/')
+
 // --- 6. language ----------------------------------------------------------
 
 // The language switch is a dropdown now, so the option has to be opened first.

@@ -92,6 +92,24 @@ wanted when they arrived, but an answer already given is still theirs: the keys,
 their labels on `/data/stored/` and their copy all stay. Removing them would silently drop real
 answers from someone's store.
 
+### Memory-only keys
+
+`consent_concern` is the one key that is never persisted, whatever the mode. It is
+what someone said when they declined saving, and writing it down would be the single
+write that proves the objection right.
+
+The rule is enforced in `write()` — the one function that touches the device — via
+`MEMORY_ONLY_KEYS` in `lib/person/schema.ts`, **not** by the mode the fact was written
+under. The mode does not stay fixed: saving can be turned on later from `/data/`, and
+`grantConsent()` persists the in-memory snapshot as it stands, on purpose, so that
+answers given this visit are kept rather than asked for again. Filtering at the
+boundary is what keeps that convenience from carrying the concern onto the device with
+everything else.
+
+It is dropped on the way out, not out of the snapshot: the concern stays visible for
+the rest of the visit, and disappears on the next load because it was never written.
+`scripts/verify.mjs` §39 walks exactly that path.
+
 New keys need no migration: the store is a list, and `/data/stored/` labels unknown keys
 with the raw key until a translation is added for it.
 

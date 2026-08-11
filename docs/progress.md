@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 176/176** (25 at the
+the two the plan singles out. **The current count is 181/181** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework); the script itself is the only authority on that number, so treat
 any count written in prose as a snapshot.
@@ -707,6 +707,36 @@ Also: `serve` fell over mid-run twice, and checks failed in a way that looked li
 a UI defect until the port was checked. Verification ports and the ownership check are
 recorded in the session memory, not here — but the habit is worth repeating: confirm
 the server before believing a failure.
+
+### The concern could reach the device, and now cannot
+
+`pnpm verify` is **181 checks**, passing against both the export and `pnpm dev`.
+
+Found in cross-review of PR #4. `consent_concern` — what someone says when they decline
+saving — is documented as memory-only, and that promise rested on nothing more than the
+mode never changing after it was written. Reopening the storage choice changes it:
+`grantConsent()` persists the in-memory snapshot as it stands, on purpose, so decline →
+say why → finish the introduction → `/data/` → turn saving on wrote the objection to
+disk. The one write the person had just refused.
+
+**Fixed in `write()`, not at the call site that grants consent.** `write()` is the only
+function that touches the device, so filtering there is the whole guarantee, for every
+path that reaches local mode including ones not written yet. Scrubbing inside
+`grantConsent()` would have worked today and quietly stopped working the next time
+something set the mode.
+
+Two things it deliberately does not do. It does not drop everything gathered before
+consent — that would keep the concern off the device by throwing away the answers
+turning saving on exists to keep (§39c fails on that over-correction, and passed
+against the bug, which is the point of having it). And it does not remove the fact from
+the snapshot: the concern stays visible for the rest of the visit, as it was meant to
+be, and is simply gone on the next load. §39 walks that whole path, and §39b/§39e were
+confirmed to fail against the unfixed store before the fix was restored.
+
+One consequence worth knowing, left alone: the `facts.length` count above now counts
+one more than the device holds, for a visit that took this path. It is honest about the
+session's record, which is what it labels, and the store is the thing that had to be
+right.
 
 ## Supabase: paused deliberately after the proposal (2026-08-11)
 

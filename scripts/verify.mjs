@@ -221,7 +221,10 @@ const HELPERS = `
    */
   window.__watchThemeSwitch = () => new Promise((resolve) => {
     const root = document.documentElement;
-    const toggle = document.querySelector('button[aria-label^="Switch to"], button[aria-label^="Wechsle"]');
+    // Matched on a substring, not a prefix. The German label is "Zu Dunkel
+    // wechseln", so the old \`^="Wechsle"\` never matched anything — this only ever
+    // ran in English, silently, because section 22 happens to run there.
+    const toggle = document.querySelector('button[aria-label^="Switch to"], button[aria-label*="wechseln"]');
     const seen = [];
     const observer = new MutationObserver(() => {
       seen.push({
@@ -278,12 +281,57 @@ const HELPERS = `
       now: Number(el.getAttribute('aria-valuenow')),
       max: Number(el.getAttribute('aria-valuemax')),
       text: el.getAttribute('aria-valuetext'),
+      background: getComputedStyle(document.body).backgroundColor,
       marks: [...el.children].map((mark) => {
         const style = getComputedStyle(mark);
-        return style.backgroundColor + ' | ' + style.borderColor;
+        const box = mark.getBoundingClientRect();
+        return {
+          // Kept as one string for the descriptor comparisons that predate the
+          // rest of this object.
+          paint: style.backgroundColor + ' | ' + style.borderColor,
+          background: style.backgroundColor,
+          borderColor: style.borderColor,
+          // Two states differing only in colour is what §17 forbids, and current
+          // vs upcoming used to do exactly that. Width is the second cue.
+          borderWidth: style.borderTopWidth,
+          // Border width varies per state, so this is the assertion that the box
+          // does not: border-box makes that free, and someone adding box-content
+          // or padding would silently reintroduce reflow-on-advance.
+          w: box.width,
+          h: box.height,
+        };
       }),
     };
   };
+  /**
+   * WCAG relative-luminance contrast ratio between two computed colours.
+   *
+   * Here because an inequality check is not a visibility check: the border colour
+   * that motivated all of this differed from the page background and still
+   * measured 1.22:1. Only a ratio catches that.
+   */
+  window.__contrast = (a, b) => {
+    const channel = (c) => {
+      const v = c / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    };
+    const luminance = (colour) => {
+      const [r, g, b] = colour.match(/[\\d.]+/g).slice(0, 3).map(Number);
+      return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+    };
+    const one = luminance(a);
+    const two = luminance(b);
+    const ratio = (Math.max(one, two) + 0.05) / (Math.min(one, two) + 0.05);
+    return Math.round(ratio * 100) / 100;
+  };
+  window.__count = (selector) => document.querySelectorAll(selector).length;
+  /**
+   * Every accessible name on the page. innerText cannot see these, and they are
+   * where a step's own words now live — so they are also where an id could leak
+   * without any visible symptom.
+   */
+  window.__ariaLabels = () => [...document.querySelectorAll('[aria-label]')]
+    .map((e) => e.getAttribute('aria-label'));
   /** For icon-only controls, whose accessible name is the only stable handle. */
   window.__clickAria = (label) => {
     const el = document.querySelector('[aria-label="' + label + '"]');
@@ -355,6 +403,18 @@ const watchThemeSwitch = async () => {
 const activeRing = async () => {
   await evaluate(HELPERS)
   return evaluate('__activeRing()')
+}
+const count = async (selector) => {
+  await evaluate(HELPERS)
+  return evaluate(`__count(${JSON.stringify(selector)})`)
+}
+const ariaLabels = async () => {
+  await evaluate(HELPERS)
+  return evaluate('__ariaLabels()')
+}
+const contrast = async (a, b) => {
+  await evaluate(HELPERS)
+  return evaluate(`__contrast(${JSON.stringify(a)}, ${JSON.stringify(b)})`)
 }
 /**
  * Presses Tab for real, until the wanted element has focus. Real key events
@@ -480,6 +540,21 @@ check(
   screen.includes(EN.welcome) && screen.includes(EN.consent),
 )
 
+// The positive control for 4l, and the reason 4l can be believed.
+//
+// 4l proves a *negative* — no sampled frame contained the consent question — using
+// a needle string and an injected rAF sampler, either of which can quietly stop
+// working. A stale needle after a copy change, or a sampler that never ran, both
+// make 4l pass while testing nothing. So first prove that this exact needle and
+// this exact sampler *can* see the consent screen, on the one page where it is
+// definitely painted.
+const consentFrames = await frames()
+check(
+  '4a2. the frame sampler and the consent needle both actually work',
+  consentFrames.length >= 10 && consentFrames.some((f) => f.includes(EN.consent)),
+  `${consentFrames.length} frames, ${consentFrames.filter((f) => f.includes(EN.consent)).length} with the question`,
+)
+
 await click(EN.yes)
 screen = await text()
 check(
@@ -502,15 +577,15 @@ check(
 )
 check(
   '4e. the area being asked about is distinguished but NOT painted as completed',
-  marks.marks[0] !== marks.marks[1] && marks.marks[1] === marks.marks[4],
-  `current=${marks.marks[0]} upcoming=${marks.marks[1]}`,
+  marks.marks[0].paint !== marks.marks[1].paint && marks.marks[1].paint === marks.marks[4].paint,
+  `current=${marks.marks[0].paint} upcoming=${marks.marks[1].paint}`,
 )
 
 await runArea('Sleep better', ['Walk for 20 minutes', 'Read before bed'], 'Walk for 20 minutes')
 marks = await progress()
 check(
   '4f. answering an area fills its mark and moves to the next',
-  marks.now === 1 && marks.text === 'Area 2 of 5' && marks.marks[0] !== marks.marks[1],
+  marks.now === 1 && marks.text === 'Area 2 of 5' && marks.marks[0].paint !== marks.marks[1].paint,
   JSON.stringify({ now: marks.now, text: marks.text }),
 )
 
@@ -579,7 +654,11 @@ const painted = await frames()
 const flashed = painted.filter((f) => f.includes(EN.consent) || f.includes(EN.review))
 check(
   '4l. reload shows the next steps with NO flash of consent or the area question',
-  flashed.length === 0 && (await text()).includes('Walk for 20 minutes'),
+  // The frame floor is not decoration. Without it this check passes whenever the
+  // sampler failed to run at all, because an empty array filters to an empty
+  // array — and it is a §16 guarantee, so it must not be able to pass vacuously.
+  // Around 35 frames is typical.
+  flashed.length === 0 && painted.length >= 10 && (await text()).includes('Walk for 20 minutes'),
   flashed.length ? `flashed ${flashed.length} frame(s)` : `${painted.length} frames sampled`,
 )
 
@@ -707,10 +786,16 @@ check(
     screen.includes('Get the portfolio finished') &&
     /noted /.test(screen),
 )
+// `screen` is `innerText`, which cannot see an accessible name — and a step's own
+// words increasingly live in one ("Mark as done: {step}" today, more of them after
+// the rework). A bug interpolating a step's *id* there produces a control that reads
+// a UUID aloud and leaves the visible page spotless, so the visible sweep alone
+// would call it clean. Both surfaces, one assertion.
+const named = await ariaLabels()
 check(
-  '7f. /you resolves every id into words — no internal id is ever shown',
-  !UUID.test(screen),
-  UUID.exec(screen)?.[0] ?? 'clean',
+  '7f. /you resolves every id into words — no internal id reaches the screen, seen or spoken',
+  !UUID.test([screen, ...named].join(' ')),
+  UUID.exec([screen, ...named].join(' '))?.[0] ?? `clean (${named.length} accessible names)`,
 )
 check(
   '7g. and it says what became of each step',
@@ -902,6 +987,52 @@ check(
   !screen.includes('has a goal but no next step'),
 )
 
+// --- 31. the progress marks are painted distinguishably, in both themes -----
+//
+// Three marks states have to be told apart by someone who cannot compare their
+// colours, and advancing must not move the question underneath. Both properties
+// are cheap to state and easy to lose: the previous version differed *only* by
+// colour between current and upcoming, and nothing asserted otherwise.
+//
+// Three clicks reach a frame holding all three states at once: consent, the
+// introduction, then "Not right now" for the first area leaves
+// [done, current, upcoming, upcoming, upcoming].
+
+for (const scheme of ['light', 'dark']) {
+  await clearStorage()
+  await setScheme(scheme)
+  await goto('/')
+  await click(EN.yes)
+  await click(EN.introOk)
+  await click(EN.reviewNo)
+
+  const trio = await progress()
+  const [done, current, upcoming] = trio.marks
+
+  check(
+    `31a. all three mark states have identical metrics (${scheme})`,
+    new Set(trio.marks.map((mark) => `${mark.w}x${mark.h}`)).size === 1,
+    trio.marks.map((mark) => `${mark.w}x${mark.h}`).join(' '),
+  )
+  check(
+    `31b. current differs from upcoming by more than colour (${scheme})`,
+    current.borderWidth !== upcoming.borderWidth && done.background !== upcoming.background,
+    `current ${current.borderWidth}, upcoming ${upcoming.borderWidth}, done fill ${done.background}`,
+  )
+
+  // The check that would have caught the defect this whole change exists to fix.
+  // An inequality would not have: the old border colour differed from the page
+  // background and still measured 1.22:1. WCAG 1.4.11 asks 3:1 for the boundary of
+  // a non-text UI component, which is what an upcoming mark is.
+  const ratio = await contrast(upcoming.borderColor, trio.background)
+  check(
+    `31c. an upcoming mark is actually visible against the page (${scheme})`,
+    ratio >= 3,
+    `${ratio}:1 (${upcoming.borderColor} on ${trio.background}) — was 1.22:1`,
+  )
+}
+await setScheme('light')
+
 // --- 10. corrupt store ----------------------------------------------------
 
 await evaluate(`localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, '{ not json at all')`)
@@ -921,9 +1052,14 @@ await setViewport(390)
 await goto('/')
 check('11. the header stays on one row at 390px', (await headerRows()) === 1, `${await headerRows()} row(s)`)
 
+// Paired with a positive, because "not visible" and "does not exist" are the same
+// thing to `__visible`, and the collapse is only being tested if the links are
+// actually there to collapse. Without the count this passes just as happily when the
+// header has been broken and renders no nav at all.
 check(
-  '12a. the nav links are not in the bar at 390px',
-  !(await visible('You')) && !(await visible('About')),
+  '12a. the nav links exist but are not in the bar at 390px',
+  !(await visible('You')) && !(await visible('About')) && (await count('header nav a')) > 0,
+  `${await count('header nav a')} link(s) in the DOM, none of them laid out`,
 )
 await chooseIn('Menu', 'About')
 await sleep(500)
@@ -1086,12 +1222,21 @@ await clickAria('Switch to Dark')
 await goto('/')
 const paintedBackgrounds = await evaluate('window.__bgFrames || []')
 const lightFrames = paintedBackgrounds.filter((bg) => bg === lightBackground)
+const darkFrames = paintedBackgrounds.filter((bg) => bg === darkBackground)
 check(
   '16. a stored dark theme is applied before the first paint, on a light OS',
-  lightFrames.length === 0 && (await dataTheme()) === 'dark',
+  // Three clauses, and the last two are what stop this passing vacuously. The
+  // original had only the first: with no sampled frames at all, `lightFrames` is
+  // empty and "no light frame was painted" is trivially true. Requiring frames,
+  // and requiring that dark ones are among them, means the absence of light frames
+  // is a fact about the paint rather than about the sampler.
+  lightFrames.length === 0 &&
+    paintedBackgrounds.length >= 10 &&
+    darkFrames.length > 0 &&
+    (await dataTheme()) === 'dark',
   lightFrames.length
     ? `${lightFrames.length} light frame(s) of ${paintedBackgrounds.length}`
-    : `${paintedBackgrounds.length} frames sampled, none light`,
+    : `${paintedBackgrounds.length} frames sampled, ${darkFrames.length} dark, none light`,
 )
 
 // --- 17. the theme is consent-gated, like everything else -----------------

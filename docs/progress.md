@@ -245,6 +245,55 @@ recording here is where reality differed from the first plan.
   `flex-wrap` is for. The habit still earns its place — it is how the disabled-button
   contrast defect was found.
 
+## UX/UI rework (branch `feature/ux-ui-rework`)
+
+Four stages. Stage 1 is visual robustness only — no behaviour change.
+
+### Stage 1: the surface stopped being faint
+
+`pnpm verify` is **85 checks**, up from 78, passing against both the export and
+`pnpm dev`.
+
+- **A third border token, pinned to a number.** `--color-line-strong` sits between
+  `--color-line` and `--color-muted` and must clear **3:1 against the ground**
+  (WCAG 1.4.11 for a non-text UI component boundary); both themes measure 3.05:1.
+  The old shared token measured **1.22:1**, which is the whole of why inactive marks
+  and field borders were invisible. Separators stay on `--color-line`, which is
+  decorative and exempt. Rationale in `docs/design-system.md`.
+- **The progress marks differed by colour alone** between *current* and *upcoming* —
+  §17 forbids exactly that, and the design-system doc claimed otherwise. Border width
+  is now the second cue, which is free because `box-sizing: border-box` keeps a 12px
+  box 12px at any border width.
+- **The area context was detached, and size was not the fix.** It sat in an
+  `space-y-8` stack equidistant from the progress marks and the question, so the
+  question read as having no subject. It moved *inside* `QuestionCard` as an eyebrow,
+  one tight group with the heading. Proximity did the work; the larger icon and
+  `text-ink` only helped.
+
+**Six checks would have kept printing PASS while proving nothing**, and finding that
+was worth more than the checks that were added:
+
+- **4l and 16**, the two rAF frame samplers, filter painted frames against copy
+  strings. A stale needle after a copy change, or a sampler that never ran, leaves an
+  empty array — and "no frame contained X" is trivially true of no frames. 4l is a
+  §16 guarantee. Both now require a frame floor, and 4l has a **positive control**
+  (4a2) proving that this needle and this sampler *can* see the consent screen before
+  its absence is believed.
+- **Check 11** (the header does not wrap at 390px) is measured on an empty store.
+  Once the nav is hidden during onboarding — stage 3 — the header holds only brand,
+  language and theme, so it *cannot* wrap and the check *cannot* fail. Splitting it
+  into an empty-store and an onboarded case is queued with stage 3.
+- **12a**, **20b**, and **7f** have the same shape of problem; all are handled in the
+  stage that breaks them. 7f is the sharpest: it reads `innerText`, and the rework
+  moves a step's own words into **accessible names**, which `innerText` cannot see.
+- **The German theme-toggle selector has never matched anything.** It looked for
+  `aria-label^="Wechsle"`; the German string is *"Zu Dunkel wechseln"*. Checks 22/23
+  passed only because they happen to run in English. Fixed to a substring match.
+
+Also: four dead `EN` fixture entries were left in place for now (`focus`,
+`reconsider`, `leaveIt`, `contNo`) — they are cleaned up in the stage that rewrites
+their sections.
+
 ## Supabase: paused deliberately after the proposal (2026-08-11)
 
 **This is a deliberate deferral, not a blocked task.** The approved plan's Phase 1

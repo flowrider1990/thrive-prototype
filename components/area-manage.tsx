@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { AreaFlow } from '@/components/area-flow'
-import { AreaIcon } from '@/components/area-icon'
+import { AreaLabel } from '@/components/area-label'
 import { Choice } from '@/components/choice'
 import { OptionList } from '@/components/option-list'
 import { QuestionCard } from '@/components/question-card'
@@ -53,12 +53,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
     setView(rest.length === 0 ? 'overview' : 'review')
   }
 
-  const heading = (
-    <p className="flex items-center gap-x-2 text-sm text-muted">
-      <AreaIcon area={area} />
-      {m.areas[area]}
-    </p>
-  )
+  const heading = <AreaLabel area={area} size="eyebrow" />
 
   if (view === 'flow') {
     return <AreaFlow area={area} onDone={onDone} />
@@ -66,56 +61,50 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
 
   if (view === 'reconsider') {
     return (
-      <div className="space-y-8">
-        {heading}
-        <QuestionCard question={m.manage.reconsiderQuestion}>
-          <Choice
-            options={[
-              {
-                label: m.manage.reconsiderYes,
-                onSelect: () => {
-                  // Recorded explicitly, so the newest review answer can never
-                  // say "not right now" while the area holds a live goal. The
-                  // earlier answer stays in history, which is the point of a log.
-                  setReview(area, 'yes')
-                  setView('flow')
-                },
+      <QuestionCard area={heading} question={m.manage.reconsiderQuestion}>
+        <Choice
+          options={[
+            {
+              label: m.manage.reconsiderYes,
+              onSelect: () => {
+                // Recorded explicitly, so the newest review answer can never
+                // say "not right now" while the area holds a live goal. The
+                // earlier answer stays in history, which is the point of a log.
+                setReview(area, 'yes')
+                setView('flow')
               },
-              {
-                // Nothing written: the previous answer is still the newest one,
-                // and repeating it would add noise rather than information.
-                label: m.manage.reconsiderNo,
-                tone: 'quiet',
-                onSelect: onDone,
-              },
-            ]}
-          />
-        </QuestionCard>
-      </div>
+            },
+            {
+              // Nothing written: the previous answer is still the newest one,
+              // and repeating it would add noise rather than information.
+              label: m.manage.reconsiderNo,
+              tone: 'quiet',
+              onSelect: onDone,
+            },
+          ]}
+        />
+      </QuestionCard>
     )
   }
 
   if (view === 'goal') {
     return (
-      <div className="space-y-8">
-        {heading}
-        <QuestionCard question={m.manage.goalQuestion}>
-          <TextAnswer
-            placeholder={m.goals.goalPlaceholder}
-            submitLabel={m.goals.goalSubmit}
-            initialValue={state.goal}
-            onSubmit={(value) => {
-              setGoal(area, value)
-              // Open steps are not silently inherited by the new goal, and not
-              // silently dropped either. They belong to the area, so they get
-              // looked at one by one.
-              const open = state.open.map((step) => step.id)
-              setQueue(open)
-              setView(open.length === 0 ? 'overview' : 'review')
-            }}
-          />
-        </QuestionCard>
-      </div>
+      <QuestionCard area={heading} question={m.manage.goalQuestion}>
+        <TextAnswer
+          placeholder={m.goals.goalPlaceholder}
+          submitLabel={m.goals.goalSubmit}
+          initialValue={state.goal}
+          onSubmit={(value) => {
+            setGoal(area, value)
+            // Open steps are not silently inherited by the new goal, and not
+            // silently dropped either. They belong to the area, so they get
+            // looked at one by one.
+            const open = state.open.map((step) => step.id)
+            setQueue(open)
+            setView(open.length === 0 ? 'overview' : 'review')
+          }}
+        />
+      </QuestionCard>
     )
   }
 
@@ -134,81 +123,69 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
 
     if (view === 'edit') {
       return (
-        <div className="space-y-8">
-          {heading}
-          <QuestionCard question={m.manage.editQuestion}>
-            <TextAnswer
-              placeholder={m.goals.stepsPlaceholder}
-              submitLabel={m.manage.editSubmit}
-              initialValue={step.text}
-              onSubmit={(value) => {
-                editStep(area, step.id, value)
-                advance()
-              }}
-            />
-          </QuestionCard>
-        </div>
+        <QuestionCard area={heading} question={m.manage.editQuestion}>
+          <TextAnswer
+            placeholder={m.goals.stepsPlaceholder}
+            submitLabel={m.manage.editSubmit}
+            initialValue={step.text}
+            onSubmit={(value) => {
+              editStep(area, step.id, value)
+              advance()
+            }}
+          />
+        </QuestionCard>
       )
     }
 
     return (
-      <div className="space-y-8">
-        {heading}
-        <QuestionCard question={m.manage.reviewQuestion} note={step.text}>
-          <Choice
-            options={[
-              { label: m.manage.reviewKeep, onSelect: advance },
-              { label: m.manage.reviewEdit, tone: 'quiet', onSelect: () => setView('edit') },
-              {
-                label: m.manage.reviewRemove,
-                tone: 'quiet',
-                onSelect: () => {
-                  retireStep(area, step.id)
-                  advance()
-                },
+      <QuestionCard area={heading} question={m.manage.reviewQuestion} note={step.text}>
+        <Choice
+          options={[
+            { label: m.manage.reviewKeep, onSelect: advance },
+            { label: m.manage.reviewEdit, tone: 'quiet', onSelect: () => setView('edit') },
+            {
+              label: m.manage.reviewRemove,
+              tone: 'quiet',
+              onSelect: () => {
+                retireStep(area, step.id)
+                advance()
               },
-            ]}
-          />
-        </QuestionCard>
-      </div>
+            },
+          ]}
+        />
+      </QuestionCard>
     )
   }
 
   if (view === 'step') {
     return (
-      <div className="space-y-8">
-        {heading}
-        <QuestionCard question={m.goals.focusQuestion}>
-          <OptionList
-            options={state.open.map((step) => ({ id: step.id, label: step.text }))}
-            onSelect={(id) => {
-              chooseStep(area, id)
-              setView('overview')
-            }}
-          />
-        </QuestionCard>
-      </div>
+      <QuestionCard area={heading} question={m.goals.focusQuestion}>
+        <OptionList
+          options={state.open.map((step) => ({ id: step.id, label: step.text }))}
+          onSelect={(id) => {
+            chooseStep(area, id)
+            setView('overview')
+          }}
+        />
+      </QuestionCard>
     )
   }
 
   if (view === 'add') {
     return (
-      <div className="space-y-8">
-        {heading}
-        <QuestionCard question={m.home.newStepQuestion}>
-          <TextAnswer
-            placeholder={m.goals.stepsPlaceholder}
-            submitLabel={m.home.newStepSubmit}
-            onSubmit={(value) => {
-              const id = addStep(area, value)
-              // Nothing is being worked on, so the new step becomes it — no point
-              // asking a question whose answer is the only option.
-              if (!state.active) chooseStep(area, id)
-              setView('overview')
-            }}
-          />
-        </QuestionCard>
-      </div>
+      <QuestionCard area={heading} question={m.home.newStepQuestion}>
+        <TextAnswer
+          placeholder={m.goals.stepsPlaceholder}
+          submitLabel={m.home.newStepSubmit}
+          onSubmit={(value) => {
+            const id = addStep(area, value)
+            // Nothing is being worked on, so the new step becomes it — no point
+            // asking a question whose answer is the only option.
+            if (!state.active) chooseStep(area, id)
+            setView('overview')
+          }}
+        />
+      </QuestionCard>
     )
   }
 

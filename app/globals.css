@@ -23,7 +23,22 @@
   --color-surface: #ffffff;
   --color-ink: #1f1e1c;
   --color-muted: #6b6862;
-  --color-line: #e6e3dd;
+  --color-line: #ddd9d1;
+  /* The rung between `--color-line` and `--color-muted`, and the only colour token
+     pinned to a number rather than to taste: **at least 3:1 against
+     `--color-ground`**, which is WCAG 1.4.11 for the boundary of a non-text UI
+     component. This one measures 3.05:1.
+
+     It exists because one token cannot do both jobs. `--color-line` draws
+     hairlines and separators, which are decorative and exempt; a control's edge is
+     what tells you the control is there. Sharing one variable meant the edge could
+     only be as strong as the quietest rule on the page — and it was: `#e6e3dd` on
+     `#faf9f7` measured **1.22:1**, which is why inactive progress marks and field
+     borders were effectively invisible.
+
+     `:hover` still goes to `--color-muted`, which is darker again, so a control
+     has three distinct states without any of them being faint. */
+  --color-line-strong: #948f86;
   --color-accent: #2f2e2b;
   /* Its own token rather than a reuse of `--color-accent`: the focus ring and a
      filled button's background have different jobs, and sharing one variable
@@ -43,13 +58,21 @@
 /**
  * The dark palette, defined once. Two things can ask for it — the operating
  * system, or an explicit choice — and both apply the same mapping below.
+ *
+ * A new colour token has to be added in **three** places: here, and in both
+ * mappings underneath. Miss either mapping and the token silently falls back to
+ * its light value in that one path, which is close to invisible in review —
+ * `scripts/verify.mjs` §31 asserts the contrast floor in both themes for exactly
+ * that reason.
  */
 :root {
   --dark-ground: #17171a;
   --dark-surface: #202024;
   --dark-ink: #eae7e2;
   --dark-muted: #9d9a94;
-  --dark-line: #2d2d33;
+  --dark-line: #34343c;
+  /* 3.05:1 against `--dark-ground`, the same floor as its light counterpart. */
+  --dark-line-strong: #64646d;
   --dark-accent: #e5e2dd;
   --dark-focus: #eae7e2;
 }
@@ -66,6 +89,7 @@
     --color-ink: var(--dark-ink);
     --color-muted: var(--dark-muted);
     --color-line: var(--dark-line);
+    --color-line-strong: var(--dark-line-strong);
     --color-accent: var(--dark-accent);
     --color-focus: var(--dark-focus);
     color-scheme: dark;
@@ -88,6 +112,7 @@
   --color-ink: var(--dark-ink);
   --color-muted: var(--dark-muted);
   --color-line: var(--dark-line);
+  --color-line-strong: var(--dark-line-strong);
   --color-accent: var(--dark-accent);
   --color-focus: var(--dark-focus);
   color-scheme: dark;
@@ -199,8 +224,11 @@
     border-bottom-color: var(--color-ink);
   }
 
+  /* `border-line-strong` rather than `border-line`: a field's edge is the only
+     thing saying "you can type here", so it is a control boundary and carries the
+     3:1 floor. Separators elsewhere stay on `--color-line`. */
   .field {
-    @apply w-full rounded-md border border-line bg-surface px-4 py-3 text-ink;
+    @apply w-full rounded-md border border-line-strong bg-surface px-4 py-3 text-ink;
     @apply leading-relaxed shadow-none transition-colors;
   }
 
@@ -223,7 +251,7 @@
      Unavailable is shown by weight and outline instead, which keeps the text
      legible — a disabled control still has to be readable to be understood. */
   .btn-primary:disabled {
-    @apply border-line bg-transparent text-muted;
+    @apply border-line-strong bg-transparent text-muted;
   }
 
   .btn-primary:not(:disabled):hover {
@@ -231,7 +259,7 @@
   }
 
   .btn-quiet {
-    @apply border-line bg-transparent text-muted;
+    @apply border-line-strong bg-transparent text-muted;
   }
 
   .btn-quiet:not(:disabled):hover {
@@ -248,14 +276,27 @@
    * Unlike `.btn`, the border is visible at rest. `.btn` needs a transparent one
    * so its variants can take a border without shifting the layout; here every
    * state has a border already, so only its colour changes.
+   *
+   * This class means exactly one thing: **pick this**. It used to also carry a
+   * state-changing action — the focused next step on the home screen was a bare
+   * `.option` whose only content was the step's text, and tapping anywhere on it
+   * completed the step with no confirmation. That is gone. If a surface looks like
+   * this, selecting it chooses something; it never spends anything.
    */
   .option {
-    @apply w-full rounded-md border border-line bg-surface px-4 py-3 text-start;
+    @apply w-full rounded-md border border-line-strong bg-surface px-4 py-3 text-start;
     @apply leading-relaxed text-ink transition-colors;
   }
 
   .option:hover {
     @apply border-muted;
+  }
+
+  /* A tap on a phone gets no hover, so without this there was no feedback at all
+     between pressing an option and the screen changing. Background only, so it
+     cannot move anything. */
+  .option:active {
+    @apply border-muted bg-ground;
   }
 
   /**

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { AreaIcon } from '@/components/area-icon'
+import { AreaLabel } from '@/components/area-label'
 import { Choice } from '@/components/choice'
 import { OptionList } from '@/components/option-list'
 import { TextAnswer } from '@/components/text-answer'
@@ -64,10 +64,7 @@ export function NextSteps() {
 
         return (
           <li key={state.area} className="space-y-3">
-            <p className="flex items-center gap-x-2 text-sm text-muted">
-              <AreaIcon area={state.area} />
-              {m.areas[state.area]}
-            </p>
+            <AreaLabel area={state.area} />
 
             {busy?.phase === 'ask' && (
               <div className="space-y-4">

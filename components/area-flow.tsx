@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { AreaIcon } from '@/components/area-icon'
+import { AreaLabel } from '@/components/area-label'
 import { Choice } from '@/components/choice'
 import { OptionList } from '@/components/option-list'
 import { QuestionCard } from '@/components/question-card'
@@ -61,17 +61,18 @@ export function AreaFlow({
     setSub('focus')
   }
 
+  // Every question on this screen is about one area, and each `QuestionCard`
+  // renders it as an eyebrow on its own heading. Passing the same element to each
+  // is what keeps the area tied to the question rather than floating above the
+  // whole screen, which is where it used to sit.
+  const eyebrow = <AreaLabel area={area} size="eyebrow" />
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {progress}
 
-      <p className="flex items-center gap-x-2 text-sm text-muted">
-        <AreaIcon area={area} />
-        {m.areas[area]}
-      </p>
-
       {sub === 'review' && (
-        <QuestionCard question={m.goals.reviewQuestion}>
+        <QuestionCard area={eyebrow} question={m.goals.reviewQuestion}>
           <Choice
             options={[
               {
@@ -96,7 +97,7 @@ export function AreaFlow({
       )}
 
       {sub === 'goal' && (
-        <QuestionCard question={m.goals.goalQuestion}>
+        <QuestionCard area={eyebrow} question={m.goals.goalQuestion}>
           <TextAnswer
             placeholder={m.goals.goalPlaceholder}
             submitLabel={m.goals.goalSubmit}
@@ -109,7 +110,7 @@ export function AreaFlow({
       )}
 
       {sub === 'steps' && (
-        <QuestionCard question={m.goals.stepsQuestion} note={m.goals.stepsNote}>
+        <QuestionCard area={eyebrow} question={m.goals.stepsQuestion} note={m.goals.stepsNote}>
           <div className="space-y-6">
             {state.open.length > 0 && (
               <div className="space-y-2">
@@ -149,7 +150,7 @@ export function AreaFlow({
       )}
 
       {sub === 'focus' && (
-        <QuestionCard question={m.goals.focusQuestion}>
+        <QuestionCard area={eyebrow} question={m.goals.focusQuestion}>
           <OptionList
             options={state.open.map((step) => ({ id: step.id, label: step.text }))}
             onSelect={(id) => {

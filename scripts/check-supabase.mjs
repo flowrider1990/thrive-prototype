@@ -136,6 +136,37 @@ check(
   existsSync('.env.local') ? (ignored ? 'ignored by .gitignore' : 'NOT IGNORED') : 'no .env.local here',
 )
 
+// The privileged key lives in `supabase/.env.rls-test`, outside the project root,
+// because Next loads env files from the root only. That separation is the whole
+// protection, so it is asserted rather than trusted: every file Next would read
+// must be free of privileged material. Checking the contents rather than the
+// location is what catches someone later pasting a secret into `.env.local`.
+const nextReadsAtRoot = [
+  '.env',
+  '.env.local',
+  '.env.development',
+  '.env.development.local',
+  '.env.production',
+  '.env.production.local',
+  '.env.test',
+  '.env.test.local',
+]
+const present = nextReadsAtRoot.filter((file) => existsSync(file))
+const contaminated = present.filter((file) => {
+  const body = readFileSync(file, 'utf8')
+  return body
+    .split(/\r?\n/)
+    .filter((line) => line.trim() && !line.trim().startsWith('#'))
+    .some((line) => looksSecret(line.slice(line.indexOf('=') + 1).trim()))
+})
+check(
+  '3d. no env file Next reads holds privileged material',
+  contaminated.length === 0,
+  contaminated.length
+    ? `PRIVILEGED KEY IN: ${contaminated.join(', ')}`
+    : `${present.length} root env file(s) checked: ${present.join(', ') || 'none'}`,
+)
+
 // --- 4. Auth is reachable ---------------------------------------------------
 
 let authDetail = ''
@@ -157,19 +188,25 @@ let dataDetail = ''
 try {
   const { data, error, status } = await getSupabase().from(PROBE_TABLE).select('*').limit(1)
 
-  if (error && status === 401) {
-    // The one failure that matters here: PostgREST refused our credential.
-    dataOk = false
-    dataDetail = `key rejected (401): ${error.message}`
-  } else if (!error) {
+  // Order matters, and getting it wrong cost a false failure. HTTP 401 does not
+  // mean "bad key" here: PostgREST also answers 401 for `permission denied`, so
+  // once `anon` lost its privileges this probe started returning 401 for exactly
+  // the reason the schema is correct. The reliable signal is the presence of a
+  // Postgres/PostgREST error `code`. A rejected key never carries one — it is the
+  // gateway talking, not the database.
+  if (!error) {
     dataOk = true
-    dataDetail = `200; '${PROBE_TABLE}' exists and returned ${data?.length ?? 0} visible row(s)`
+    dataDetail = `200; '${PROBE_TABLE}' readable, ${data?.length ?? 0} visible row(s)`
   } else if (error.code) {
-    // PostgREST answered at the application level — reached, and authenticated
-    // well enough to be told about the schema. PGRST205 is "no such table",
-    // which is the expected answer until the first migration lands.
+    // The database answered us, so the key was accepted. Which answer it gave is
+    // information, not a pass condition: 42501 is the expected reply for an
+    // unauthenticated client against a table `anon` may not touch, and PGRST205
+    // was the expected reply before the table existed.
     dataOk = true
     dataDetail = `${status} ${error.code}: ${error.message}`
+  } else if (status === 401) {
+    dataOk = false
+    dataDetail = `key rejected (401): ${error.message}`
   } else {
     dataOk = false
     dataDetail = `unrecognised response (${status}): ${error.message}`

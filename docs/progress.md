@@ -767,12 +767,14 @@ in that list is still untouched.)
 ### When it resumes, in small steps
 
 0. ~~runtime connectivity~~ — **done**, see below,
-1. one basic table — note it now needs an explicit Data API grant as well as RLS,
-   since tables stopped being auto-exposed (2026-04-28),
-2. basic Auth — and with it, the `persistSession` decision (O1),
-3. basic RLS,
-4. one authenticated read/write flow,
-5. only then sync, migrations, Edge Functions, and advanced security testing.
+1. ~~one basic table~~ — **done**, with its privileges, RLS and policies in the
+   same migration,
+2. ~~basic RLS~~ — **done**; `pnpm check:rls` proves both directions,
+3. basic Auth in the app — and with it, the `persistSession` decision (O1). Test
+   users exist only inside the RLS harness so far; the app has no sign-in,
+4. one authenticated read/write flow **from the app**,
+5. only then sync, the `person_current` view, Edge Functions, and advanced
+   security testing.
 
 The seven-phase plan in `docs/supabase-migration.md` stays as the destination, not
 as the next action.
@@ -833,6 +835,67 @@ Three things worth remembering from doing it:
   `Where-Object { $_.type -eq 'publishable' }` matched everything via member
   enumeration and handed back the legacy anon JWT instead. Cost two failed attempts
   at reading the key. Assign the result and `foreach` over it.
+
+### The first table, with its grants, RLS and policies (branch `feature/cloud-foundation`)
+
+`supabase/migrations/20260811193339_person_facts.sql` — the table, the privileges,
+RLS and all three policies in **one** migration, applied to the hosted project.
+Deliberately not table-first-policies-later: a table that exists before its
+policies is readable by everyone for as long as that gap lasts.
+`pnpm check:rls` is **17/17**.
+
+No local stack was possible — still no Docker, no Podman, and WSL has no
+distribution — so this ran against the hosted project. `docs/supabase-migration.md`
+§2 recommends a throwaway local database for exactly this work; the trade-off was
+made knowingly.
+
+**The finding that justified the whole exercise: `anon` arrived holding six
+privileges on the new table.** Supabase runs `ALTER DEFAULT PRIVILEGES` on the
+`public` schema, so a freshly created table comes with `SELECT`, `INSERT`,
+`DELETE`, `REFERENCES`, `TRIGGER` and `TRUNCATE` already granted to both `anon` and
+`authenticated`. The first version of the migration only *added* grants, so its
+comment claiming "`anon` is granted nothing" was false, and RLS was the single
+layer between a stranger and someone's answers. The migration now revokes
+everything from `public`, `anon` and `authenticated` first and grants back exactly
+`select, insert, delete` to `authenticated`. Measured afterwards: `anon` no longer
+appears in `information_schema.role_table_grants` at all.
+
+The correction was made by reverting rather than by stacking a second migration —
+the table was ten minutes old, empty, and nothing depended on it, so the committed
+history is one migration that is actually correct rather than one that is wrong
+plus one that fixes it.
+
+- **`scripts/check-rls.mjs` never asserts through an admin client.** Admin rights
+  create the two throwaway users and delete them again; every assertion runs
+  through a real session, or through a client with no session at all. An admin
+  client bypasses RLS by definition, so an assertion made with one passes whether
+  the policies are right, wrong or absent — it tests nothing. The rule is now in
+  `CLAUDE.md` §8.
+- **Cleanup runs in a `finally`, and that was proven rather than assumed.** A
+  forced exception was injected after user creation: the users were still deleted
+  (`2/2`), and a project-wide query afterwards found zero leftover `rls-*` users.
+- **"Returns no rows" was too weak an assertion, and it hid the grant defect.**
+  While `anon` held those six privileges, the anon checks reported PASS because RLS
+  returned an empty set. They now require an outright refusal, and I6b/I7b/I8b
+  require that the refusal reads `permission denied for table` — the privilege
+  layer — rather than merely an empty result.
+
+Two things worth remembering:
+
+- **HTTP 401 does not mean "bad key".** PostgREST answers 401 for `permission
+  denied` too, so `check-supabase.mjs`'s check 5 started failing the moment `anon`
+  correctly lost its privileges. The durable discriminator is the presence of a
+  Postgres error `code`: the database answering at all proves the key was
+  accepted, whereas a rejected key returns `Invalid API key` with no code, because
+  that is the gateway talking rather than the database. Fixed, and both directions
+  are covered by controls.
+- **`supabase db query` defaults to the local stack.** Without `--linked` it tries
+  `127.0.0.1:54322` and fails on missing Docker, which reads like a broken CLI
+  rather than a missing flag.
+
+Deferred on purpose: the `person_current` view (§5). It belongs with newest-per-key
+derivation in the sync phase, and with no view there is nothing yet for isolation
+requirement I2 — the missing `security_invoker` check — to test.
 
 ### The Supabase agent skill
 

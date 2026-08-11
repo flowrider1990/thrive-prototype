@@ -527,11 +527,29 @@ which affect this plan:
   makes it a useful *positive control* instead: check 6 fails only if our key is
   ever **accepted** there, which would mean it is not really a publishable key.
 - **Tables are no longer auto-exposed to the Data API** (2026-04-28, opt-in
-  required by 2026-10-30). So Phase 1's migration must explicitly grant `anon` and
-  `authenticated` access to `person_facts` in addition to enabling RLS — these are
-  two separate things, and RLS on an unexposed table is not the same as an exposed
-  table with policies. Getting this wrong looks like a table that simply does not
-  exist.
+  required by 2026-10-30). Privileges and RLS are two separate questions, and RLS
+  on an unreachable table is not the same as a reachable table with policies.
+
+**Correction, measured on this project (2026-08-11).** The bullet above led to the
+wrong conclusion in practice: the danger was not too few grants but too many.
+Supabase's `ALTER DEFAULT PRIVILEGES` on the `public` schema gave the newly created
+`person_facts` **six privileges to `anon`** — `SELECT`, `INSERT`, `DELETE`,
+`REFERENCES`, `TRIGGER`, `TRUNCATE` — before any grant of ours ran. A migration
+that only adds grants therefore leaves an anonymous client fully privileged on the
+table, with RLS as the only thing in the way.
+
+So the rule for every future table in `public` is **revoke first, then grant back**:
+
+```sql
+revoke all on public.<table> from public, anon, authenticated;
+grant select, insert, delete on public.<table> to authenticated;
+```
+
+Verified after the fact with `information_schema.role_table_grants`, where `anon`
+no longer appears at all. An isolation check that only asserts "an anonymous client
+sees no rows" cannot detect any of this, because RLS makes that true either way —
+which is why `scripts/check-rls.mjs` requires the refusal to read
+`permission denied for table`.
 
 ---
 

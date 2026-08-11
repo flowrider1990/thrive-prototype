@@ -120,10 +120,31 @@ The rest by hand or by build:
   closes a gap that had been assumption-only: the shell was previously only ever
   checked at a default headless viewport.
 
+## The repository
+
+Pushed to <https://github.com/flowrider1990/thrive-prototype>, **private** for
+now — going private later is easy, going public is not undoable.
+
+**The Pages workflow is disabled on GitHub** (`disabled_manually`). It is not
+broken: `actions/configure-pages` fails with `Get Pages site failed … Not Found`
+because Pages is not enabled, and Pages on a private repository needs a paid
+plan. Left enabled it would have failed on every push. The workflow file is
+committed and unchanged.
+
+To publish later:
+
+```bash
+gh repo edit --visibility public --accept-visibility-change-consequences
+gh api -X POST repos/flowrider1990/thrive-prototype/pages -f build_type=workflow
+gh workflow enable "Deploy to GitHub Pages"
+gh workflow run "Deploy to GitHub Pages"
+```
+
 ## Open decisions
 
-- **Push and enable Pages** (step 12). No git remote exists yet; the repo is meant
-  to be public, which makes it the first irreversible, outward-facing step.
-- **Verification 11** (the live URL, and a deep link to `/you/` surviving a reload)
-  can only be done after that.
+- **Publishing.** Still private, so the site is not live and step 12 is only
+  half done: the commits are pushed, Pages is not enabled.
+- **Verification 11** (the live URL, assets under the `/<repo>/` subpath, and a
+  deep link to `/you/` surviving a reload) can only be done once it is live. The
+  locally checkable half of it passed — see above.
 - **pnpm 11.21.0** is available, as above.

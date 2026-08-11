@@ -147,7 +147,18 @@ Language dropdown, theme toggle, and a nav that collapses instead of wrapping.
   `role="menu"`: a real menu owes the user arrow-key roving focus, and claiming
   the role without it tells screen reader users to expect keys that do nothing.
 
-Two things worth remembering from doing it:
+Three things worth remembering from doing it:
+
+- **The bootstrap script needs `suppressHydrationWarning` on `<html>`.** Setting
+  `data-theme` before React hydrates means the element really does differ from the
+  built HTML — that difference is the point — and React reports it as a mismatch
+  without the suppression. It covers that element's attributes only, so a genuine
+  mismatch elsewhere still surfaces.
+- **A suite that only runs against the export cannot see this.** React warns about
+  hydration mismatches in development only, so 39 passing checks said nothing
+  about it; it took opening the app in `pnpm dev`. Check 19 now fails on any
+  console error, and it is worth running against the dev server too:
+  `node scripts/verify.mjs http://localhost:3000`.
 
 - **`theme` is optional, not `version: 2`.** A version bump would make `parse()`
   reject every existing store and discard real answers. Check 18 guards this by

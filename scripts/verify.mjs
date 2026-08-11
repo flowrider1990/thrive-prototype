@@ -546,6 +546,37 @@ check(
   external.length ? [...new Set(external)].join(', ') : `${requested.length} requests, all local`,
 )
 
+// --- 19. the browser console is quiet ------------------------------------
+
+/**
+ * Catches what DOM assertions cannot: React's hydration warnings, and anything
+ * that threw where nobody was looking.
+ *
+ * Note that React only warns about hydration mismatches in development, so
+ * running this against the production export is not enough on its own — point it
+ * at `next dev` (`node scripts/verify.mjs http://localhost:3000`) to catch those.
+ */
+const consoleErrors = events
+  .filter((event) => event.method === 'Runtime.consoleAPICalled' && event.params.type === 'error')
+  .map((event) =>
+    String(event.params.args?.[0]?.value ?? event.params.args?.[0]?.description ?? 'error')
+      .replace(/\s+/g, ' ')
+      .slice(0, 120),
+  )
+const thrown = events
+  .filter((event) => event.method === 'Runtime.exceptionThrown')
+  .map((event) =>
+    String(event.params.exceptionDetails?.exception?.description ?? 'exception')
+      .replace(/\s+/g, ' ')
+      .slice(0, 120),
+  )
+const noisy = [...new Set([...consoleErrors, ...thrown])]
+check(
+  '19. no console errors and nothing thrown',
+  noisy.length === 0,
+  noisy.length ? noisy.join(' | ') : 'console clean',
+)
+
 // --- done ----------------------------------------------------------------
 
 const failed = results.filter((r) => !r.ok)

@@ -168,6 +168,29 @@ Three things worth remembering from doing it:
   centre-aligned children of different heights have different tops on the same
   line. Comparing vertical *centres* is the measure that actually works.
 
+## Supabase CLI: installed and linked (tooling only)
+
+`supabase` is a **devDependency** (`pnpm add -D supabase`, currently 2.113.0),
+`supabase init` has been run, and the project is linked to the hosted project
+**`project thrive`** (`oejjomqrugsgpunzmhnd`, Postgres 17.6, eu-central-1).
+
+Nothing about the application has changed. There is no Auth, no table, no
+migration, no client code, and the app still stores everything in the browser
+under the rules in `CLAUDE.md` §8. Installing a CLI is tooling; introducing a
+backend is the architectural change that section governs — see
+`docs/supabase-migration.md` for the proposal that has to be approved first.
+
+- The link state lives in `supabase/.temp/`, which `supabase/.gitignore` excludes,
+  so it stays machine-local. `config.toml` is committed, including the project
+  ref: it is not a secret (it appears in the project URL) and committing it is
+  what makes migrations reproducible.
+- `npm install` was **not** used despite the instruction, because this repo pins
+  `packageManager` and CI runs `pnpm install --frozen-lockfile`; an npm lockfile
+  would have left the dependency invisible to CI. Same end state via pnpm.
+- Note for when Pages is enabled: `pnpm install --frozen-lockfile` installs dev
+  dependencies too, so CI would download the CLI binary on every build without
+  needing it. Worth scoping then.
+
 ## The repository
 
 Pushed to <https://github.com/flowrider1990/thrive-prototype>, **private** for

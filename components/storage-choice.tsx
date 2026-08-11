@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Choice } from '@/components/choice'
-import { Check } from '@/components/menu'
 import { OptionList } from '@/components/option-list'
 import { useI18n, type Messages } from '@/lib/i18n'
 import { usePerson, type Mode } from '@/lib/person/store'
@@ -40,16 +39,14 @@ export function StorageStatus() {
 /**
  * The storage decision, reopened after onboarding.
  *
- * The two modes are **named and the active one is marked** — a tick in an
- * always-present slot, plus `aria-current`, which is the same pairing `.nav-link`
- * uses so the mark and the accessibility tree cannot say different things. Yes and no
- * would not do here: they answer a question, and neither of them is a thing that can
- * be "the one you are already on".
+ * **It offers only the mode you are not on.** There are exactly two, and
+ * `StorageStatus` above already says which is in force, so the whole decision is
+ * "switch to the other one, or do not". Earlier versions of this reprinted
+ * onboarding's framing and both modes with a line of explanation each — on a page
+ * whose four paragraphs had just explained all of it. Reopening a setting is not the
+ * same act as deciding it for the first time, and it does not need the same screen.
  *
- * The question is short and neutral rather than onboarding's, which asserts one of the
- * options as settled fact ("Information you give is saved only on the device you are
- * using right now"). That is the right way to ask for consent once and the wrong way
- * to offer a choice between two modes. Onboarding is unchanged.
+ * Onboarding is untouched: it still asks its own question, in its own words, once.
  *
  * There is no second source of truth. This holds no copy of the setting: it reads
  * `mode` from the person store and calls the store's own `grantConsent` /
@@ -103,6 +100,11 @@ export function StorageChoice() {
 
   /** Anything stored is what makes turning saving off destructive. */
   const hasStored = mode === 'local' && facts.length > 0
+
+  // The one mode this control can switch to. 'undecided' writes nothing, so from the
+  // person's side it is already "this tab only" even though the store tells them apart
+  // — which makes saving on the only change available from there.
+  const target: 'local' | 'memory' = mode === 'local' ? 'memory' : 'local'
 
   const message =
     done === 'on'
@@ -178,27 +180,20 @@ export function StorageChoice() {
 
       {view === 'choosing' && (
         <div ref={panel} className="space-y-4">
-          {/* Not a heading: this page has an `h1` already, and a second one would put
-              the document outline in the wrong order. */}
-          <p className="max-w-prose leading-relaxed text-ink">{m.data.storage.question}</p>
+          {/**
+           * Only the mode you are **not** on, because that is the only thing this
+           * control can do. There are two modes and the label above says which one is
+           * in force, so a list of both — with a question over it and a line of
+           * explanation under each — was three ways of saying what the page had
+           * already said. What is left is the change itself, or not.
+           *
+           * Not `.btn-primary`: switching is not recommended, it is available.
+           */}
           <OptionList
             options={[
-              {
-                id: 'local',
-                label: m.data.storage.optionLocal,
-                note: m.data.storage.optionLocalNote,
-                current: mode === 'local',
-                icon: <Check checked={mode === 'local'} />,
-              },
-              {
-                id: 'memory',
-                label: m.data.storage.optionMemory,
-                note: m.data.storage.optionMemoryNote,
-                // 'undecided' writes nothing either, so it is honestly the same mode
-                // from the person's side even though the store distinguishes them.
-                current: mode !== 'local',
-                icon: <Check checked={mode !== 'local'} />,
-              },
+              target === 'local'
+                ? { id: 'local', label: m.data.storage.optionLocal }
+                : { id: 'memory', label: m.data.storage.optionMemory },
             ]}
             onSelect={select}
           />

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { BackLink } from '@/components/back-link'
 import { PageShell } from '@/components/page-shell'
@@ -143,15 +144,38 @@ export default function StoredPage() {
           {/* Said where it happened, rather than from the top of the page. */}
           {deleted && <p className="text-sm text-accent">{m.data.delete.done}</p>}
 
-          {facts.length > 0 && deleting === 'no' && (
-            <button
-              ref={trigger}
-              type="button"
-              className="btn btn-quiet"
-              onClick={() => setDeleting('warned')}
-            >
-              {m.data.delete.button}
-            </button>
+          {/**
+           * Leaving is the main action here, and deleting is the one underneath it.
+           *
+           * This is the foot of a page someone can arrive at by following "delete my
+           * data", and the only control on it used to be the destructive one — so the
+           * bottom of the page read as though deletion were the expected next step.
+           * It is not: the expected next step is going back, and everything about the
+           * weighting should say so.
+           *
+           * A link, not a button, and the same wording as the one at the top: two
+           * different weights of the same navigation, not two competing patterns.
+           */}
+          {deleting === 'no' && (
+            <div className="space-y-4">
+              <div>
+                <Link href="/data" className="btn btn-primary">
+                  {m.stored.back}
+                </Link>
+              </div>
+              {facts.length > 0 && (
+                <div>
+                  <button
+                    ref={trigger}
+                    type="button"
+                    className="btn btn-quiet"
+                    onClick={() => setDeleting('warned')}
+                  >
+                    {m.data.delete.button}
+                  </button>
+                </div>
+              )}
+            </div>
           )}
 
           {/**

@@ -166,7 +166,6 @@ export const de: Messages = {
     activeLabel: 'Daran arbeitest du gerade',
     preparedLabel: 'Außerdem notiert',
     changeGoal: 'Ziel ändern',
-    changeStep: 'An etwas anderem arbeiten',
     addStep: 'Etwas zum Ausprobieren hinzufügen',
     done: 'Fertig',
 
@@ -231,12 +230,8 @@ export const de: Messages = {
       undecided: 'Aktuell: Noch nicht entschieden',
       change: 'Speichereinstellungen ändern',
 
-      question: 'Wie soll aufbewahrt werden, was du schreibst?',
       optionLocal: 'Auf diesem Gerät speichern',
-      optionLocalNote: 'Was du schreibst, bleibt hier — und ist beim nächsten Mal wieder da.',
       optionMemory: 'Nur für diesen Tab',
-      optionMemoryNote:
-        'Auf dieses Gerät wird nichts geschrieben, und es ist weg, sobald du den Tab schließt.',
 
       offTitle: 'Speichern ausschalten?',
       offBody:

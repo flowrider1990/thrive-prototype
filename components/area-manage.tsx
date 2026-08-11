@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { AreaFlow } from '@/components/area-flow'
 import { AreaLabel } from '@/components/area-label'
 import { Choice } from '@/components/choice'
-import { OptionList } from '@/components/option-list'
 import { QuestionCard } from '@/components/question-card'
 import { TextAnswer } from '@/components/text-answer'
 import type { AreaId } from '@/lib/areas'
@@ -21,15 +20,23 @@ import {
 } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
-type View = 'reconsider' | 'flow' | 'overview' | 'goal' | 'review' | 'edit' | 'step' | 'add'
+type View = 'reconsider' | 'flow' | 'overview' | 'goal' | 'review' | 'edit' | 'add'
 
 /**
  * One life area, opened on purpose rather than walked through.
  *
  * Deliberately small. It shows the current goal, what is being worked on, and
  * what else is prepared — and nothing else. No dates, no completed steps, no
- * counts, no recurrence, no priorities. Anything historical belongs on `/you`,
+ * counts, no recurrence, no priorities. Anything historical belongs on `/data/stored/`,
  * which is the page for looking, not the page for doing.
+ *
+ * **There is deliberately no "work on something else" here.** Swapping freely between
+ * prepared items implied they are interchangeable, which is the opposite of what the
+ * list should eventually say: what matters most now should be communicated by *order*,
+ * not by offering an equal switch between peers. The replacement — marking priorities,
+ * and an explicit ranking — is a product follow-up, written up in `docs/progress.md`
+ * rather than guessed at here. Swapping is still reachable where it belongs, from the
+ * "How is it going?" answers on the start page, which ask about one specific thing.
  *
  * The caller must give this a `key` of the area id.
  */
@@ -157,20 +164,6 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
     )
   }
 
-  if (view === 'step') {
-    return (
-      <QuestionCard area={heading} question={m.goals.focusQuestion}>
-        <OptionList
-          options={state.open.map((step) => ({ id: step.id, label: step.text }))}
-          onSelect={(id) => {
-            chooseStep(area, id)
-            setView('overview')
-          }}
-        />
-      </QuestionCard>
-    )
-  }
-
   if (view === 'add') {
     return (
       <QuestionCard area={heading} question={m.home.newStepQuestion}>
@@ -226,11 +219,6 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
         <button type="button" className="btn btn-quiet" onClick={() => setView('goal')}>
           {m.manage.changeGoal}
         </button>
-        {others.length > 0 && (
-          <button type="button" className="btn btn-quiet" onClick={() => setView('step')}>
-            {m.manage.changeStep}
-          </button>
-        )}
         {state.open.length < MAX_OPEN_STEPS && (
           <button type="button" className="btn btn-quiet" onClick={() => setView('add')}>
             {m.manage.addStep}

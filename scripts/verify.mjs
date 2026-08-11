@@ -1852,6 +1852,39 @@ check(
   screen.includes(EN.delWarn) ? 'the confirmation was already open' : 'control present, not armed',
 )
 
+// The foot of the delete section must not read as though deleting were the next step.
+// Someone can arrive here by following "delete my data", and for a while the only
+// control down here was the destructive one. Leaving is the emphasised action; deleting
+// is the quiet one under it.
+const deleteFoot = await evaluate(
+  `(() => {
+     const del = [...document.querySelectorAll('#delete button')]
+       .find((b) => b.textContent.trim() === 'Delete everything');
+     const back = [...document.querySelectorAll('#delete a[href]')]
+       .find((a) => a.textContent.trim().includes('Back to data protection'));
+     if (!del || !back) return { del: Boolean(del), back: Boolean(back) };
+     return {
+       del: true,
+       back: true,
+       backIsPrimary: back.classList.contains('btn-primary'),
+       delIsQuiet: del.classList.contains('btn-quiet'),
+       delIsPrimary: del.classList.contains('btn-primary'),
+       // 4 === DOCUMENT_POSITION_FOLLOWING: delete comes after back.
+       backFirst: Boolean(back.compareDocumentPosition(del) & 4),
+       backHref: new URL(back.href).pathname,
+     };
+   })()`,
+)
+check(
+  '33d2. the delete section leads with leaving, not with deleting',
+  deleteFoot.backIsPrimary === true &&
+    deleteFoot.delIsQuiet === true &&
+    deleteFoot.delIsPrimary === false &&
+    deleteFoot.backFirst === true &&
+    deleteFoot.backHref === '/data/',
+  JSON.stringify(deleteFoot),
+)
+
 // The back link moved to the top. On a page as long as someone's whole history, one
 // at the foot is only reachable by scrolling past everything.
 const backLink = await evaluate(
@@ -2034,39 +2067,30 @@ check(
   screen.replace(/\n/g, ' / ').slice(0, 120),
 )
 
-// The two modes have to be told apart on sight, and the one in force has to be marked
-// in a way that is not colour and not silent.
+// Reopening a setting is not the same act as deciding it for the first time. There are
+// two modes and the label above says which is in force, so the panel offers **only the
+// other one** — no question, no restatement of the current mode, no second copy of what
+// the four paragraphs on this page already explain.
 await click(EN.storageChange)
 screen = await text()
 const modes = await evaluate(
   `(() => {
      const items = [...document.querySelectorAll('main li button.option')];
-     // Read the rendered lines rather than reaching for a nested span: the tick's own
-     // wrapper is also a span, and a structural selector picked that up instead.
-     return items.map((b) => ({
-       label: b.innerText.trim().split('\\n')[0].trim(),
-       hasNote: b.innerText.trim().split('\\n').length > 1,
-       current: b.getAttribute('aria-current'),
-       tick: Boolean(b.querySelector('svg')),
-       // The mark's slot must exist on both, or marking one would shift the other.
-       slot: Boolean(b.querySelector('span')),
-     }));
+     return items.map((b) => b.innerText.trim().split('\\n')[0].trim());
    })()`,
 )
 check(
-  '36b. both storage modes are offered, each named and each explained',
-  modes.length === 2 &&
-    modes.every((mode) => mode.label.length > 0 && mode.hasNote) &&
-    modes.some((mode) => mode.label === EN.storageOptionLocal) &&
-    modes.some((mode) => mode.label === EN.storageOptionMemory),
-  JSON.stringify(modes.map((mode) => mode.label)),
+  '36b. the panel offers only the mode you are not on',
+  modes.length === 1 && modes[0] === EN.storageOptionMemory,
+  JSON.stringify(modes),
 )
 check(
-  '36b2. exactly one is marked as current, and the mark is in the accessibility tree',
-  modes.filter((mode) => mode.current === 'true').length === 1 &&
-    modes.find((mode) => mode.current === 'true')?.label === EN.storageOptionLocal &&
-    modes.filter((mode) => mode.tick).length === 1,
-  JSON.stringify(modes),
+  '36b2. and does not reprint the current setting or a question over it',
+  !modes.includes(EN.storageOptionLocal) &&
+    !screen.includes('How should what you write') &&
+    // The current mode is still stated — outside the panel, where it belongs.
+    screen.includes(EN.storageLocal),
+  screen.includes(EN.storageLocal) ? 'stated once, above' : 'the current mode went missing',
 )
 check(
   '36c. and no toggle was introduced beside it',
@@ -2075,12 +2099,12 @@ check(
   `${await count('main input[type="checkbox"]')} checkbox(es), ${await count('main [role="switch"]')} switch(es)`,
 )
 
-// Choosing the mode already in force must write nothing: it is not a change, and a
-// fact recording "no change" is clutter the append-only log would keep forever.
+// Backing out of the panel writes nothing, which is the "no change" path now that the
+// current mode is not offered as something to re-pick.
 const beforeNoop = await raw()
-await clickOption(EN.storageOptionLocal)
+await click(EN.cancel)
 check(
-  '36c2. choosing the mode already in force changes nothing at all',
+  '36c2. backing out of the panel changes nothing at all',
   (await raw()) === beforeNoop && (await visible(EN.storageChange)),
   (await raw()) === beforeNoop ? 'store untouched' : 'STORE CHANGED ON A NON-CHANGE',
 )

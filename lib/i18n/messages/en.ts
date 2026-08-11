@@ -249,7 +249,6 @@ export const en = {
     activeLabel: 'Focusing on',
     preparedLabel: 'Also prepared',
     changeGoal: 'Change goal',
-    changeStep: 'Focus on something else',
     addStep: 'Add something to try',
     done: 'Done',
 
@@ -392,20 +391,20 @@ export const en = {
       change: 'Change storage settings',
 
       /**
-       * A short, neutral question — deliberately **not** `consent.question`.
+       * The two modes, as the names of the thing you would be switching **to**.
        *
-       * Onboarding's wording asserts the outcome as a fact ("Information you give is
-       * saved only on the device you are using right now. Is this okay for you?"),
-       * which is the right way to ask for consent once and the wrong way to offer a
-       * choice between two modes: it states one of the options as though it were
-       * already settled. Onboarding itself is unchanged.
+       * Only the one you are not on is ever offered, so there is nothing here that
+       * restates the current setting — the `Currently: …` label above already does
+       * that, and the page's four paragraphs already explain what storage means.
+       *
+       * This deliberately dropped a question and a second option. Reopening the
+       * decision used to reprint onboarding's framing plus both modes with a line of
+       * explanation each, on a page that had just explained all of it. With two modes
+       * and the current one stated, the whole choice is "switch to the other one, or
+       * do not".
        */
-      question: 'How should what you write be kept?',
-      /** Named modes rather than yes and no, so the two are told apart on sight. */
       optionLocal: 'Save on this device',
-      optionLocalNote: 'What you write stays here, and is still here next time.',
       optionMemory: 'This tab only',
-      optionMemoryNote: 'Nothing is written to this device, and it is gone when you close the tab.',
 
       /**
        * Turning saving off has to delete what was saved, and that is not a warning

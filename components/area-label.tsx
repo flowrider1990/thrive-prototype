@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { AreaIcon } from '@/components/area-icon'
 import type { AreaId } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
@@ -39,9 +40,20 @@ import { useI18n } from '@/lib/i18n'
 export function AreaLabel({
   area,
   size = 'row',
+  href,
 }: {
   area: AreaId
   size?: 'eyebrow' | 'row' | 'card'
+  /**
+   * Makes the label a link to the area, for the `row` size only.
+   *
+   * It lives here rather than being wrapped at the call site so the icon-and-name line
+   * stays owned by one component — that line was duplicated at four call sites once,
+   * which is exactly what let it drift. The name takes `.link-inline` while the icon
+   * does not: an underlined emoji reads as a mistake, and the underline is what keeps
+   * "this is a link" from resting on colour alone (§17).
+   */
+  href?: string
 }) {
   const { m } = useI18n()
 
@@ -60,6 +72,15 @@ export function AreaLabel({
         <AreaIcon area={area} size="eyebrow" />
         {m.areas[area]}
       </p>
+    )
+  }
+
+  if (href) {
+    return (
+      <Link href={href} className="flex items-center gap-x-2 text-sm text-muted">
+        <AreaIcon area={area} />
+        <span className="link-inline">{m.areas[area]}</span>
+      </Link>
     )
   }
 

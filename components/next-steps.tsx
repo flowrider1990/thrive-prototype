@@ -93,7 +93,12 @@ export function NextSteps() {
       <ul className="space-y-8">
         {rows.map((state) => (
           <li key={state.area} className="space-y-3">
-            <AreaLabel area={state.area} />
+            {/* The area's name opens the area. It is a sibling of the controls below,
+                never a wrapper around them, so nothing inside the row can navigate by
+                accident — the entry's own words stay inert and "How is it going?" still
+                only opens the answers. `from=home` tells that page where to come back
+                to; see `components/area-screen.tsx`. */}
+            <AreaLabel area={state.area} href={`/areas/${state.area}?from=home`} />
             <Row state={state} busy={busy?.area === state.area ? busy : null} onBusy={setBusy} />
           </li>
         ))}
@@ -185,11 +190,19 @@ function Row({
             something no longer on screen. The accessible name carries it either
             way; a sighted person was being asked to remember it. */}
         {active && <p className="max-w-prose leading-relaxed text-ink">{active.text}</p>}
+        {/**
+         * Three answers, not four.
+         *
+         * "I would rather do something else" and "This does not fit anymore" were two
+         * labels for one state — this is not right for me now — and offering both asked
+         * the person to classify their own dissatisfaction before the app would act.
+         * The single answer sets the entry aside and then offers to choose another,
+         * which is what both of the old paths ended up doing anyway.
+         */}
         <OptionList
           options={[
             { id: 'done', label: m.home.outcomeDone },
             { id: 'ongoing', label: m.home.outcomeOngoing },
-            { id: 'swap', label: m.home.outcomeSwap },
             { id: 'aside', label: m.home.outcomeAside },
           ]}
           onSelect={(id) => {
@@ -200,12 +213,11 @@ function Row({
               return
             }
             if (id === 'aside') {
+              // Out of current use, still kept — `retireStep` never deletes. The
+              // 'offer' phase then asks whether to choose something else, which is the
+              // half the old "rather do something else" answer contributed.
               retireStep(state.area, active.id)
               onBusy({ area: state.area, phase: 'offer' })
-              return
-            }
-            if (id === 'swap') {
-              onBusy({ area: state.area, phase: 'pick' })
               return
             }
             // "Still on it" writes nothing. Nothing changed, the active pointer
@@ -250,11 +262,9 @@ function Row({
     const others = state.open.filter((step) => step.id !== active?.id)
     // Every branch offers a way out, and taking it writes nothing.
     //
-    // This used to be reachable only after "Later" had already been offered and
-    // declined, so a dead end was survivable. The swap answer reaches it directly,
-    // and someone who picks "I would rather do something else" and then changes
-    // their mind must not be stuck in a mandatory field with only the page's
-    // navigation to escape through.
+    // Reached from "Choose something" after an entry was finished or set aside. The way
+    // out matters because the alternative is a mandatory field with only the page's own
+    // navigation to escape through — a dead end this flow shipped once.
     const back = <Choice options={[{ label: m.home.cancel, tone: 'quiet', onSelect: close }]} />
 
     return others.length > 0 ? (

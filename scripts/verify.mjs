@@ -439,6 +439,23 @@ async function clickAria(label) {
   await evaluate(`__clickAria(${JSON.stringify(label)})`)
   await sleep(220)
 }
+/**
+ * Waits until the page contains some text, instead of sleeping a guessed number of ms.
+ *
+ * Navigating into `/areas/<id>/` is measurably slower than it was: that route now has a
+ * `Suspense` boundary, so its content is client-rendered after the navigation commits —
+ * ~340ms in headless Chrome, against the 220ms a click helper waits. That difference
+ * turned a correct app into two failing checks, and a bigger fixed sleep would only move
+ * the guess. Waiting for the thing being asserted removes the guess.
+ */
+async function waitForText(needle, timeout = 5000) {
+  const started = Date.now()
+  while (Date.now() - started < timeout) {
+    if (String(await evaluate('document.body.innerText')).includes(needle)) return true
+    await sleep(60)
+  }
+  return false
+}
 async function clickOption(text) {
   await evaluate(HELPERS)
   await evaluate(`__clickOption(${JSON.stringify(text)})`)
@@ -553,6 +570,26 @@ const shown = async (selector) => {
   await evaluate(HELPERS)
   return evaluate(`__shown(${JSON.stringify(selector)})`)
 }
+/** The back link on whatever page is loaded: where it goes, and how it is drawn. */
+const backLinkOn = async () =>
+  evaluate(
+    `(() => {
+       const first = document.querySelector('main a[href]');
+       if (!first) return null;
+       const heading = document.querySelector('main h1, main h2, main p');
+       const style = getComputedStyle(first);
+       return {
+         tag: first.tagName,
+         href: new URL(first.href).pathname,
+         text: first.textContent.trim(),
+         hasArrow: Boolean(first.querySelector('svg')),
+         fontSize: style.fontSize,
+         colour: style.color,
+         // The back link must come first in the page, above whatever titles it.
+         beforeHeading: heading ? Boolean(first.compareDocumentPosition(heading) & 4) : false,
+       };
+     })()`,
+  )
 const visibleIn = async (selector, text) => {
   await evaluate(HELPERS)
   return evaluate(`__visibleIn(${JSON.stringify(selector)}, ${JSON.stringify(text)})`)
@@ -634,8 +671,7 @@ const EN = {
   check: 'How is it going?',
   outcomeDone: 'I have done this',
   outcomeOngoing: 'Still on it',
-  outcomeSwap: 'I would rather do something else',
-  outcomeAside: 'This does not fit anymore',
+  outcomeAside: 'This does not fit me anymore',
   cancel: 'Cancel',
   noted: 'Noted.',
   chooseNext: 'Choose something',
@@ -656,9 +692,7 @@ const EN = {
   storedTitle: 'What is stored',
   del: 'Delete everything',
   delWarn: 'Delete all data?',
-  delContinue: 'Continue',
   delKeep: 'Keep it',
-  delFinal: 'Delete everything now? This cannot be undone.',
   delConfirm: 'Yes, delete everything',
   delDone: 'Deleted. Nothing is left.',
   storageChange: 'Change storage settings',
@@ -923,10 +957,20 @@ check(
   '24b. an explicit control asks how it is going, and offers answers for both kinds',
   screen.includes(EN.outcomeDone) &&
     screen.includes(EN.outcomeOngoing) &&
-    screen.includes(EN.outcomeSwap) &&
     screen.includes(EN.outcomeAside) &&
     JSON.parse(await raw()).facts.length === beforeIdle,
   `${JSON.parse(await raw()).facts.length} facts vs ${beforeIdle} before opening`,
+)
+
+// Three answers, not four. "I would rather do something else" and "this does not fit
+// anymore" were two labels for one state, and offering both asked the person to
+// classify their own dissatisfaction before the app would act on it. A fourth option
+// reappearing here means that distinction crept back.
+check(
+  '24b1. and there are exactly three of them, with no second way to say the same thing',
+  (await count('main li button.option')) === 3 &&
+    !screen.includes('rather do something else'),
+  `${await count('main li button.option')} answer(s)`,
 )
 
 check(
@@ -1053,6 +1097,8 @@ check(
 await clickNav(EN.navAreas)
 check('24m. Life areas lists all five with their state', (await text()).includes(EN.picker))
 await clickOption('Work & Career')
+// Navigation, not a selection: wait for the destination rather than for a fixed delay.
+await waitForText(EN.addStep)
 await click(EN.addStep)
 await type('Ask Sam for feedback')
 await click(EN.save)
@@ -1137,28 +1183,42 @@ check(
 
 // --- 8. forget everything --------------------------------------------------
 
-// Deleting is deliberate: two confirmations, and the first one only explains.
+// **One** confirmation, down from two. The flow used to ask three times over — the
+// button, then "this removes everything, continue?", then "delete everything now,
+// really?" — and the middle two said the same thing. A step that adds no information
+// is what teaches someone to click through the step that does.
+//
+// What still prevents an accident: deleting is never the first tap, the consequence is
+// spelled out in the same breath as the question, and the safe choice is emphasised.
 const beforeDelete = await raw()
 await click(EN.del)
 screen = await text()
 check(
-  '8a. the first step explains what goes, and deletes nothing',
+  '8a. one confirmation, and it states the consequence and the irreversibility',
   screen.includes(EN.delWarn) &&
+    screen.includes('cannot be undone') &&
+    screen.includes('would have to enter it all again') &&
     // Byte-identical, not merely present: "the key still exists" would not notice it
     // being rewritten, which is the failure mode a presence check misses.
     (await raw()) === beforeDelete,
   (await raw()) === beforeDelete ? 'store untouched' : 'STORE CHANGED',
 )
 
-await click(EN.delContinue)
-screen = await text()
+// The count itself, asserted. Two steps between the button and deletion would pass
+// every other check here while being the thing this change removed.
+const deleteSteps = await evaluate(
+  `(() => {
+     const labels = [...document.querySelectorAll('#delete button')].map((b) => b.textContent.trim());
+     return { labels, confirms: labels.filter((l) => l === 'Yes, delete everything').length };
+   })()`,
+)
 check(
-  '8b. the second step asks once more, and still deletes nothing',
-  screen.includes(EN.delFinal) && (await raw()) === beforeDelete,
-  (await raw()) === beforeDelete ? 'store untouched' : 'STORE CHANGED',
+  '8a2. and reaching deletion takes exactly one confirming click from here',
+  deleteSteps.confirms === 1 && !deleteSteps.labels.includes('Continue'),
+  JSON.stringify(deleteSteps.labels),
 )
 
-// Backing out at the last moment has to be possible, and has to leave everything.
+// Backing out has to be possible, and has to leave everything.
 await click(EN.delKeep)
 check(
   '8c. and backing out leaves it all in place',
@@ -1167,10 +1227,9 @@ check(
 )
 
 await click(EN.del)
-await click(EN.delContinue)
 await click(EN.delConfirm)
 check(
-  '8d. only the second confirmation deletes, and it removes the key entirely',
+  '8d. confirming deletes, and it removes the key entirely',
   (await keys()).length === 0 && (await text()).includes(EN.delDone),
   JSON.stringify(await keys()),
 )
@@ -1449,6 +1508,7 @@ check(
   screen.includes('Hobbies & Creativity') && screen.includes('not decided yet what could help'),
 )
 await clickOption('Hobbies & Creativity')
+await waitForText('Draw something every week')
 screen = await text()
 check(
   '25d. its goal survived, and finishing the setup is one action away',
@@ -1838,17 +1898,14 @@ check(
   `${deleteEntry?.href}, no confirmation copy on /data/`,
 )
 
-// Following it must not arm anything. Arriving one tap from deleting everything
-// would defeat the two confirmations this flow exists to have.
+// Following it must not arm anything. There is one confirmation now, so arriving with
+// it already open would put someone a single tap from deleting everything.
 await clickText('Delete my data')
 await sleep(500)
 screen = await text()
 check(
   '33c. following it reaches the control without arming it',
-  screen.includes(EN.storedTitle) &&
-    (await visible(EN.del)) &&
-    !screen.includes(EN.delWarn) &&
-    !screen.includes(EN.delFinal),
+  screen.includes(EN.storedTitle) && (await visible(EN.del)) && !screen.includes(EN.delWarn),
   screen.includes(EN.delWarn) ? 'the confirmation was already open' : 'control present, not armed',
 )
 
@@ -1907,6 +1964,82 @@ check(
   JSON.stringify(backLink),
 )
 
+// --- 37. an area opens from the start page, and back knows where it came from -
+//
+// The detail page has two ways in now. A single hard-coded parent would be wrong for
+// one of them, so the origin travels in the URL — which survives a reload and cannot go
+// stale, unlike remembered state.
+
+await seedOnboarded()
+const homeAreaLink = await evaluate(
+  `(() => {
+     // Contains, not equals: the label carries the area's emoji as well as its name.
+     const link = [...document.querySelectorAll('main a[href]')]
+       .find((a) => a.textContent.includes('Body & Health'));
+     if (!link) return null;
+     const url = new URL(link.href);
+     return {
+       href: url.pathname + url.search,
+       // The control must be a sibling of the row's buttons, never a wrapper around
+       // them: a link containing "How is it going?" would navigate on every answer.
+       wrapsControls: Boolean(link.querySelector('button')),
+       // The entry's own words stay outside it, and stay inert.
+       wrapsEntry: link.textContent.includes('Walk after dinner'),
+     };
+   })()`,
+)
+check(
+  '37a. the area name on the start page links to that area, without wrapping its controls',
+  homeAreaLink?.href === '/areas/body/?from=home' &&
+    homeAreaLink.wrapsControls === false &&
+    homeAreaLink.wrapsEntry === false,
+  JSON.stringify(homeAreaLink),
+)
+
+// Following it must navigate and write nothing — the row holds real controls, and the
+// name sitting beside them must not become a third way to change something.
+const beforeAreaNav = await raw()
+await clickText('Body & Health')
+await sleep(500)
+screen = await text()
+check(
+  '37b. following it opens the area and changes nothing',
+  screen.includes('Sleep better') && (await raw()) === beforeAreaNav,
+  (await raw()) === beforeAreaNav ? 'store untouched' : 'STORE CHANGED',
+)
+
+// Arrived from the start page, so back says the start page — and goes there.
+check(
+  '37c. and back points at where it was opened from, not at a fixed parent',
+  (await backLinkOn())?.href === '/' && screen.includes('Back to the start page'),
+  JSON.stringify(await backLinkOn()),
+)
+await clickSelector('main a[href]')
+await sleep(500)
+check(
+  '37d. following that back link lands on the start page',
+  (await text()).includes(EN.home),
+  (await text()).replace(/\n/g, ' / ').slice(0, 80),
+)
+
+// A deep link, a shared URL or a hand-typed address has no origin, and must fall back
+// to the parent route rather than to a dead end or to leaving the app.
+await goto('/areas/body/')
+check(
+  '37e. without an origin it falls back to the life-areas list',
+  (await backLinkOn())?.href === '/areas/' && (await text()).includes('Back to your life areas'),
+  JSON.stringify(await backLinkOn()),
+)
+
+// An unrecognised origin is the same case as none. It must not be trusted into a
+// nonsense destination.
+await goto('/areas/body/?from=nowhere')
+check(
+  '37f. and an unrecognised origin falls back the same way',
+  (await backLinkOn())?.href === '/areas/',
+  JSON.stringify(await backLinkOn()),
+)
+
 // --- 34. the areas list has a hierarchy rather than five flat rows ----------
 //
 // The area name used to be `text-sm text-muted` while the goal was full-size ink, so
@@ -1955,27 +2088,6 @@ check(
 // It goes to an explicit parent route rather than to `history.back()`, which is a
 // different question: arriving at an area from the start page and pressing this
 // should still offer the life areas.
-
-/** The back link on whatever page is loaded: where it goes, and how it is drawn. */
-const backLinkOn = async () =>
-  evaluate(
-    `(() => {
-       const first = document.querySelector('main a[href]');
-       if (!first) return null;
-       const heading = document.querySelector('main h1, main h2, main p');
-       const style = getComputedStyle(first);
-       return {
-         tag: first.tagName,
-         href: new URL(first.href).pathname,
-         text: first.textContent.trim(),
-         hasArrow: Boolean(first.querySelector('svg')),
-         fontSize: style.fontSize,
-         colour: style.color,
-         // The back link must come first in the page, above whatever titles it.
-         beforeHeading: heading ? Boolean(first.compareDocumentPosition(heading) & 4) : false,
-       };
-     })()`,
-  )
 
 await seedOnboarded()
 await goto('/areas/body/')

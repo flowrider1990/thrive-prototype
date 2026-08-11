@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 160/160** (25 at the
+the two the plan singles out. **The current count is 167/167** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework); the script itself is the only authority on that number, so treat
 any count written in prose as a snapshot.
@@ -424,7 +424,8 @@ And one genuine platform finding, from the new check 9b (no response ≥ 400):
   the explanation would have buried the explanation under the thing it explains.
   §28b asserts the split from the other direction: the plain page must **not**
   contain the person's goal.
-- **Deleting takes two confirmations, and the first only explains.** §8a and §8b
+- **Deleting took two confirmations, and the first only explained.** *(Reduced to one
+  later in the sprint — see the fine-tuning pass below.)* §8a and §8b
   assert `raw()` is **byte-identical** after each — "the key still exists" would not
   notice it being rewritten — and §8c asserts backing out at the last moment leaves
   everything. `forgetEverything()` itself is untouched.
@@ -623,6 +624,51 @@ Three requests were **documented instead of implemented**, in
 - **priority marking and explicit ranking**, which is what should replace free swapping;
 - **satisfaction check-ins per life area**, which will most likely consume whatever
   status concept is settled — a reason not to decide status first.
+
+### Fine-tuning pass
+
+`pnpm verify` is **167 checks**, passing against both the export and `pnpm dev`.
+
+- **Three outcomes, not four.** "I would rather do something else" and "This does not
+  fit anymore" were two labels for one state — *this is not right for me now* — and
+  offering both asked the person to classify their own dissatisfaction before the app
+  would act on it. They barely differed in effect either. The single answer, "This does
+  not fit me anymore" / "Das passt für mich nicht mehr", sets the entry aside (still
+  kept — `retireStep` never deletes) and then offers to choose another, which is where
+  both old paths ended up. §24b1 asserts the count, so the distinction cannot creep back.
+- **An area's name on the start page opens that area.** It is a sibling of the row's
+  controls, never a wrapper: a link containing "How is it going?" would navigate on
+  every answer, and the entry's own words have to stay inert.
+- **Back on `/areas/<id>/` is no longer hard-coded.** The page has two ways in now, so
+  the origin travels in the URL as `?from=home`, with `/areas` as the fallback for a
+  deep link, a shared URL or an unrecognised value. Mechanism and reasoning in
+  `docs/design-system.md`; the short version is that a URL parameter survives a reload
+  where remembered state would go stale, and `history.back()` would leave the app when
+  this page was the first one opened.
+
+  **The first implementation of this was wrong in a way worth recording.** It read
+  `window.location.search` during render, which is not reactive — and on a client-side
+  navigation Next renders the new route *before* committing the URL, so the one render
+  that mattered saw an empty search string and nothing re-ran. The back link said "Back
+  to your life areas" on a page opened from the start page while the URL was correct the
+  whole time, which is exactly what makes a bug look like a broken test. Fixed by using
+  `useSearchParams()`, which is subscribed to the router.
+
+  That costs a `Suspense` boundary in `app/areas/[area]/page.tsx` — mandatory, because on
+  a prerendered route the hook bails the client tree out of prerendering and `next build`
+  fails without one. Note it passes in `pnpm dev` either way, since development renders
+  on demand: a defect class that only shows up in a production build. It also makes the
+  area route's content client-rendered after the navigation commits, ~340ms against ~220
+  before, which is why two checks now wait for the destination via `waitForText()` rather
+  than sleeping a fixed delay. Nothing incorrect is shown in the gap — the fallback is
+  `null`, so it is empty rather than wrong.
+- **Deleting asks once, not twice.** The flow had three asks over: the button, "this
+  removes everything, continue?", then "delete everything now, really?". The middle two
+  said the same thing, and a step that adds no information is what teaches someone to
+  click through the step that does. One confirmation now carries the consequence *and*
+  the irreversibility. What still prevents an accident is unchanged: deleting is never
+  the first tap, the consequence is in the same breath as the question, and the safe
+  choice is the emphasised one. §8a2 asserts exactly one confirming click.
 
 One approximation worth knowing: the count beside "Show what is stored" is
 `facts.length`, the number of stored facts. `/data/stored/` renders slightly fewer rows

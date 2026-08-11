@@ -187,11 +187,22 @@ export const en = {
     check: 'How is it going?',
     /** The accessible name, so the control says which thing it is about. */
     checkOn: 'How is it going with: {text}',
-    /** Answers, not commands. Nothing here counts, scores or congratulates. */
+    /**
+     * Answers, not commands. Nothing here counts, scores or congratulates.
+     *
+     * Three, not four. "I would rather do something else" and "This does not fit
+     * anymore" were two labels for one state — this is not right for me now — and
+     * offering both asked the person to classify their own dissatisfaction before the
+     * app would act on it. They barely differed in effect either: one set the entry
+     * aside and then offered another, the other kept it open and offered another.
+     *
+     * The single answer takes the honest path: the entry is set aside — out of current
+     * use, still kept, as everywhere else — and then choosing something else is
+     * offered. That covers both readings without a second semantic path.
+     */
     outcomeDone: 'I have done this',
     outcomeOngoing: 'Still on it',
-    outcomeSwap: 'I would rather do something else',
-    outcomeAside: 'This does not fit anymore',
+    outcomeAside: 'This does not fit me anymore',
     cancel: 'Cancel',
     done: 'Noted.',
     chooseNextQuestion: 'Would you like to choose what to try next?',
@@ -225,6 +236,14 @@ export const en = {
      * is what the page it lands on is called.
      */
     back: 'Back to your life areas',
+    /**
+     * The same link when the area was opened from the start page.
+     *
+     * Two labels because a back link should name where it goes; one that said "Back to
+     * your life areas" while returning to the start page would be worse than no label
+     * at all.
+     */
+    backHome: 'Back to the start page',
     pickerTitle: 'Your life areas',
     pickerNote: 'Open one to change its goal, or what you want to try.',
     noGoal: 'No goal yet',
@@ -428,7 +447,7 @@ export const en = {
       'You asked for nothing to be saved, so nothing is being written to this device at all. What you tell the app this visit stays in this tab and is gone when you close it.',
 
     /**
-     * Deleting is deliberate: two confirmations, and the first one only explains.
+     * Deleting is deliberate: one confirmation, which carries the whole consequence.
      * The copy stays factual — no warning tone, no attempt to talk anyone out of it.
      * It is their data.
      */
@@ -447,11 +466,19 @@ export const en = {
        * expected choice.
        */
       warnTitle: 'Delete all data?',
+      /**
+       * One confirmation, and it has to carry everything the two used to: what goes,
+       * that it would have to be typed again, and that it cannot be undone.
+       *
+       * There were three asks — the button, then "are you sure", then "really sure".
+       * Two of them said the same thing, and a step that adds no information teaches
+       * people to click through the step that does. What prevents an accident here is
+       * that deleting is never the first tap and the safe choice is the emphasised
+       * one, not the number of times the question is repeated.
+       */
       warnBody:
-        'This deletes everything you have saved. If you use the app again later, you would have to enter it all again.',
-      warnContinue: 'Continue',
+        'This deletes everything you have saved, and cannot be undone. If you use the app again later, you would have to enter it all again.',
       cancel: 'Keep it',
-      finalTitle: 'Delete everything now? This cannot be undone.',
       finalConfirm: 'Yes, delete everything',
       done: 'Deleted. Nothing is left.',
     },

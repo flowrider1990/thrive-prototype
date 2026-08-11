@@ -132,8 +132,7 @@ export const de: Messages = {
     checkOn: 'Wie läuft’s mit: {text}',
     outcomeDone: 'Das habe ich gemacht',
     outcomeOngoing: 'Bin noch dran',
-    outcomeSwap: 'Ich möchte lieber etwas anderes',
-    outcomeAside: 'Das passt nicht mehr',
+    outcomeAside: 'Das passt für mich nicht mehr',
     cancel: 'Abbrechen',
     done: 'Notiert.',
     chooseNextQuestion: 'Möchtest du wählen, was du als Nächstes ausprobierst?',
@@ -152,6 +151,7 @@ export const de: Messages = {
 
   manage: {
     back: 'Zurück zu deinen Lebensbereichen',
+    backHome: 'Zurück zur Startseite',
     pickerTitle: 'Deine Lebensbereiche',
     pickerNote: 'Öffne einen, um sein Ziel zu ändern — oder was du ausprobieren willst.',
     noGoal: 'Noch kein Ziel',
@@ -248,10 +248,8 @@ export const de: Messages = {
       button: 'Alles löschen',
       warnTitle: 'Alle Daten löschen?',
       warnBody:
-        'Dadurch werden alle von dir gespeicherten Daten gelöscht. Wenn du die App später wieder verwendest, musst du sie erneut eingeben.',
-      warnContinue: 'Weiter',
+        'Dadurch werden alle von dir gespeicherten Daten gelöscht, und das lässt sich nicht rückgängig machen. Wenn du die App später wieder verwendest, musst du sie erneut eingeben.',
       cancel: 'Behalten',
-      finalTitle: 'Jetzt alles löschen? Das lässt sich nicht rückgängig machen.',
       finalConfirm: 'Ja, alles löschen',
       done: 'Gelöscht. Es ist nichts mehr da.',
     },

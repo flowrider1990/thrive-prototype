@@ -18,8 +18,8 @@ import { usePerson } from '@/lib/person/store'
  */
 const KEY_ORDER = ['preferred_name', 'opening_intent', 'consent_concern']
 
-/** Nothing → explain → confirm. Deleting is never one tap away. */
-type Deleting = 'no' | 'warned' | 'confirming'
+/** Nothing → one confirmation → gone. Deleting is never one tap away. */
+type Deleting = 'no' | 'confirming'
 
 /**
  * Everything the app holds, in the person's own words, and the way to end it.
@@ -128,10 +128,9 @@ export default function StoredPage() {
             means no button — and a fragment pointing at an element that is sometimes
             absent silently does nothing.
 
-            It scrolls to the control; it does not arm it. Arriving via a link must
-            not put anyone one tap from deleting everything, which is the whole
-            reason this flow has two confirmations. §33c asserts the confirmation is
-            still closed on arrival. */}
+            It scrolls to the control; it does not arm it. Arriving via a link must not
+            put anyone one tap from deleting everything, which is why the confirmation
+            is still closed on arrival — §33c asserts exactly that. */}
         <section id="delete" className="space-y-4 border-t border-line pt-6">
           {/* Mounted from the start and never removed. A `role="status"` inserted
               together with its text announces nothing — the region has to exist for
@@ -169,7 +168,7 @@ export default function StoredPage() {
                     ref={trigger}
                     type="button"
                     className="btn btn-quiet"
-                    onClick={() => setDeleting('warned')}
+                    onClick={() => setDeleting('confirming')}
                   >
                     {m.data.delete.button}
                   </button>
@@ -179,68 +178,45 @@ export default function StoredPage() {
           )}
 
           {/**
-           * Two confirmations, and the first one only explains: what goes, and that
-           * it would have to be typed again. In-page steps rather than a browser
-           * `confirm()`, so the sentences saying what happens are part of the page.
+           * **One** confirmation, which is a reduction from two.
            *
-           * Nothing is written or removed until the second. Verification §8a asserts
-           * that the stored data is still there — byte-identical — after the first,
-           * because "the key still exists" would not notice it being rewritten.
+           * The flow used to ask three times over: the button, then "this removes
+           * everything, continue?", then "delete everything now, really?". The middle
+           * two said the same thing, and a step that adds no information is what
+           * teaches someone to click through the step that does.
+           *
+           * What prevents an accident is not repetition. It is that deleting is never
+           * the first tap, that the consequence is spelled out in the same breath as
+           * the question, and that the safe choice carries the emphasis. All three are
+           * still here.
+           *
+           * In-page rather than a browser `confirm()`, so the sentences saying what
+           * happens are part of the page. Nothing is written or removed until the
+           * confirm — §8a asserts the stored data is still byte-identical while this is
+           * on screen, because "the key still exists" would not notice a rewrite.
            */}
           {deleting !== 'no' && (
             <div ref={panel} className="space-y-4">
-              {deleting === 'warned' ? (
-                <>
-                  <p className="max-w-prose leading-relaxed text-ink">
-                    {m.data.delete.warnTitle}
-                  </p>
-                  <p className="max-w-prose text-sm leading-relaxed text-muted">
-                    {m.data.delete.warnBody}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-                    <button
-                      type="button"
-                      className="btn btn-quiet"
-                      onClick={() => setDeleting('confirming')}
-                    >
-                      {m.data.delete.warnContinue}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => setDeleting('no')}
-                    >
-                      {m.data.delete.cancel}
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="max-w-prose leading-relaxed text-ink">
-                    {m.data.delete.finalTitle}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-                    <button
-                      type="button"
-                      className="btn btn-quiet"
-                      onClick={() => {
-                        forgetEverything()
-                        setDeleting('no')
-                        setDeleted(true)
-                      }}
-                    >
-                      {m.data.delete.finalConfirm}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => setDeleting('no')}
-                    >
-                      {m.data.delete.cancel}
-                    </button>
-                  </div>
-                </>
-              )}
+              <p className="max-w-prose leading-relaxed text-ink">{m.data.delete.warnTitle}</p>
+              <p className="max-w-prose text-sm leading-relaxed text-muted">
+                {m.data.delete.warnBody}
+              </p>
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+                <button
+                  type="button"
+                  className="btn btn-quiet"
+                  onClick={() => {
+                    forgetEverything()
+                    setDeleting('no')
+                    setDeleted(true)
+                  }}
+                >
+                  {m.data.delete.finalConfirm}
+                </button>
+                <button type="button" className="btn btn-primary" onClick={() => setDeleting('no')}>
+                  {m.data.delete.cancel}
+                </button>
+              </div>
             </div>
           )}
         </section>

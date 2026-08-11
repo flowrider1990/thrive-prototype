@@ -144,6 +144,18 @@ one without shifting the layout, whereas every `.option` state has a border
 already and only its colour changes. `components/option-list.tsx` renders these as
 a real `<ul>`, so a screen reader says how many there are to choose between.
 
+`AreaLabel` takes an optional `href` at `row` size, which turns the icon-and-name line
+into a link — used on the start page, where an area's name opens that area. It belongs
+in the component rather than being wrapped at the call site because that line was
+duplicated at four call sites once, which is exactly what let it drift. The name takes
+`.link-inline` and the icon does not: an underlined emoji reads as a mistake, and the
+underline is what keeps "this is a link" off colour alone.
+
+**The link is a sibling of the row's controls, never a wrapper around them.** A link
+containing "How is it going?" would navigate on every answer, and the entry's own words
+have to stay inert — §24a2 asserts that clicking them changes nothing, and §37a asserts
+the link wraps neither.
+
 `OptionList` takes a `current` flag per option, which renders as `aria-current` — the
 same hook `.nav-link` uses, so the visible mark and the accessibility tree have one
 source of truth. A caller that marks an option visually **must** set it: the tick is
@@ -298,10 +310,53 @@ because a sweep that silently stopped looking would still have printed PASS.
 `components/back-link.tsx` is the one way back, shared by `/data/stored/` and
 `/areas/<id>/`.
 
-It navigates to an **explicit parent route**, never `history.back()`. Those answer
-different questions: arriving at an area from a link on the start page and pressing
-back should still offer the life areas, because that is what the page is part of. The
-browser's own back button already does the other thing, and better.
+It navigates to an **explicit route, never `history.back()`.** Browser back answers a
+different question — "undo my last navigation" — and when the page was the first one
+opened it leaves the app entirely. The browser's own back button already does that job,
+and better.
+
+### Where back goes when a page has two ways in
+
+`/areas/<id>/` can be opened from the life-areas list *or* from an area's name on the
+start page, so a single hard-coded parent would be wrong for one of them.
+
+The origin travels in the URL: the start page links to `/areas/<id>?from=home`, and
+`components/area-screen.tsx` reads it to choose both the back target and where "Done"
+lands. Three properties make that the right mechanism here rather than remembered
+state:
+
+- **it survives a reload**, and cannot go stale the way a module-level "last route"
+  would;
+- **it is read with `useSearchParams()`, not from `window.location`.** Reading `window`
+  during render was the first attempt and it was quietly wrong: it is not reactive, and
+  on a client-side navigation Next renders the new route *before* committing the URL, so
+  the one render that mattered saw an empty search string and nothing re-ran. The link
+  said "Back to your life areas" on a page opened from the start page while the URL was
+  correct the whole time — which is what made it look like a broken test rather than a
+  bug. `useSearchParams` is subscribed to the router, so it re-renders when the URL
+  commits;
+- **anything unrecognised or absent falls back to `/areas`**, the parent route, which is
+  always a correct place to be. A deep link, a shared URL or a hand-typed address gets
+  that instead of a dead end.
+
+That hook costs a **`Suspense` boundary** in `app/areas/[area]/page.tsx`, which is not
+optional: on a prerendered route `useSearchParams` bails the client tree up to the
+nearest boundary out of prerendering, and without one `next build` fails. It passes in
+`pnpm dev` regardless, because development renders on demand — so this is a defect class
+that only appears in a production build, and a reason to keep building before believing a
+route works.
+
+It also costs latency worth knowing about: the area route's content is client-rendered
+after the navigation commits, measured at ~340ms in headless Chrome against ~220ms
+before. Nothing incorrect is shown in between — the boundary's fallback is `null`, so it
+is empty rather than wrong — but it is why `scripts/verify.mjs` waits for the destination
+with `waitForText()` at those two call sites instead of sleeping a fixed number of
+milliseconds.
+
+The label changes with the target (`manage.back` / `manage.backHome`), because a back
+link should name where it goes — one saying "Back to your life areas" while returning to
+the start page would be worse than no label at all. §37c–§37f cover the home origin,
+following it, a deep link with no origin, and a bogus origin.
 
 It sits **above** the page's own heading. A nested page can be as long as the
 person's history, and a way back that has to be scrolled to is not a way back for

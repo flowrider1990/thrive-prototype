@@ -575,7 +575,7 @@ Keep the root `CLAUDE.md` focused on durable project-wide instructions and high-
 
 Use:
 - `AGENTS.md` — framework/tool-generated repository guidance; preserve its managed block and read it when present,
-- `docs/plan.md` — original implementation plan, kept verbatim,
+- `docs/plan.md` — documents the original foundation plan and is intentionally kept unchanged; use `docs/progress.md` and the repository itself for the current product state,
 - `docs/progress.md` — current implementation/deployment status and learnings,
 - `docs/persistence-decision.md` — conditions for a future persistence/backend change,
 - `docs/copy-and-language.md` — i18n/copy rules,

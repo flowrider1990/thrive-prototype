@@ -1,7 +1,13 @@
 # Progress against `docs/plan.md`
 
-The plan is the spec; this file records what was actually built, where reality
-differed from the plan, and what is left.
+This file records what was actually built, where reality differed from the plan,
+and what is left.
+
+**`docs/plan.md` is historical.** It is the original foundation plan, kept
+unchanged on purpose, and it has been superseded as a description of current
+product behaviour — it still describes a name question and a single open question,
+both since removed. For what the app does today, read this file and the repository
+itself.
 
 Last worked: 2026-08-11.
 

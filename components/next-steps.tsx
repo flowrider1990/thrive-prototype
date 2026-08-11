@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { AreaLabel } from '@/components/area-label'
 import { Choice } from '@/components/choice'
@@ -55,24 +56,24 @@ export function NextSteps() {
   // "that is a fine place to be" claiming everything is settled when it is not. An
   // area paused *on purpose* has entries behind it and is excluded: that is a real
   // answer, and pointing at it would be nagging.
-  const unfinished = states.some((state) => state.goal && state.steps.length === 0)
+  //
+  // The first one rather than all of them, and that is the calm choice: naming five
+  // areas at once would be a list of things you have not done. Once this one is
+  // finished the next takes its place, so nothing is hidden.
+  const unfinished = states.find((state) => state.goal && state.steps.length === 0)
 
   if (rows.length === 0) {
     return (
       <div className="space-y-3">
         <p className="max-w-prose leading-relaxed text-muted">{m.home.empty}</p>
-        {unfinished && (
-          <p className="max-w-prose text-sm leading-relaxed text-muted">{m.home.unfinished}</p>
-        )}
+        <UnfinishedNote area={unfinished?.area} />
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      {unfinished && (
-        <p className="max-w-prose text-sm leading-relaxed text-muted">{m.home.unfinished}</p>
-      )}
+      <UnfinishedNote area={unfinished?.area} />
       {/**
        * The live region is here, mounted once and never unmounted, rather than
        * inside the row that has something to say.
@@ -95,6 +96,43 @@ export function NextSteps() {
         ))}
       </ul>
     </div>
+  )
+}
+
+/**
+ * The one line on this page that points somewhere else: an area whose setup was
+ * interrupted, named and linked so that finishing it is one tap rather than a hunt
+ * through the areas list.
+ *
+ * The link is the area's own name. That makes it good link text out of context —
+ * "Body & Health" says where it goes, where a link on the words "life area" would
+ * not — and it is the same name the destination is titled with.
+ *
+ * It navigates and does nothing else. A `Link`, not a button: nothing here changes
+ * any stored state, and this page has already been through one round of a control
+ * that looked like navigation and quietly acted instead.
+ */
+function UnfinishedNote({ area }: { area: AreaId | undefined }) {
+  const { m } = useI18n()
+  if (!area) return null
+
+  // The catalog owns the sentence and the placeholder marks where the area name
+  // goes. A translation that loses `{area}` degrades to plain prose rather than
+  // throwing or printing the placeholder — the same rule `t()` follows.
+  const [before, after] = m.home.unfinished.split('{area}')
+
+  return (
+    <p className="max-w-prose text-sm leading-relaxed text-muted">
+      {before}
+      {after !== undefined && (
+        <>
+          <Link href={`/areas/${area}`} className="link-inline">
+            {m.areas[area]}
+          </Link>
+          {after}
+        </>
+      )}
+    </p>
   )
 }
 

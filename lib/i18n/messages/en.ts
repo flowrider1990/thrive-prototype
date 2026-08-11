@@ -164,8 +164,17 @@ export const en = {
      * setup that was interrupted rather than a pause someone chose. Deliberately
      * not shown after "Later": leaving an area quiet is a real answer, and
      * pointing at it would be nagging.
+     *
+     * `{area}` is rendered as a link to that area, so the sentence names the place
+     * it is talking about instead of saying "one of your life areas" and leaving
+     * the reader to go looking. The placeholder has to survive translation:
+     * `components/next-steps.tsx` falls back to plain text without it, so a
+     * catalog that drops it loses the link rather than breaking the screen.
+     *
+     * Second half matches `manage.noStep` word for word. The two describe the same
+     * gap from different pages, and saying it differently would imply a difference.
      */
-    unfinished: 'One of your life areas has a goal but nothing to try yet.',
+    unfinished: '{area} has a goal, but you have not decided yet what could help.',
     /**
      * The control that opens the outcomes, and the question *is* the control.
      *

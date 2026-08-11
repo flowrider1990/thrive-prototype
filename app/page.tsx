@@ -1,8 +1,10 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import { AreaFlow } from '@/components/area-flow'
 import { Choice } from '@/components/choice'
+import { Lock } from '@/components/icons'
 import { NextSteps } from '@/components/next-steps'
 import { PageShell } from '@/components/page-shell'
 import { ProgressMarks, type MarkState } from '@/components/progress-marks'
@@ -235,9 +237,21 @@ export default function Home() {
           {/* The note stays; the buttons that used to sit with it are gone. A
               competing call to action was the problem, and one quiet line saying
               where what you typed lives is not one — least of all in memory mode,
-              where it is the only thing telling the person nothing is being kept. */}
-          <p className="border-t border-line pt-6 text-sm text-muted">
-            {mode === 'local' ? m.home.savedNote : m.home.memoryNote}
+              where it is the only thing telling the person nothing is being kept.
+
+              The lock is decorative and the sentence carries the meaning: this line
+              is the easiest thing on the page to skim past, and a mark in the margin
+              is what stops it being furniture. The link replaces explaining any of
+              it here — one sentence, and the page that explains properly is a tap
+              away. */}
+          <p className="flex items-start gap-x-2 border-t border-line pt-6 text-sm leading-relaxed text-muted">
+            <Lock className="mt-[0.3em]" />
+            <span>
+              {mode === 'local' ? m.home.savedNote : m.home.memoryNote}{' '}
+              <Link href="/data" className="link-inline">
+                {m.nav.data}
+              </Link>
+            </span>
           </p>
         </section>
       )}

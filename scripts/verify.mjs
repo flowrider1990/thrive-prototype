@@ -183,6 +183,20 @@ const HELPERS = `
   };
   window.__visible = (text) => [...document.querySelectorAll('button, a')]
     .some((e) => e.textContent.trim() === text && e.offsetParent !== null);
+  /*
+   * The same question, asked inside one region.
+   *
+   * __visible searches the whole document, which is right for "can the person act
+   * on this anywhere" and wrong for any claim about a *particular* region. Check 12a
+   * needs the second kind: it asserts the nav labels are not laid out in the header
+   * bar at phone width, and a link elsewhere on the page carrying the same words —
+   * the storage note on home links to "Data protection" — would otherwise read as
+   * the header having failed to collapse.
+   *
+   * (No backticks in here: this whole block is a template literal.)
+   */
+  window.__visibleIn = (selector, text) => [...document.querySelectorAll(selector + ' a, ' + selector + ' button')]
+    .some((e) => e.textContent.trim() === text && e.offsetParent !== null);
   /**
    * Header children all on one line: the wrap this change exists to prevent.
    * Only laid-out children count — a display:none child (the inline nav on a
@@ -482,6 +496,10 @@ const navLinks = async () => {
 const shown = async (selector) => {
   await evaluate(HELPERS)
   return evaluate(`__shown(${JSON.stringify(selector)})`)
+}
+const visibleIn = async (selector, text) => {
+  await evaluate(HELPERS)
+  return evaluate(`__visibleIn(${JSON.stringify(selector)}, ${JSON.stringify(text)})`)
 }
 /**
  * Presses Tab for real, until the wanted element has focus. Real key events
@@ -1318,8 +1336,37 @@ check(
 )
 check(
   '25b. and home says so, rather than reporting that everything is settled',
-  screen.includes('has a goal but nothing to try yet'),
+  screen.includes('has a goal, but you have not decided yet'),
 )
+
+// The sentence names the area and links to it. Both halves matter: a link whose text
+// is "life area" would be useless out of context, and a link that navigates nowhere
+// useful is worse than the prose it replaced.
+const unfinishedLink = await evaluate(
+  `(() => {
+     const link = [...document.querySelectorAll('main a[href]')]
+       .find((a) => a.textContent.trim() === 'Hobbies & Creativity');
+     return link ? { text: link.textContent.trim(), href: new URL(link.href).pathname } : null;
+   })()`,
+)
+check(
+  '25b2. the unfinished area is named as a real link to that area',
+  unfinishedLink?.href === '/areas/creativity/',
+  unfinishedLink ? `${unfinishedLink.text} → ${unfinishedLink.href}` : 'no link on the area name',
+)
+
+// The trap this page has already fallen into once: something that looks like
+// navigation but writes. Following it must leave the store byte-identical.
+const beforeUnfinished = await raw()
+await clickText('Hobbies & Creativity')
+await sleep(400)
+check(
+  '25b3. and following it navigates without changing anything',
+  (await text()).includes('Draw something every week') && (await raw()) === beforeUnfinished,
+  (await raw()) === beforeUnfinished ? 'store untouched' : 'STORE CHANGED',
+)
+await goto('/')
+screen = await text()
 
 await clickNav(EN.navAreas)
 screen = await text()
@@ -1351,7 +1398,7 @@ await clickNav(EN.navHome)
 screen = await text()
 check(
   '25e2. and home stops reporting it as unfinished setup',
-  screen.includes('Sketch on Sunday morning') && !screen.includes('has a goal but nothing to try'),
+  screen.includes('Sketch on Sunday morning') && !screen.includes('has a goal, but you have not'),
   screen.replace(/\n/g, ' / ').slice(0, 120),
 )
 
@@ -1368,7 +1415,7 @@ check(
 )
 check(
   '25g. and "Later" is not reported as unfinished setup — it is a real answer',
-  !screen.includes('has a goal but nothing to try'),
+  !screen.includes('has a goal, but you have not'),
 )
 
 // --- 31. the progress marks are painted distinguishably, in both themes -----
@@ -1557,6 +1604,55 @@ check(
 await goto('/areas/body/')
 check('27e. and survives a reload of that URL', (await text()).includes('Sleep better'))
 
+// --- 32. the storage note on home: current-mode wording, cue, and a way on ---
+//
+// The wording is what this section is really about. "currently kept on this device
+// only" scopes the sentence to the storage mode in force today, so it stays true
+// rather than turning into a broken promise if anything ever syncs. A flat "is on
+// this device only" is the version that would have to be retracted, and the app
+// makes this claim on its busiest screen.
+//
+// Seeded rather than replayed, so it is independent of whatever screen the previous
+// section finished on.
+
+await seedOnboarded()
+screen = await text()
+check(
+  '32a. the storage note scopes itself to how things are stored now',
+  screen.includes('currently kept on this device only'),
+  screen.replace(/\n/g, ' / ').slice(-120),
+)
+
+// The lock is decoration and has to stay that way. If it ever became the thing
+// carrying the claim this fails — §17 forbids encoding meaning by colour or icon
+// alone, and a privacy assurance is the last place to say something silently.
+const storageNote = await evaluate(
+  `(() => {
+     const p = [...document.querySelectorAll('main p')]
+       .find((e) => e.innerText.includes('currently kept on this device only'));
+     if (!p) return null;
+     const svg = p.querySelector('svg');
+     const link = p.querySelector('a[href]');
+     return {
+       icon: Boolean(svg),
+       iconHidden: svg?.getAttribute('aria-hidden') === 'true',
+       iconNamed: Boolean(svg?.getAttribute('aria-label') || svg?.querySelector('title')),
+       href: link ? new URL(link.href).pathname : null,
+       linkText: link?.textContent.trim() ?? null,
+     };
+   })()`,
+)
+check(
+  '32b. it carries a privacy icon, and the icon is decorative rather than the claim',
+  storageNote?.icon === true && storageNote.iconHidden === true && storageNote.iconNamed === false,
+  JSON.stringify(storageNote),
+)
+check(
+  '32c. and it links onward to the page that explains, instead of explaining inline',
+  storageNote?.href === '/data/',
+  `${storageNote?.linkText} → ${storageNote?.href}`,
+)
+
 // --- 28. data protection is two levels, and readable at the first ----------
 //
 // The plain-language page has to stay short. The stored-data view grows without
@@ -1635,12 +1731,17 @@ check(
 // thing to `__visible`, and the collapse is only being tested if the links are
 // actually there to collapse. Without the count this passes just as happily when the
 // header has been broken and renders no nav at all.
+//
+// Scoped to the header, which is the region the claim is about. Document-wide it also
+// answered for the rest of the page, so the storage note on home linking to "Data
+// protection" read as the header failing to collapse — a false failure about a link
+// that is nowhere near the bar.
 check(
   '12a. the nav links exist but are not in the bar at 390px',
-  !(await visible(EN.navData)) &&
-    !(await visible(EN.navAreas)) &&
+  !(await visibleIn('header', EN.navData)) &&
+    !(await visibleIn('header', EN.navAreas)) &&
     (await count('header nav a')) === 3,
-  `${await count('header nav a')} link(s) in the DOM, none of them laid out`,
+  `${await count('header nav a')} link(s) in the DOM, none of them laid out in the header`,
 )
 await chooseIn('Menu', EN.navData)
 await sleep(500)

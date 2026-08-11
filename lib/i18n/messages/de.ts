@@ -126,7 +126,8 @@ export const de: Messages = {
   home: {
     title: 'Woran du gerade dran bist',
     empty: 'Gerade ist nichts aktiv. Auch das ist ein guter Ort.',
-    unfinished: 'In einem deiner Lebensbereiche steht ein Ziel, aber noch nichts zum Ausprobieren.',
+    unfinished:
+      'In {area} steht ein Ziel, aber du hast noch nicht festgelegt, was dir dabei helfen könnte.',
     check: 'Wie läuft’s?',
     checkOn: 'Wie läuft’s mit: {text}',
     outcomeDone: 'Das habe ich gemacht',

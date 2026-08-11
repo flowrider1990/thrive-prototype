@@ -11,7 +11,7 @@ import type { Messages } from './en'
 export const de: Messages = {
   app: {
     description:
-      'Ein Prototyp einer App, die dabei unterstützen soll, gut zu leben. Läuft vollständig in deinem Browser.',
+      'Ein Prototyp einer App, die dabei unterstützen soll, gut zu leben. Läuft vorerst vollständig in deinem Browser.',
   },
 
   nav: {
@@ -141,7 +141,7 @@ export const de: Messages = {
     newStepQuestion: 'Was könnte dir helfen, diesem Ziel näherzukommen?',
     newStepPlaceholder: 'Etwas Kleines und Konkretes',
     newStepSubmit: 'Speichern',
-    savedNote: 'Was du mir erzählt hast, liegt nur auf diesem Gerät.',
+    savedNote: 'Was du mir erzählt hast, liegt aktuell nur auf diesem Gerät.',
     memoryNote: 'Es wird nichts gespeichert. Was du mir erzählt hast, bleibt in diesem Tab.',
     ack: 'Danke. Das war alles, was ich fragen wollte.',
     greeting: 'Hallo {name}.',
@@ -154,7 +154,7 @@ export const de: Messages = {
     pickerNote: 'Öffne einen, um sein Ziel zu ändern — oder was du ausprobieren willst.',
     noGoal: 'Noch kein Ziel',
     notNow: 'Gerade nicht',
-    noStep: 'Noch nichts zum Ausprobieren',
+    noStep: 'Du hast noch nicht festgelegt, was dir dabei helfen könnte.',
 
     reconsiderQuestion: 'Möchtest du hier jetzt etwas verändern oder ausprobieren?',
     reconsiderYes: 'Ja',
@@ -182,7 +182,7 @@ export const de: Messages = {
     title: 'Was gespeichert ist',
     back: 'Zurück zum Datenschutz',
     introSaved:
-      'In deinen eigenen Worten, genau so, wie du sie gesagt hast. Das hat diesen Browser nie verlassen: es gibt keinen Server, kein Konto, und nichts wird irgendwohin geschickt.',
+      'In deinen eigenen Worten, genau so, wie du sie gesagt hast. Nichts davon hat diesen Browser jemals verlassen: es gibt aktuell keinen Server und kein Konto, und nichts wird irgendwohin geschickt.',
     introMemory:
       'Du wolltest nicht, dass etwas gespeichert wird — deshalb lebt diese Liste nur in diesem Tab und ist weg, sobald du ihn schließt. Auf dein Gerät wurde nichts geschrieben.',
     introUnknown: 'Wir haben noch nicht gesprochen, deshalb ist hier nichts.',
@@ -211,8 +211,8 @@ export const de: Messages = {
 
   data: {
     title: 'Datenschutz',
-    p1: 'Was du hier schreibst, wird nur in diesem Browser auf diesem Gerät gespeichert.',
-    p2: 'Es wird nicht an uns gesendet. Es gibt kein Konto und keine Cloud, und niemand sonst kann es sehen.',
+    p1: 'Was du hier schreibst, wird aktuell nur in diesem Browser auf diesem Gerät gespeichert.',
+    p2: 'Es wird nicht an uns gesendet. Es gibt aktuell kein Konto und keine Cloud, und niemand sonst kann es sehen.',
     p3: 'Wenn du deine Browserdaten löschst, wird es mit allem anderen zusammen gelöscht.',
     p4: 'Ein anderer Browser oder ein anderes Gerät hat es nicht.',
     show: 'Zeigen, was gespeichert ist',
@@ -221,9 +221,9 @@ export const de: Messages = {
 
     delete: {
       button: 'Alles löschen',
-      warnTitle: 'Damit wird alles gelöscht, was du eingegeben hast.',
+      warnTitle: 'Alle Daten löschen?',
       warnBody:
-        'Deine Ziele, was du ausprobieren wolltest, und alles auf dieser Seite. Wenn du es dir später anders überlegst, müsstest du alles neu eingeben.',
+        'Dadurch werden alle von dir gespeicherten Daten gelöscht. Wenn du die App später wieder verwendest, musst du sie erneut eingeben.',
       warnContinue: 'Weiter',
       cancel: 'Behalten',
       finalTitle: 'Jetzt alles löschen? Das lässt sich nicht rückgängig machen.',

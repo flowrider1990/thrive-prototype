@@ -581,7 +581,7 @@ const EN = {
   dataShow: 'Show what is stored',
   storedTitle: 'What is stored',
   del: 'Delete everything',
-  delWarn: 'This removes everything you have entered.',
+  delWarn: 'Delete all data?',
   delContinue: 'Continue',
   delKeep: 'Keep it',
   delFinal: 'Delete everything now? This cannot be undone.',
@@ -1325,7 +1325,7 @@ await clickNav(EN.navAreas)
 screen = await text()
 check(
   '25c. the unfinished area is reachable and says what is missing',
-  screen.includes('Hobbies & Creativity') && screen.includes('Nothing to try yet'),
+  screen.includes('Hobbies & Creativity') && screen.includes('not decided yet what could help'),
 )
 await clickOption('Hobbies & Creativity')
 screen = await text()

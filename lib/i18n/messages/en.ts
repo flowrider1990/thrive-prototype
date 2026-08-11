@@ -11,7 +11,11 @@ export const en = {
   // No `name` here on purpose: the product name lives in `lib/app.ts`, so a
   // rename is one edit. Copy that needs it interpolates `{app}`.
   app: {
-    description: 'A prototype of an app to support living and thriving. Runs entirely in your browser.',
+    // "For now" rather than a flat claim: this describes the current storage mode,
+    // and the sentence should not have to be retracted if syncing ever exists. It
+    // says nothing about what would replace it — see the note above `data`.
+    description:
+      'A prototype of an app to support living and thriving. For now it runs entirely in your browser.',
   },
 
   nav: {
@@ -187,7 +191,16 @@ export const en = {
     newStepQuestion: 'What could help you move toward this goal?',
     newStepPlaceholder: 'Something small and concrete',
     newStepSubmit: 'Save',
-    savedNote: 'What you told me is on this device only.',
+    /**
+     * "Currently" is load-bearing. The sentence describes the storage mode in
+     * force right now, not a permanent property of the product, so it stays true
+     * rather than becoming a broken promise if syncing is ever added. It does not
+     * hint that syncing is coming either — that would be its own claim.
+     *
+     * The detail lives behind the link rather than in this line: one calm sentence
+     * on the start page, and the page that explains properly is one tap away.
+     */
+    savedNote: 'What you told me is currently kept on this device only.',
     memoryNote: 'Nothing is being saved. What you told me stays in this tab.',
     // Parked with the name question — see the note above `name`.
     ack: 'Thank you. That is everything I wanted to ask.',
@@ -201,7 +214,17 @@ export const en = {
     pickerNote: 'Open one to change its goal, or what you want to try.',
     noGoal: 'No goal yet',
     notNow: 'Not right now',
-    noStep: 'Nothing to try yet',
+    /**
+     * Says what is missing *in relation to the goal*, which "Nothing to try yet"
+     * did not — that read as a bare absence and left it unclear whether anything
+     * was expected of you.
+     *
+     * Still no noun for the thing itself, for the reason spelled out above
+     * `goals.stepsQuestion`: naming it task, habit or action would be wrong for
+     * half of what belongs here. "What could help" is the same phrasing the
+     * question uses, so the empty state and the question agree.
+     */
+    noStep: 'You have not decided yet what could help.',
 
     reconsiderQuestion: 'Would you like to change or explore something here now?',
     reconsiderYes: 'Yes',
@@ -236,7 +259,7 @@ export const en = {
     title: 'What is stored',
     back: 'Back to data protection',
     introSaved:
-      'In your own words, exactly as you gave them. This has never left this browser: there is no server, no account, and nothing is sent anywhere.',
+      'In your own words, exactly as you gave them. None of it has ever left this browser: there is currently no server and no account, and nothing is sent anywhere.',
     introMemory:
       'You asked for nothing to be saved, so this list lives in this tab only and is gone when you close it. Nothing was written to your device.',
     introUnknown: 'We have not talked yet, so there is nothing here.',
@@ -272,9 +295,17 @@ export const en = {
    */
   data: {
     title: 'Data protection',
-    /** Plain language, present tense, no hedging. Each sentence is one fact. */
-    p1: 'What you write here is stored only in this browser, on this device.',
-    p2: 'It is not sent to us. There is no account and no cloud, and nobody else can see it.',
+    /**
+     * Plain language, present tense, one fact per sentence.
+     *
+     * "Currently" appears twice and is not hedging: both sentences describe the
+     * storage mode in force today. Written as timeless facts they would silently
+     * become false the day anything syncs, and a privacy page that has to be
+     * retracted is worse than one that was accurate about its own scope. Nothing
+     * here promises or implies that a cloud is coming.
+     */
+    p1: 'What you write here is currently stored only in this browser, on this device.',
+    p2: 'It is not sent to us. There is currently no account and no cloud, and nobody else can see it.',
     p3: 'If you clear your browser data, it is deleted along with everything else.',
     p4: 'Another browser, or another device, will not have it.',
     /** The one thing this page is for, besides being true. */
@@ -289,9 +320,21 @@ export const en = {
      */
     delete: {
       button: 'Delete everything',
-      warnTitle: 'This removes everything you have entered.',
+      /**
+       * A question, then one sentence of consequence.
+       *
+       * It used to open with a statement ("This removes everything you have
+       * entered.") followed by an inventory, which read as a warning being
+       * delivered rather than a decision being offered. Asking is the honest
+       * shape: the first step exists so the answer can be no.
+       *
+       * Nothing here is regretful or persuasive in either direction. It is their
+       * data, and "if you change your mind later" quietly framed leaving as the
+       * expected choice.
+       */
+      warnTitle: 'Delete all data?',
       warnBody:
-        'Your goals, what you wanted to try, and everything on this page. If you change your mind later, you would have to enter it all again.',
+        'This deletes everything you have saved. If you use the app again later, you would have to enter it all again.',
       warnContinue: 'Continue',
       cancel: 'Keep it',
       finalTitle: 'Delete everything now? This cannot be undone.',

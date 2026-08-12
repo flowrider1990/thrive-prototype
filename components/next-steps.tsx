@@ -60,7 +60,9 @@ export function NextSteps() {
   // The first one rather than all of them, and that is the calm choice: naming every
   // areas at once would be a list of things you have not done. Once this one is
   // finished the next takes its place, so nothing is hidden.
-  const unfinished = states.find((state) => state.goal && state.steps.length === 0)
+  const unfinished = states.find(
+    (state) => state.activeGoals.length > 0 && state.steps.length === 0,
+  )
 
   if (rows.length === 0) {
     return (
@@ -288,7 +290,11 @@ function Row({
           submitLabel={m.home.newStepSubmit}
           skipLabel={m.home.cancel}
           onSubmit={(value) => {
-            chooseStep(state.area, addStep(state.area, value))
+            // Linked to the goal this row is about. Without it the entry belongs to
+            // nothing, and an entry belonging to nothing is one the area's own page
+            // has no goal to list it under — invisible, while still being stored.
+            const goalId = (state.priority ?? state.activeGoals[0])?.id
+            chooseStep(state.area, addStep(state.area, value, goalId))
             onBusy(null)
           }}
           onSkip={close}
@@ -299,9 +305,14 @@ function Row({
 
   if (!active) return null
 
+  const serves = state.goals.find((goal) => goal.id === active.goalId)
+
   return (
     <div className="space-y-3">
-      {state.goal && <p className="text-sm leading-relaxed text-muted">{state.goal}</p>}
+      {/* The goal *this* entry serves, which is only knowable now that entries
+          belong to a goal. It used to be the area's only goal, which happened to be
+          the same thing while there could only be one. */}
+      {serves && <p className="text-sm leading-relaxed text-muted">{serves.text}</p>}
       {/* Plain text. Not a button, not an option, nothing that acts when touched. */}
       <p className="max-w-prose leading-relaxed text-ink">{active.text}</p>
       <button

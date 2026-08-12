@@ -690,12 +690,18 @@ const EN = {
   navHome: 'Start',
   navAreas: 'Life areas',
   picker: 'Your life areas',
-  changeGoal: 'Change goal',
   addStep: 'Add something to try',
   manageDone: 'Done',
-  goalChanged: 'Your goal changed. Is this still useful?',
-  keep: 'Keep',
-  removeStep: 'Remove from current steps',
+  goalAdd: 'Add a goal',
+  goalNewQuestion: 'What else do you want here?',
+  goalChange: 'Change this goal',
+  goalReword: 'Change the wording',
+  goalTop: 'Move this to the top',
+  goalReached: 'I have reached this',
+  goalDrop: 'Remove from your current goals',
+  goalCloseNote: 'What you were trying for it is set aside with it. Nothing is deleted.',
+  goalsLabel: 'What you want',
+  editSubmit: 'Save',
   contYes: 'Yes, let us go on',
   navData: 'Data protection',
   dataShow: 'Show what is stored',
@@ -1025,13 +1031,18 @@ check(
   stored.version === 1 &&
     typeof stored.consentAt === 'string' &&
     factsFor(stored, '.review').length === AREAS.length &&
+    // Under a goal id now. `.text` alone stopped meaning "an entry" the moment goals
+    // grew their own text key, which is why these two are matched by shape.
     stored.facts.some(
-      (f) => f.key === `area.${AREAS[0].id}.goal` && f.value === 'Sleep better',
+      (f) =>
+        new RegExp(`^area\.${AREAS[0].id}\.goal\.[^.]+\.text$`).test(f.key) &&
+        f.value === 'Sleep better',
     ) &&
     stored.facts.some(
       (f) => f.key === `area.${AREAS[3].id}.review` && f.value === 'not_now',
     ) &&
-    factsFor(stored, '.text').length === 3 &&
+    stored.facts.filter((f) => /\.step\.[^.]+\.text$/.test(f.key)).length === 3 &&
+    stored.facts.filter((f) => /\.goal\.[^.]+\.text$/.test(f.key)).length === 2 &&
     factsFor(stored, '.step_active').length === 2,
   `${stored.facts.length} facts`,
 )
@@ -1051,11 +1062,19 @@ check(
 // one place an id is a *value* is the pointer at the active step; check 7f is
 // what guarantees no id ever reaches the screen.
 check(
-  '4k. step ids live in keys; the only fact whose value is an id is the pointer',
-  stored.facts.some((f) => /^area\.body\.step\.[^.]+\.text$/.test(f.key)) &&
+  '4k. ids live in keys; every fact whose value is an id is a named reference',
+  stored.facts.some((f) => new RegExp(`^area\.${AREAS[0].id}\.step\.[^.]+\.text$`).test(f.key)) &&
     stored.facts
       .filter((f) => UUID.test(f.value))
-      .every((f) => f.key.endsWith('.step_active')),
+      // Exactly three keys may hold one: what is being worked on, which goal comes
+      // first, and which goal an entry serves. Anything else with a UUID in its
+      // value is an id that escaped into a place meant for someone's own words.
+      .every(
+        (f) =>
+          f.key.endsWith('.step_active') ||
+          f.key.endsWith('.goal_priority') ||
+          /\.step\.[^.]+\.goal$/.test(f.key),
+      ),
   stored.facts
     .filter((f) => UUID.test(f.value))
     .map((f) => f.key)
@@ -1272,40 +1291,90 @@ check(
   (await text()).replace(/\n/g, ' / ').slice(0, 140),
 )
 
-// --- 7. changing a goal: append-only, and open steps are reviewed ----------
+// --- 7. more than one goal, and what closing one takes with it -------------
+//
+// This section used to walk every open entry one screen at a time whenever a goal
+// changed, because entries belonged to the *area* and a new goal might orphan them.
+// Entries now belong to a goal, so rewording one carries them along and there is
+// nothing to ask about. What still needs asking about is **closing** a goal — that is
+// the case where something really does leave the list — and the answer is one
+// sentence stated before it happens rather than a walk afterwards.
 
-await click(EN.changeGoal)
+await click(EN.goalAdd)
 await type('Get hired somewhere I like')
 await click(EN.cont)
 screen = await text()
 check(
-  '7a. a changed goal asks about each still-open step rather than assuming',
-  screen.includes(EN.goalChanged) && screen.includes('Write the intro'),
+  '7a. a second goal sits beside the first, under one label, in a numbered list',
+  screen.includes('Get hired somewhere I like') &&
+    screen.includes('Get the portfolio finished') &&
+    screen.includes(EN.goalsLabel),
+  screen.replace(/\n/g, ' / ').slice(0, 200),
+)
+// Order is the priority, so the ordinals have to be real list markers rather than
+// text someone typed. With one goal there were none at all.
+const ordered = await evaluate(
+  `(() => {
+     const list = document.querySelector('main ol');
+     if (!list) return null;
+     return [...list.children].map((li) => li.textContent.trim().slice(0, 40));
+   })()`,
+)
+check(
+  '7b. and they are an ordered list, oldest first until something says otherwise',
+  ordered?.length === 2 && ordered[0].startsWith('1.') && ordered[1].startsWith('2.'),
+  JSON.stringify(ordered),
 )
 
-await click(EN.keep)
+// One tap, one write, and the order changes. This is the whole priority feature:
+// there is no rank to rewrite and no second goal to renumber.
+await clickAria('Change this goal: Get hired somewhere I like')
+await clickOption(EN.goalTop)
+const reordered = await evaluate(
+  `(() => [...document.querySelector('main ol').children].map((li) => li.textContent.trim().slice(0, 40)))()`,
+)
+check(
+  '7c. putting a goal first reorders the list, with one fact and no renumbering',
+  reordered[0].includes('Get hired somewhere I like') &&
+    JSON.parse(await raw()).facts.filter((f) => f.key.endsWith('.goal_priority')).length === 1,
+  JSON.stringify(reordered),
+)
+
+// Rewording is the case the old walk fired on, and the case that no longer needs it.
+const beforeReword = JSON.parse(await raw()).facts.length
+await clickAria('Change this goal: Get the portfolio finished')
+await clickOption(EN.goalReword)
+await type('Finish the portfolio properly')
+await click(EN.editSubmit)
 screen = await text()
-check('7b. Keep moves to the next open step without writing anything', screen.includes(EN.goalChanged))
-
-const retiredCount = (s) =>
-  s.facts.filter((f) => f.key.endsWith('.state') && f.value === 'retired').length
-const beforeRemoveStore = JSON.parse(await raw())
-const beforeRemove = beforeRemoveStore.facts.length
-await click(EN.removeStep)
-await click(EN.keep)
-store = JSON.parse(await raw())
 check(
-  '7c. Remove retires the step — one fact added, nothing deleted',
-  // A delta, not a total: setting something aside from the home screen also
-  // retires, so a global count of 1 would only hold while that path went untested.
-  store.facts.length === beforeRemove + 1 &&
-    retiredCount(store) === retiredCount(beforeRemoveStore) + 1,
-  `${store.facts.length} facts vs ${beforeRemove}, retired ${retiredCount(beforeRemoveStore)} → ${retiredCount(store)}`,
+  '7d. rewording a goal keeps everything being tried for it, and asks nothing',
+  screen.includes('Finish the portfolio properly') &&
+    screen.includes('Write the intro') &&
+    // One fact: the new wording. No walk, no keep/remove, nothing about the entries.
+    JSON.parse(await raw()).facts.length === beforeReword + 1,
+  screen.replace(/\n/g, ' / ').slice(0, 200),
+)
+
+// Closing a goal with nothing being tried for it costs nothing, so it asks nothing.
+// A confirmation with no consequence to state is a step that teaches people to tap
+// through steps. The case that *does* have one is §41, on a store built for it —
+// closing a goal here would take the only active entry in the run with it.
+const beforeDrop = JSON.parse(await raw()).facts.length
+await clickAria('Change this goal: Get hired somewhere I like')
+await clickOption(EN.goalDrop)
+screen = await text()
+check(
+  '7e. setting aside a goal nothing was being tried for takes one tap and one fact',
+  !screen.includes('Get hired somewhere I like') &&
+    screen.includes('Finish the portfolio properly') &&
+    JSON.parse(await raw()).facts.length === beforeDrop + 1,
+  screen.replace(/\n/g, ' / ').slice(0, 200),
 )
 check(
-  '7d. both goals are kept, and the newer one is the current one',
-  store.facts.filter((f) => f.key === `area.${AREAS[2].id}.goal`).length === 2,
-  `${store.facts.filter((f) => f.key === 'area.work.goal').length} goal facts`,
+  '7f. and with one goal left the ordinals go away — a lone "1." implies siblings',
+  !(await evaluate(`!!document.querySelector('main ol li span[aria-hidden]')`)),
+  'no ordinal',
 )
 
 await click(EN.manageDone)
@@ -1339,7 +1408,11 @@ check(
     screen.includes('done') &&
     screen.includes('set aside') &&
     !/removed from/.test(screen),
-  /removed from/.test(screen) ? 'still claims removal' : 'working on this / done / set aside',
+  ['working on this', 'done', 'set aside']
+    .filter((word) => !screen.includes(word))
+    .map((word) => `missing "${word}"`)
+    .concat(/removed from/.test(screen) ? ['still claims removal'] : [])
+    .join(', ') || 'all three, and no claim of removal',
 )
 
 // --- 8. forget everything --------------------------------------------------
@@ -1856,9 +1929,14 @@ check(
 check(
   '38d. and the goal is still stored, which is the whole point of the state',
   afterUnknown.some(
-    (fact) => fact.key === `area.${AREAS[0].id}.goal` && fact.value === 'Sleep better',
+    (fact) =>
+      new RegExp(`^area\.${AREAS[0].id}\.goal\.[^.]+\.text$`).test(fact.key) &&
+      fact.value === 'Sleep better',
   ),
-  afterUnknown.filter((f) => f.key.endsWith('.goal')).map((f) => f.value).join(' | '),
+  afterUnknown
+    .filter((f) => /\.goal\.[^.]+\.text$/.test(f.key))
+    .map((f) => f.value)
+    .join(' | '),
 )
 
 // The flow has to have moved on rather than stalled on an empty list of things to pick
@@ -2485,15 +2563,15 @@ check(
 
 // The three question views that had no way out at all. Opening one by mistake used to
 // leave only the browser's back button; the page-level link now covers all of them.
-await goto('/areas/body/')
-await click(EN.changeGoal)
+await goto(`/areas/${AREAS[0].id}/`)
+await click(EN.goalAdd)
 screen = await text()
 check(
   '35d. even the question views have it — they had no way out before',
-  screen.includes('What is your goal now?') &&
+  screen.includes(EN.goalNewQuestion) &&
     (await visible('Back to your life areas')) &&
     (await raw()) === beforeBack,
-  screen.includes('What is your goal now?') ? 'present on the goal question' : 'wrong view',
+  screen.includes(EN.goalNewQuestion) ? 'present on the goal question' : 'wrong view',
 )
 
 // Both nested pages, drawn the same. Consistency is the requirement, so it is measured
@@ -3140,6 +3218,84 @@ check(
   '41f. an entry with no stored link belongs to the legacy goal, and follows it',
   !screen.includes('Walk after dinner') && screen.includes('Pick the three best pieces'),
   screen.replace(/\n/g, ' / ').slice(0, 160),
+)
+
+// Closing a goal that *does* have things being tried for it. On a seeded store
+// rather than the walked one, because closing a goal takes its entries with it and
+// the walked store has only one active entry left by this point.
+await seedGoals()
+await goto(`/areas/${AREAS[3].id}/`)
+await clickAria('Change this goal: Finish the portfolio')
+await clickOption(EN.goalReached)
+screen = await text()
+check(
+  '41g. closing a goal states what it takes with it, before it happens',
+  screen.includes(EN.goalCloseNote) && screen.includes(EN.goalReached),
+  screen.replace(/\n/g, ' / ').slice(0, 200),
+)
+
+const beforeClose = JSON.parse(await raw())
+await click(EN.goalReached)
+screen = await text()
+const afterClose = JSON.parse(await raw())
+const retiredEntries = (store) =>
+  store.facts.filter((f) => /\.step\.[^.]+\.state$/.test(f.key) && f.value === 'retired').length
+check(
+  '41h. confirming takes them out of the list with one fact, and deletes nothing',
+  !screen.includes('Pick the three best pieces') &&
+    !screen.includes('Write the case study') &&
+    // Exactly one: the goal's own state. The entries keep theirs — the cascade is a
+    // derivation, which is why nothing had to be written on their behalf.
+    afterClose.facts.length === beforeClose.facts.length + 1 &&
+    retiredEntries(afterClose) === retiredEntries(beforeClose) &&
+    // Still stored, still their own words, exactly as the copy promised.
+    afterClose.facts.some((f) => f.value === 'Pick the three best pieces'),
+  `${afterClose.facts.length} facts vs ${beforeClose.facts.length}, retired ${retiredEntries(beforeClose)} → ${retiredEntries(afterClose)}`,
+)
+
+const whyIn = (fact, area) => new RegExp(`^area\.${area}\.goal\.[^.]+\.why$`).test(fact.key)
+
+// The optional reason: written where there is none, and cleared where there is.
+await seedGoals()
+await goto(`/areas/${AREAS[0].id}/`)
+await clickAria('Change this goal: Sleep better')
+screen = await text()
+check(
+  '41i. a goal with no reason is offered one, with why anyone would bother',
+  screen.includes('Write down why this matters') &&
+    screen.includes('Some people find it easier'),
+  screen.replace(/\n/g, ' / ').slice(0, 200),
+)
+await clickOption('Write down why this matters')
+await type('I am tired of being tired')
+await click(EN.editSubmit)
+screen = await text()
+check(
+  '41j. and it sits under the goal it belongs to, not beside it',
+  screen.includes('I am tired of being tired') && screen.includes('Sleep better'),
+  screen.replace(/\n/g, ' / ').slice(0, 200),
+)
+
+// Clearing it. An append-only log has no delete, so the way to take something back
+// is to say nothing — and nothing reads as absent. Without `allowEmpty` on that
+// field there would be no way to undo a reason once written.
+await clickAria('Change this goal: Sleep better')
+await clickOption('Change why this matters')
+await type('')
+await click(EN.editSubmit)
+screen = await text()
+const cleared = JSON.parse(await raw())
+check(
+  '41k. submitting it empty takes it back, and keeps what was said in the history',
+  !screen.includes('I am tired of being tired') &&
+    screen.includes('Sleep better') &&
+    // Both facts are there for *this* goal: the reason, and the empty one that
+    // retracts it. Scoped to the area, since the fixture seeds one elsewhere too.
+    cleared.facts.filter((f) => whyIn(f, AREAS[0].id)).length === 2,
+  cleared.facts
+    .filter((f) => whyIn(f, AREAS[0].id))
+    .map((f) => JSON.stringify(f.value))
+    .join(' '),
 )
 
 // --- 9. nothing leaves the browser ---------------------------------------

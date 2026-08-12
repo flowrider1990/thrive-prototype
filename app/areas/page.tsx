@@ -56,12 +56,17 @@ export default function AreasPage() {
          * where that stands.
          */}
         <ul className="space-y-3">
-          {states.map((state) => (
+          {states.map((state) => {
+            const top = state.priority ?? state.activeGoals[0]
+            return (
             <li key={state.area}>
               <Link href={`/areas/${state.area}`} className="option block space-y-1.5">
                 <AreaLabel area={state.area} size="card" />
-                {state.goal ? (
-                  <span className="block text-sm leading-relaxed text-ink">{state.goal}</span>
+                {/* The one put first, or the oldest still standing. A row is a door
+                    rather than a summary: six areas listing three goals each would be
+                    nineteen lines of someone's ambitions on one screen. */}
+                {top ? (
+                  <span className="block text-sm leading-relaxed text-ink">{top.text}</span>
                 ) : (
                   <span className="block text-sm text-muted">
                     {state.review === 'not_now' ? m.manage.notNow : m.manage.noGoal}
@@ -70,14 +75,15 @@ export default function AreasPage() {
                 {/* Only when there is a goal to be working toward: saying what has
                     not been decided under "no goal yet" would be two ways of saying
                     the same absence. */}
-                {state.goal && (
+                {top && (
                   <span className="block text-sm leading-relaxed text-muted">
                     {state.active ? state.active.text : m.manage.noStep}
                   </span>
                 )}
               </Link>
             </li>
-          ))}
+            )
+          })}
         </ul>
       </div>
     </PageShell>

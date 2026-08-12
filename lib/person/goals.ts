@@ -96,12 +96,6 @@ export type AreaState = {
   activeGoals: Goal[]
   /** The one put first, if any, and only while it is still active. */
   priority: Goal | undefined
-  /**
-   * @deprecated The pre-multi-goal read: the priority goal's words, or the oldest
-   * active goal's. It exists so the key shape could change without touching a single
-   * component, and it should be removed with the multi-goal UI — that is its trigger.
-   */
-  goal: string | undefined
   /** Every step ever written down for this area, oldest first. */
   steps: Step[]
   /** Those still under consideration — at most `MAX_OPEN_STEPS`. */
@@ -286,7 +280,6 @@ export function readArea(person: Person, area: AreaId): AreaState {
     goals,
     activeGoals,
     priority,
-    goal: (priority ?? activeGoals[0])?.text,
     steps,
     open,
     active,
@@ -381,7 +374,7 @@ export function readAreaDetail(person: Person, area: AreaId): AreaDetail {
 export function isSettled(state: AreaState): boolean {
   if (!state.review) return false
   if (state.review === 'not_now') return true
-  return Boolean(state.goal && state.active)
+  return state.activeGoals.length > 0 && Boolean(state.active)
 }
 
 /**
@@ -440,21 +433,6 @@ export function finishIntroduction(person: Person): void {
 
 export function setReview(area: AreaId, review: Review): void {
   remember(reviewKey(area), review, SOURCE)
-}
-
-/**
- * @deprecated The pre-multi-goal writer, kept so this change touches no component.
- *
- * It still writes the **legacy** key, which is what makes it exactly
- * behaviour-preserving: newest wins on one key, so an area keeps having one goal and
- * changing it replaces it, precisely as before. Every goal written today is therefore
- * a legacy goal, and the newer shape is read but not yet written — deliberately, so
- * the migration and the interface move one at a time.
- *
- * Its removal trigger is the multi-goal UI, which calls `addGoal`/`editGoal` instead.
- */
-export function setGoal(area: AreaId, goal: string): void {
-  remember(goalTextKey(area, LEGACY_GID), goal, SOURCE)
 }
 
 /** Returns the new goal's id, because the caller usually wants to act on it. */

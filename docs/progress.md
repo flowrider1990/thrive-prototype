@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 192/192** (25 at the
+the two the plan singles out. **The current count is 199/199** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework, 181 after the Supabase foundation); the script itself is the only
 authority on that number, so treat any count written in prose as a snapshot.
@@ -1099,6 +1099,52 @@ nothing upstream would notice. Now tie-broken on the fact id, as are the sorts i
 Deliberately **not** done: the `usePerson` key index (no measured problem), `maxLength`
 on `TextAnswer` (belongs with the "why" field that needs it), and an explicit `'open'`
 state value (nothing needs the inverse yet).
+
+### Steps 4 and 5 — the interface catches up: goals, hierarchy, priority, why
+
+199/199. Onboarding still asks for **one goal per area** and should keep doing so: six
+areas is already up to twenty-four screens, and a second goal is something you discover
+you want rather than something to be asked for on first meeting. More are added from the
+area's own page.
+
+**The page is the hierarchy.** The area is the `h1`, each goal an `h2`, and what is
+being tried for it is indented under it. Two of those three levels come free from the
+two typefaces the app already owns — display serif for *what you want*, sans for *what
+you will do* — and the third from the `border-s-2 border-line ps-5` rule that four other
+call sites already use. **No new CSS class, no card, no badge, no colour token.**
+
+Until this page had goals in it there was no heading element on it at all: the area name
+was a `<p>` and the goal a `<dd>`. Fixing the outline turned out to be most of the
+hierarchy work.
+
+**Priority is the ordinal.** The goals are a real `<ol>`, the one put first is first, and
+`1. 2. 3.` in `tabular-nums` is the entire marking — three cues (number, position, list
+semantics), none of them colour, none changing an element's metrics. Hidden with one
+goal, because a lone "1." implies siblings that are not there. One key, one write, and
+two taps reach any order of three; there is no rank to renumber. That settles the
+"marking versus ranking" question this file parked: **one pointer gives both**.
+
+**The goal-change walk was replaced rather than retargeted.** Changing a goal used to
+review every open entry one screen at a time, because entries belonged to the area. It
+fired on the common case (rewording) where it is now unnecessary — same goal id, entries
+stay attached — and did not exist for the rare one (closing) where something really is
+affected. One sentence on one screen now covers what three screens used to: *"What you
+were trying for it is set aside with it. Nothing is deleted."* With nothing being tried
+for the goal there is no consequence and no confirmation, because a confirmation with
+nothing to say teaches people to tap through steps.
+
+Two things found by building rather than planning:
+
+- **Entries added from the start page had no goal**, so they were stored and then
+  invisible on the area page — there was no goal to list them under. `next-steps.tsx`
+  now links them to the row's goal. `AreaManage` also grew a "Not tied to a goal right
+  now" group, because *stored and unshowable* is the one state that page cannot have.
+- **§7 could not test closing a goal.** Closing one takes its entries with it, and the
+  goal it closed owned the only active entry left in the run — so a later check lost the
+  word it was looking for. Moved to §41, on a seeded store where nothing downstream
+  depends on it, and §7 now covers the case that costs nothing instead.
+
+`AreaState.goal` is gone, as its deprecation note said it would be when this landed.
 
 ## The repository
 

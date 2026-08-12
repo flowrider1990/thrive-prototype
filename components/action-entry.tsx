@@ -30,10 +30,13 @@ import { addStep, editStep, MAX_OPEN_STEPS, type Step } from '@/lib/person/goals
  */
 export function ActionEntry({
   area,
+  goalId,
   entries,
   onEnough,
 }: {
   area: AreaId
+  /** The goal these serve. Every entry belongs to exactly one. */
+  goalId: string
   /** The open entries, oldest first. */
   entries: Step[]
   /** Offered once there is at least one; absent means the caller wants none. */
@@ -137,7 +140,7 @@ export function ActionEntry({
                 : undefined
             }
             onSubmit={(value) => {
-              addStep(area, value)
+              addStep(area, value, goalId)
             }}
             onSkip={onEnough}
           />

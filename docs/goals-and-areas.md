@@ -99,7 +99,7 @@ through the store's `remember()` with `source: 'goals'`.
 
 ```
 area.<a>.review              'yes' | 'not_now'
-area.<a>.goal                the goal, verbatim   — LEGACY, still read, still written
+area.<a>.goal                the goal, verbatim   — LEGACY, read but never written
 area.<a>.goal.<gid>.text     the goal, verbatim   — newest wins, history = rewordings
 area.<a>.goal.<gid>.why      why it matters       — empty reads as absent
 area.<a>.goal.<gid>.state    'done' | 'retired'   — absent means active
@@ -238,10 +238,14 @@ shape, which is the doc's own test for whether a bump is needed.
 tried across all of them — three goals holding three each would be nine open entries in
 one area, which is the task manager this is not.
 
-**The interface has not moved yet.** `setGoal()` still writes the legacy key, so every
-goal written today is a legacy goal and the newer shape is read but not written. That is
-deliberate: the migration and the screens change one at a time, and the read path is
-covered by §41 in the meantime.
+**The cap is on the area, not the goal.** Up to three goals, but only three things being
+tried across all of them — three goals holding three each would be nine open entries in
+one area, which is the task manager this is not.
+
+**Onboarding still asks for one goal per area**, and should keep doing so. Six areas is
+already up to twenty-four screens, and a second goal is something you discover you want
+rather than something to be asked for on first meeting. More are added from the area's
+own page, which is where they are discoverable without being demanded.
 
 ## The three outcomes
 
@@ -291,34 +295,33 @@ whose `learnedAt` is the timestamp.
 
 So: not stored now, because nothing reads it. Stored later, when something does.
 
-## Changing a goal
+## Changing a goal, and closing one
 
-**This describes the interface as it stands, and the model has moved underneath it.**
-Entries now belong to a goal, so rewording one no longer risks orphaning anything —
-the same goal id keeps the same entries, and nothing has to be asked about. The walk
-below therefore has no reason to run on a reword any more, and should be retargeted
-rather than deleted when the multi-goal screens land: **reaching or setting aside** a
-goal is the case that still needs it, because its open entries would otherwise be
-silently stranded or silently discarded, which is the pair this walk was built to
-prevent.
+Entries belong to a goal, which changes what each of these costs.
 
-Until then it behaves exactly as before, because `setGoal()` still writes the legacy
-key and newest-wins on one key is still what "changing a goal" means.
+- **Rewording** keeps the same goal id, so everything being tried for it stays
+  attached and nothing has to be asked about. One fact.
+- **Adding** a goal touches nothing else. Up to `MAX_GOALS`.
+- **Reaching or setting one aside** is the only case where something leaves the list,
+  and it says so before it happens rather than afterwards: *"What you were trying for
+  it is set aside with it. Nothing is deleted."* One fact — the goal's own state — and
+  the entries keep theirs, because the cascade is a derivation.
 
-Steps belonged to the **area**, not to the goal. A new goal therefore touched no
-step fact — but it did trigger a review, one step per screen, over everything
-still open:
+  With nothing being tried for it there is no consequence to state, so there is no
+  confirmation either. A confirmation with nothing to say is a step that teaches
+  people to tap through steps.
 
-- **Keep** writes nothing; the step stays open.
-- **Edit** appends `step.<sid>.text`. The previous wording stays in history.
-- **Remove from current steps** appends `state = 'retired'`.
+**This replaced a walk**, and the replacement is worth recording. Changing a goal used
+to review every open entry one screen at a time, because entries belonged to the
+*area* and a new goal might orphan them. That walk fired on the common case
+(rewording) where it is now unnecessary, and it did not exist for the rare one
+(closing) where something really is affected. One sentence on one screen covers what
+three screens used to.
 
-Nothing is silently carried over into a changed goal, and nothing is silently
-discarded. `retired` exists because an append-only log has no delete, and because
-"I decided this no longer applies" is itself worth knowing later. The user-facing
-label says "remove from current steps" rather than "remove" for the same reason:
-nothing is deleted, and the copy should not claim otherwise on a page whose
-neighbour is `/data/stored/`.
+Nothing is silently carried over and nothing is silently discarded — which was the
+walk's whole purpose, and is still the guarantee. `retired` still exists for entries,
+still means "I decided this no longer applies", and the label still says "remove from
+current steps" rather than "remove" because nothing is deleted.
 
 ## The legacy goal, and why nothing was rewritten
 

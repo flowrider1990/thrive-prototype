@@ -9,7 +9,7 @@ import { QuestionCard } from '@/components/question-card'
 import { TextAnswer } from '@/components/text-answer'
 import type { AreaId } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
-import { chooseStep, readArea, setGoal, setReview, type AreaState } from '@/lib/person/goals'
+import { addGoal, chooseStep, readArea, setReview, type AreaState } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
 type Sub = 'review' | 'goal' | 'steps' | 'focus'
@@ -107,7 +107,10 @@ export function AreaFlow({
             placeholder={m.goals.goalPlaceholder}
             submitLabel={m.goals.goalSubmit}
             onSubmit={(value) => {
-              setGoal(area, value)
+              // One goal per area during the introduction, on purpose. More is something
+              // you discover you want and add from the area's own page — asking for a
+              // second here would turn meeting the app into configuring it.
+              addGoal(area, value)
               setSub('steps')
             }}
           />
@@ -116,7 +119,12 @@ export function AreaFlow({
 
       {sub === 'steps' && (
         <QuestionCard area={eyebrow} question={m.goals.stepsQuestion} note={m.goals.stepsNote}>
-          <ActionEntry area={area} entries={state.open} onEnough={finishSteps} />
+          <ActionEntry
+            area={area}
+            goalId={state.activeGoals[0].id}
+            entries={state.open}
+            onEnough={finishSteps}
+          />
         </QuestionCard>
       )}
 
@@ -138,7 +146,7 @@ export function AreaFlow({
 /** Where an interrupted pass through this area left off. */
 function resume(state: AreaState): Sub {
   if (!state.review || state.review === 'not_now') return 'review'
-  if (!state.goal) return 'goal'
+  if (state.activeGoals.length === 0) return 'goal'
   if (state.open.length === 0) return 'steps'
   return 'focus'
 }

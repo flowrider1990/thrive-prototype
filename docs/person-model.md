@@ -91,7 +91,7 @@ see `docs/goals-and-areas.md`.
 | key | asked by | notes |
 | --- | --- | --- |
 | `area.<a>.review` | each life area | `'yes'` or `'not_now'` — both real answers |
-| `area.<a>.goal` | the goal question | **legacy**: the goal written before goals had ids. Still read, and still what `setGoal()` writes |
+| `area.<a>.goal` | the goal question | **legacy**: a goal written before goals had ids. Read, never written — new goals get an id |
 | `area.<a>.goal.<gid>.text` | the goal question | one per goal; earlier wordings kept |
 | `area.<a>.goal.<gid>.why` | why it matters | optional; an empty value is how it is cleared |
 | `area.<a>.goal.<gid>.state` | reaching or setting a goal aside | `'done'` / `'retired'`; absent means active |

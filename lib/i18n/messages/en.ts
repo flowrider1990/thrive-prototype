@@ -299,21 +299,59 @@ export const en = {
     reconsiderYes: 'Yes',
     reconsiderNo: 'Leave it for now',
 
-    goalLabel: 'Your goal',
+    /**
+     * One label for the whole list rather than one per goal: the serif heading is
+     * already unmistakably the thing you want. It pairs with `goals.entriesLabel`
+     * ("What you want to try") one level down — the two name the two levels of the
+     * hierarchy in the same words.
+     */
+    goalsLabel: 'What you want',
     activeLabel: 'Focusing on',
     preparedLabel: 'Also prepared',
-    changeGoal: 'Change goal',
     addStep: 'Add something to try',
+    /** Three visible "Add" buttons are three identical controls out loud. */
+    addStepFor: 'Add something to try for: {goal}',
+    goalAdd: 'Add a goal',
+    goalChange: 'Change this goal',
+    goalChangeOn: 'Change this goal: {goal}',
     done: 'Done',
 
-    goalQuestion: 'What is your goal now?',
+    /** "Else", because the first one was asked for during the introduction. */
+    goalNewQuestion: 'What else do you want here?',
+    goalMenuQuestion: 'What would you like to change?',
+    goalReword: 'Change the wording',
 
-    /** One step per screen. Nothing is carried over silently, nothing is dropped silently. */
-    reviewQuestion: 'Your goal changed. Is this still useful?',
-    reviewKeep: 'Keep',
+    /**
+     * Rewritten from "Need more motivation? …", which opens by telling someone they
+     * lack motivation — a diagnosis nobody asked for, and the kind of claim the
+     * Feature Manifest rules out. This reports instead, and leaves the reader to
+     * decide whether it applies to them.
+     */
+    goalWhy: 'Write down why this matters',
+    goalWhyEdit: 'Change why this matters',
+    goalWhyInvite: 'Some people find it easier to keep going when the reason is written down.',
+    goalWhyQuestion: 'Why does reaching this goal matter to you?',
+    /** The ceiling stated in prose, the way the three-entry cap already is. */
+    goalWhyNote: 'A sentence or two is plenty. You can leave it empty.',
+
+    goalTop: 'Move this to the top',
+    goalTopNote: 'The one at the top is what this area is about right now.',
+
+    goalReached: 'I have reached this',
+    goalReachedQuestion: 'Have you reached this goal?',
+    goalDrop: 'Remove from your current goals',
+    goalDropQuestion: 'Is this no longer a goal for you?',
+    /**
+     * The consequence, stated before it happens rather than discovered afterwards.
+     * Nothing is deleted — what was being tried leaves the list because the goal it
+     * was for is closed, and `/data/stored/` still holds all of it.
+     */
+    goalCloseNote: 'What you were trying for it is set aside with it. Nothing is deleted.',
+    goalCloseCancel: 'Not yet',
+    /** Only ever shown when there is one, and there should not be. */
+    looseLabel: 'Not tied to a goal right now',
+
     reviewEdit: 'Edit',
-    /** Deliberately not "Remove": nothing is deleted, and the copy should not pretend otherwise. */
-    reviewRemove: 'Remove from current steps',
     editQuestion: 'What should it say instead?',
     editSubmit: 'Save',
   },

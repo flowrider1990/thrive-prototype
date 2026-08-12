@@ -3030,6 +3030,118 @@ check(
   JSON.parse(await raw()).facts.map((f) => f.key).join(' '),
 )
 
+// --- 41. goals with ids, and entries that belong to one --------------------
+//
+// Nothing in the interface writes this shape yet — `setGoal` still writes the legacy
+// key, deliberately, so the migration and the UI move one at a time. That makes these
+// checks the *only* thing standing behind the new read path until the multi-goal
+// screens land, so they are seeded rather than walked.
+//
+// The area holds both shapes at once on purpose: that is what a real store looks like
+// the moment after someone who has used the app for months opens a newer build.
+
+const G1 = 'cccccccc-3333-4333-8333-cccccccccccc'
+const G2 = 'dddddddd-4444-4444-8444-dddddddddddd'
+const S1 = 'eeeeeeee-5555-4555-8555-eeeeeeeeeeee'
+const S2 = 'ffffffff-6666-4666-8666-ffffffffffff'
+const S3 = 'aaaaaaaa-7777-4777-8777-aaaaaaaaaaaa'
+const S4 = 'bbbbbbbb-8888-4888-8888-bbbbbbbbbbbb'
+
+async function seedGoals({ legacyDone = false } = {}) {
+  const at = '2026-02-01T00:00:00.000Z'
+  const fact = (id, key, value) => ({ id, key, value, source: 'goals', learnedAt: at })
+  const facts = [
+    ...AREAS.map(({ id }, i) => fact(`g-review-${i}`, `area.${id}.review`, 'yes')),
+    fact('g-intro', 'introduction_done', 'yes'),
+
+    // The old shape: one goal at the bare key, and an entry with no link at all.
+    fact('g-legacy-goal', `area.${AREAS[0].id}.goal`, 'Sleep better'),
+    fact('g-legacy-text', `area.${AREAS[0].id}.step.${S1}.text`, 'Walk after dinner'),
+    fact('g-legacy-active', `area.${AREAS[0].id}.step_active`, S1),
+    ...(legacyDone ? [fact('g-legacy-state', `area.${AREAS[0].id}.goal.legacy.state`, 'done')] : []),
+
+    // The new shape: two goals, one reached, one carrying a reason and put first.
+    fact('g1-text', `area.${AREAS[3].id}.goal.${G1}.text`, 'Finish the portfolio'),
+    fact('g1-why', `area.${AREAS[3].id}.goal.${G1}.why`, 'It has been open for years'),
+    fact('g2-text', `area.${AREAS[3].id}.goal.${G2}.text`, 'Learn Rust'),
+    fact('g2-state', `area.${AREAS[3].id}.goal.${G2}.state`, 'done'),
+    fact('g-priority', `area.${AREAS[3].id}.goal_priority`, G1),
+    fact('s1-text', `area.${AREAS[3].id}.step.${S2}.text`, 'Pick the three best pieces'),
+    fact('s1-goal', `area.${AREAS[3].id}.step.${S2}.goal`, G1),
+    fact('s1-active', `area.${AREAS[3].id}.step_active`, S2),
+    // The controlled pair for 41b: both open, neither active, differing in exactly
+    // one thing — whether the goal each serves has been reached.
+    fact('s2-text', `area.${AREAS[3].id}.step.${S3}.text`, 'Write the case study'),
+    fact('s2-goal', `area.${AREAS[3].id}.step.${S3}.goal`, G1),
+    fact('s3-text', `area.${AREAS[3].id}.step.${S4}.text`, 'Read the Rust book'),
+    fact('s3-goal', `area.${AREAS[3].id}.step.${S4}.goal`, G2),
+  ]
+  const store = { version: 1, consentAt: at, locale: 'en', facts }
+  await goto('/')
+  await evaluate(
+    `localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, ${JSON.stringify(JSON.stringify(store))})`,
+  )
+  await goto('/')
+}
+
+await seedGoals()
+screen = await text()
+check(
+  '41a. an entry whose goal is still standing is on the start page',
+  screen.includes('Pick the three best pieces') && screen.includes('Walk after dinner'),
+  screen.replace(/\n/g, ' / ').slice(0, 160),
+)
+
+await goto(`/areas/${AREAS[3].id}/`)
+const areaScreen = await text()
+check(
+  '41b. a prepared entry follows its goal out of the open set, with no fact of its own',
+  // Home only ever shows the *active* entry per area, so a non-active one could not
+  // appear there whatever its goal — asserting its absence on the start page would
+  // have proved nothing. Both of these are open and neither is active; they differ
+  // in exactly one thing, which is whether the goal each serves has been reached.
+  areaScreen.includes('Write the case study') && !areaScreen.includes('Read the Rust book'),
+  areaScreen.replace(/\n/g, ' / ').slice(0, 200),
+)
+// The pointer, not merely the newest goal: `Learn Rust` is newer and reached, and
+// picking it would mean the priority key was being ignored.
+await clickNav(EN.navAreas)
+screen = await text()
+check(
+  '41c. the areas list shows the goal put first, not the newest one',
+  screen.includes('Finish the portfolio') && !screen.includes('Learn Rust'),
+  screen.replace(/\n/g, ' / ').slice(0, 200),
+)
+
+await goto('/data/stored/')
+await expandAll()
+screen = await text()
+check(
+  '41d. everything stored about a goal is shown: its reason, and where it stands',
+  screen.includes('It has been open for years') &&
+    screen.includes('first for now') &&
+    screen.includes('reached') &&
+    // The reached goal is kept and shown, not hidden along with its entry.
+    screen.includes('Learn Rust'),
+  screen.replace(/\n/g, ' / ').slice(0, 260),
+)
+check(
+  '41e. and no goal id reaches the page, seen or spoken',
+  !UUID.test(screen) && !(await ariaLabels()).some((label) => UUID.test(label)),
+  (screen.match(UUID) ?? []).join(' '),
+)
+
+// The legacy attribution, proved by consequence rather than asserted directly: the
+// entry has no `.goal` fact at all, so the only thing that can carry it out of the
+// open set is being attributed to the legacy goal that was just reached.
+await seedGoals({ legacyDone: true })
+screen = await text()
+check(
+  '41f. an entry with no stored link belongs to the legacy goal, and follows it',
+  !screen.includes('Walk after dinner') && screen.includes('Pick the three best pieces'),
+  screen.replace(/\n/g, ' / ').slice(0, 160),
+)
+
 // --- 9. nothing leaves the browser ---------------------------------------
 
 const requested = events

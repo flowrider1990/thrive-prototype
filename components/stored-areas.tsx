@@ -4,7 +4,12 @@ import { AreaIcon } from '@/components/area-icon'
 import { Chevron } from '@/components/menu'
 import { areas } from '@/lib/areas'
 import { formatWhen, useI18n } from '@/lib/i18n'
-import { readAreaDetail, type AreaDetail, type StepDetail } from '@/lib/person/goals'
+import {
+  readAreaDetail,
+  type AreaDetail,
+  type GoalDetail,
+  type StepDetail,
+} from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
 /**
@@ -61,6 +66,26 @@ export function StoredAreas() {
     return step.stateAt ? `${word} · ${formatWhen(step.stateAt, locale)}` : word
   }
 
+  /**
+   * Where a goal stands, and when it was written down.
+   *
+   * The same shape as `became()` one level up, and the same rule about dates: being
+   * the one put first is a pointer rather than a fact about the goal, so it carries
+   * no date of its own. Reaching or setting aside a goal is a fact, and does.
+   */
+  function standing(goal: GoalDetail): string {
+    const parts = [noted(goal.createdAt)]
+    if (goal.priority) parts.push(m.stored.areas.goalPriority)
+    const word =
+      goal.state === 'done'
+        ? m.stored.areas.goalReached
+        : goal.state === 'retired'
+          ? m.stored.areas.retired
+          : null
+    if (word) parts.push(goal.stateAt ? `${word} · ${formatWhen(goal.stateAt, locale)}` : word)
+    return parts.join(' · ')
+  }
+
   return (
     <div className="space-y-6">
       {/* Once, above all of them. "set aside" and "changed from" would otherwise read as
@@ -70,7 +95,10 @@ export function StoredAreas() {
 
       <div className="space-y-3">
         {details.map((detail) => {
-          const goal = detail.goals[0]?.value
+          // What the area is about now, for the closed summary line. Goals are
+          // newest first, so the first still-standing one is the current one.
+          const goal =
+            detail.goals.find((entry) => entry.state === 'active')?.text ?? detail.goals[0]?.text
           const count =
             detail.steps.length === 1
               ? m.stored.entryCountOne
@@ -119,14 +147,30 @@ export function StoredAreas() {
                 {detail.goals.length > 0 && (
                   <div className="space-y-2 border-s-2 border-line ps-5">
                     <dt className="text-sm text-muted">{m.stored.areas.goal}</dt>
-                    {detail.goals.map((goalEntry, index) => (
-                      <dd key={index} className="space-y-1">
+                    {detail.goals.map((goalEntry) => (
+                      <dd key={goalEntry.id} className="space-y-1">
                         <p className="whitespace-pre-line leading-relaxed text-ink">
-                          {index === 0
-                            ? goalEntry.value
-                            : t(m.stored.areas.earlier, { goal: goalEntry.value })}
+                          {goalEntry.text}
                         </p>
-                        <p className="text-xs text-muted">{noted(goalEntry.at)}</p>
+                        {/* Only when it is there. An absent reason is not an empty
+                            one, and the page should not invent a blank line for it. */}
+                        {goalEntry.why && (
+                          <p className="whitespace-pre-line text-sm leading-relaxed text-muted">
+                            {t(m.stored.areas.why, { why: goalEntry.why })}
+                          </p>
+                        )}
+                        {/* Every earlier wording of *this* goal, newest first. A
+                            reworded goal is the same goal said differently, which is
+                            why these sit under it rather than beside it as peers. */}
+                        {goalEntry.previous.map((wording, index) => (
+                          <p
+                            key={index}
+                            className="whitespace-pre-line text-sm leading-relaxed text-muted"
+                          >
+                            {t(m.stored.areas.earlier, { goal: wording })}
+                          </p>
+                        ))}
+                        <p className="text-xs text-muted">{standing(goalEntry)}</p>
                       </dd>
                     ))}
                   </div>

@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 186/186** (25 at the
+the two the plan singles out. **The current count is 192/192** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework, 181 after the Supabase foundation); the script itself is the only
 authority on that number, so treat any count written in prose as a snapshot.
@@ -1046,6 +1046,59 @@ knowing about for the next area: `Record<AreaId, string>` in `area-icon.tsx`,
 `m.areas[area]` indexing in `area-label.tsx` and `next-steps.tsx`, and `de: Messages`.
 A half-added area does not build. `generateStaticParams` produced `/areas/mind/`
 itself, and `ProgressMarks` needed no change at all — it was already generic.
+
+### Step 3 — goal ids, and entries that belong to one
+
+The real migration, and it landed with **no component changed and 186/186 still
+green** — then 192/192 with the checks that exercise the new shape. That was the
+design goal: `AreaState.goal` stayed as a deprecated derived read, so the key shape
+and the screens move one at a time and each is reviewable alone.
+
+`area.<a>.goal.<gid>.{text,why,state}`, `area.<a>.goal_priority`, and
+`area.<a>.step.<sid>.goal`. **No `version` bump**, because `GOAL_KEY` cannot match the
+legacy `area.<a>.goal` (too few segments) or `goal_priority` (not `goal.`), so all
+three coexist and the migration is a read. `docs/goals-and-areas.md` had guessed this
+"might qualify" for a bump; it does not, by that file's own test.
+
+Decisions worth keeping:
+
+- **The legacy goal's text stays at the old key forever.** One ternary in
+  `goalTextKey()` is the whole special case. Migrating it on first edit would split one
+  goal's wording history across two keys and break the "changed from" chain exactly at
+  the seam — on the page whose job is to show how something changed.
+- **Entries are attributed, not backfilled.** No `.goal` fact plus a legacy goal means
+  it belongs to that goal — not a guess, since an area used to hold exactly one. Reads
+  never write, which is also what lets §41f seed the same store twice.
+- **The cascade is a derivation.** An entry leaves the open set when its own state says
+  so *or* when its goal does. Closing a goal is one write, nothing is destroyed, and
+  `/data/stored/` still shows what was being tried — better than a real cascade for a
+  product whose copy promises nothing is removed.
+- **The cap stays on the area** at three open entries, not three per goal. Nine open
+  entries in one area is the task manager this is not.
+- **`goalAt()` removed** rather than updated: "which goal was current when this
+  happened" only had an answer while an area held one goal, and it had no caller.
+
+Two things caught by doing rather than planning:
+
+- **`stored-areas.tsx` could not be deferred** — it failed to compile the moment
+  `AreaDetail.goals` changed shape, which is the right outcome: `/data/stored/` is the
+  page that promises "nothing here is removed", so a new field it silently omitted
+  would make that false.
+- **§41b was vacuous on first writing.** It asserted an entry whose goal was reached
+  does not appear on the start page — but home only ever shows the *active* entry per
+  area, so that text could not have appeared whatever its goal. Rewritten against the
+  area page with a controlled pair: two entries, both open, neither active, differing
+  only in whether their goal was reached.
+
+Also fixed here because sync would have made it expensive later: `newest()` broke ties
+on array position, and array order is insertion order. Two devices could derive
+different current state from the same facts, and being a derivation rather than a merge
+nothing upstream would notice. Now tie-broken on the fact id, as are the sorts in
+`goals.ts`.
+
+Deliberately **not** done: the `usePerson` key index (no measured problem), `maxLength`
+on `TextAnswer` (belongs with the "why" field that needs it), and an explicit `'open'`
+state value (nothing needs the inverse yet).
 
 ## The repository
 

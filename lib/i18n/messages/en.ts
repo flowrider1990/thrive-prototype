@@ -400,6 +400,15 @@ export const en = {
        * down, and either would be a false claim about the person's own data.
        */
       retired: 'set aside',
+      /**
+       * A goal is *reached*, not "done": done is what you say about a thing you were
+       * trying, and a goal is the thing it was for.
+       */
+      goalReached: 'reached',
+      /** A pointer, not a fact about the goal — so `standing()` gives it no date. */
+      goalPriority: 'first for now',
+      /** Only rendered when there is one; an absent reason is not an empty one. */
+      why: 'why it matters: {why}',
       edited: 'reworded from: {text}',
       /** The collapsed summary has to say enough to be worth not opening. */
       noGoal: 'No goal recorded',

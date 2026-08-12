@@ -46,6 +46,14 @@ Current state is therefore a derived read: **newest entry per `key`**, which is
 what `current(key)` returns. `history(key)` gives all of them, oldest first, and
 `/data/stored/` shows every entry with the date it was noted.
 
+**Ties are broken on the id, never on position.** `newest()` used to prefer whichever
+matching fact came later in the array, and array order is insertion order — which is
+not the same on two devices once facts arrive by more than one route. Two devices
+could then derive different current state from the same set of facts, and because that
+is a derivation rather than a merge, nothing upstream would notice. Exact-timestamp
+ties are rare and the tie-break is arbitrary; the point is that it is arbitrary the
+same way everywhere. The sorts in `lib/person/goals.ts` follow the same rule.
+
 `version` exists so a later shape change can migrate rather than guess.
 
 ## Values are never parsed
@@ -83,9 +91,14 @@ see `docs/goals-and-areas.md`.
 | key | asked by | notes |
 | --- | --- | --- |
 | `area.<a>.review` | each life area | `'yes'` or `'not_now'` — both real answers |
-| `area.<a>.goal` | the goal question | one current goal per area; earlier ones kept |
+| `area.<a>.goal` | the goal question | **legacy**: the goal written before goals had ids. Still read, and still what `setGoal()` writes |
+| `area.<a>.goal.<gid>.text` | the goal question | one per goal; earlier wordings kept |
+| `area.<a>.goal.<gid>.why` | why it matters | optional; an empty value is how it is cleared |
+| `area.<a>.goal.<gid>.state` | reaching or setting a goal aside | `'done'` / `'retired'`; absent means active |
+| `area.<a>.goal_priority` | the goal put first | holds a goal id, so it is never rendered raw |
 | `area.<a>.step.<sid>.text` | the next-step question | the step's words; re-appended when reworded |
 | `area.<a>.step.<sid>.state` | done, or removed from current steps | `'done'` / `'retired'`; absent means open |
+| `area.<a>.step.<sid>.goal` | which goal an entry serves | holds a goal id; absent means "attribute it" |
 | `area.<a>.step_active` | choosing what to work on | holds a step id, so it is never rendered raw |
 | `introduction_done` | reaching the end of the introduction | `'yes'`. A token: rendered through `stored.tokens`, never as itself |
 | `consent_concern` | the question after declining | **memory mode only** — never written to the device |

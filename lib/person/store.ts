@@ -292,11 +292,29 @@ export function forgetEverything(): void {
   })
 }
 
+/**
+ * Newest per key, with ties broken on the id rather than on position.
+ *
+ * The `>=` this replaces meant "later in the array wins", and array order is
+ * insertion order — which is not the same on two devices once facts arrive by more
+ * than one route. Two devices could then derive *different* current state from the
+ * *same* set of facts. That is not a merge conflict, so nothing upstream would catch
+ * it; it is a derivation that quietly depends on how the list was assembled.
+ *
+ * Exact-timestamp ties are rare and the tie-break is arbitrary — but it is arbitrary
+ * *the same way everywhere*, which is the whole point.
+ */
 function newest(facts: readonly PersonFact[], key: string): PersonFact | undefined {
   let found: PersonFact | undefined
   for (const fact of facts) {
     if (fact.key !== key) continue
-    if (!found || fact.learnedAt >= found.learnedAt) found = fact
+    if (
+      !found ||
+      fact.learnedAt > found.learnedAt ||
+      (fact.learnedAt === found.learnedAt && fact.id > found.id)
+    ) {
+      found = fact
+    }
   }
   return found
 }

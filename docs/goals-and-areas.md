@@ -1,7 +1,8 @@
 # Life areas, goals, and what to try
 
-Six fixed life areas. In each, at most one current goal, at most three prepared
-things to try, and at most one being worked on. That is the whole feature.
+Six fixed life areas. In each, up to three current goals, at most three prepared
+things to try **across the area**, and at most one being worked on. That is the
+whole feature.
 
 This file holds the parts that are not self-evident from the code: why the keys
 are shaped the way they are, and how current state is derived from them.
@@ -98,11 +99,21 @@ through the store's `remember()` with `source: 'goals'`.
 
 ```
 area.<a>.review              'yes' | 'not_now'
-area.<a>.goal                the goal, verbatim
-area.<a>.step.<sid>.text     the step, verbatim   — newest wins, history = rewordings
+area.<a>.goal                the goal, verbatim   — LEGACY, still read, still written
+area.<a>.goal.<gid>.text     the goal, verbatim   — newest wins, history = rewordings
+area.<a>.goal.<gid>.why      why it matters       — empty reads as absent
+area.<a>.goal.<gid>.state    'done' | 'retired'   — absent means active
+area.<a>.goal_priority       <gid>
+area.<a>.step.<sid>.text     the entry, verbatim  — newest wins, history = rewordings
 area.<a>.step.<sid>.state    'done' | 'retired'   — absent means open
+area.<a>.step.<sid>.goal     <gid>                — absent means "attribute it"
 area.<a>.step_active         <sid>
 ```
+
+`GOAL_KEY` cannot match the legacy `area.<a>.goal` (too few segments) or
+`area.<a>.goal_priority` (`goal_priority` is not `goal`), so all three coexist
+without ambiguity. **That is what makes the migration a read rather than a rewrite,
+and why there is no `version` bump.**
 
 `lib/person/goals.ts` is the only module that knows this shape. Nothing else should
 build a key by hand.
@@ -138,9 +149,17 @@ contains no UUID at all.
 ## Deriving current state
 
 ```
-open(a)        = steps whose newest state is neither 'done' nor 'retired'
-activeStep(a)  = the step `step_active` points at, but only while it is open
+goals(a)       = every goal ever written here, oldest first, tie-broken on id
+activeGoals(a) = those whose newest state is neither 'done' nor 'retired',
+                 capped at MAX_GOALS, oldest kept
+priority(a)    = the goal `goal_priority` points at, but only while it is active
+open(a)        = entries whose own newest state is neither 'done' nor 'retired'
+                 AND whose goal is still active
+activeStep(a)  = the entry `step_active` points at, but only while it is open
 ```
+
+**Goals are derived before entries**, and the order is not incidental: an entry's
+attribution *and* whether it is open both depend on the state of the goal it serves.
 
 That second line is doing more work than it looks. Marking a step done appends
 `state = 'done'`, and the pointer simply stops resolving — so:
@@ -158,8 +177,9 @@ mints a new `sid`.
 
 | cap | how it holds |
 | --- | --- |
-| one current goal per area | newest wins on one key |
-| three prepared steps | the UI refuses to add when `open(a).length >= 3` — the active step counts as one of the three |
+| three goals per area | `activeGoals` slices to `MAX_GOALS` after sorting, oldest kept, so a hand-edited store renders three rather than throwing |
+| zero or one priority goal | one pointer key, resolving only while its target is active |
+| three prepared entries **per area** | the UI refuses to add when `open(a).length >= 3` — the active one counts as one of the three. Deliberately on the area, not the goal: three goals holding three each would be nine open entries in one area, which is the task manager this is not |
 | zero or one active step | one pointer key, and it resolves only while its target is open |
 | zero steps against a goal | no step facts exist — nothing has to be written to mean it |
 
@@ -202,35 +222,26 @@ for nothing but choosing where to resume. Making the skip stick across a reload 
 letting a goal alone count as settled, which changes that derivation and was left out of
 a UI-only change.
 
-### One goal per area is a first-iteration constraint, not a domain rule
+### Up to three goals per area
 
-Recorded because the code reads like a rule and is not one. A later version may
-support **up to three concurrently relevant goals per area, with priority ordering
-the person controls**, and the product should stay able to help someone *compare,
-prioritise and choose between* competing goals and possible actions. None of that is
-built, and none of it should be built without its own approval.
+This used to be recorded here as a first-iteration constraint that the code made look
+like a rule. It is now built, and along the lines this file predicted: goal ids in the
+key, an additive `.goal` reference on an entry, and no `version` bump.
 
-What that means for the two halves of the model is quite different, and it is worth
-knowing which is already ready:
+Two things the prediction got right and one it did not. Entries really were already
+independent of any one goal, so linking them was purely additive. Goals really did need
+the treatment entries already had. But this file guessed that multiple goals "might
+qualify" for a `version` bump, and it does not: the legacy key is readable under the new
+shape, which is the doc's own test for whether a bump is needed.
 
-- **Actions are already independent of any one goal.** They hang off the area
-  (`area.<a>.step.<sid>.*`), never off a goal id — see "Changing a goal" below, where
-  a new goal reviews the existing entries rather than replacing them. So "an action
-  may support one or more goals rather than belonging permanently to exactly one" is
-  compatible with the keys as they stand. Expressing *which* goals an action serves
-  would be additive: a new key alongside the existing ones, no migration.
-- **Goals are not.** `area.<a>.goal` is a single key where the newest value wins,
-  which is exactly what makes "one current goal" fall out of the derivation for free.
-  Three concurrent goals needs the same treatment steps already got —
-  `area.<a>.goal.<gid>.text`, plus something for ordering — and that *is* a
-  migration, because existing single-key goal facts would have to be read as one
-  goal under the new shape. `docs/person-model.md` has the rule: a `version` bump is
-  for changes that genuinely cannot be read the old way, and this is one of the few
-  that might qualify.
+**The cap is on the area, not the goal.** Up to three goals, but only three things being
+tried across all of them — three goals holding three each would be nine open entries in
+one area, which is the task manager this is not.
 
-The lesson from doing it once already applies here: the id belongs in the **key**,
-not in the value, because a fact carries one string and the value has to stay free
-for the person's own words.
+**The interface has not moved yet.** `setGoal()` still writes the legacy key, so every
+goal written today is a legacy goal and the newer shape is read but not written. That is
+deliberate: the migration and the screens change one at a time, and the read path is
+covered by §41 in the meantime.
 
 ## The three outcomes
 
@@ -282,8 +293,20 @@ So: not stored now, because nothing reads it. Stored later, when something does.
 
 ## Changing a goal
 
-Steps belong to the **area**, not to the goal. A new goal therefore touches no
-step fact — but it does trigger a review, one step per screen, over everything
+**This describes the interface as it stands, and the model has moved underneath it.**
+Entries now belong to a goal, so rewording one no longer risks orphaning anything —
+the same goal id keeps the same entries, and nothing has to be asked about. The walk
+below therefore has no reason to run on a reword any more, and should be retargeted
+rather than deleted when the multi-goal screens land: **reaching or setting aside** a
+goal is the case that still needs it, because its open entries would otherwise be
+silently stranded or silently discarded, which is the pair this walk was built to
+prevent.
+
+Until then it behaves exactly as before, because `setGoal()` still writes the legacy
+key and newest-wins on one key is still what "changing a goal" means.
+
+Steps belonged to the **area**, not to the goal. A new goal therefore touched no
+step fact — but it did trigger a review, one step per screen, over everything
 still open:
 
 - **Keep** writes nothing; the step stays open.
@@ -297,19 +320,31 @@ label says "remove from current steps" rather than "remove" for the same reason:
 nothing is deleted, and the copy should not claim otherwise on a page whose
 neighbour is `/data/stored/`.
 
-## Which goal was current when something happened
+## The legacy goal, and why nothing was rewritten
 
-`goalAt(person, area, when)` answers it by looking for the newest goal fact at or
-before `when`. Nothing extra is stored: every fact already carries `learnedAt`.
+A store written before goals had ids holds `area.<a>.goal`. It is read as a goal whose
+id is the reserved literal `LEGACY_GID` — `newId()` returns UUIDs, so it cannot
+collide — and **its text stays at that old key forever**. One ternary in
+`goalTextKey()` is the entire special case; reading, editing, history, ordering and
+`/data/stored/` all flow through it.
 
-**This is a convenience over one device's local history, not a cross-device
-ordering guarantee.** `learnedAt` is a wall clock on whichever machine wrote the
-fact, so two devices with skewed clocks could interleave goal and step facts
-misleadingly. If sync ever arrives, that is the moment to decide whether a step
-needs explicit goal context of its own — deliberately not built now.
+Keeping the text where it is matters more than it looks. Migrating it into
+`area.<a>.goal.legacy.text` on first edit would split one goal's wording history
+across two keys and break the "changed from" chain exactly at the seam — on the page
+whose whole job is to show how something changed.
 
-It is derivable today and unused by the UI today. It is what a future journey
-summary would read.
+**Entries are attributed rather than backfilled.** An entry with no `.goal` fact
+belongs to the legacy goal when the area has one. That is not a guess: before goals
+had ids an area held exactly one, so the link was implied by the key shape rather than
+stored. It is never guessed between several newer goals — with no legacy goal an entry
+stays unlinked, and so does a link naming a goal that is not there. Reads never write,
+which is also what lets §41f seed the same store twice and get the same answer.
+
+`goalAt()` was **removed** rather than updated. "Which goal was current when this
+happened" only had an answer while an area held one goal; with several it has no single
+one, and it had no caller. A journey summary will need something, but it will need to
+be designed against the model that exists rather than kept alive against the one that
+does not.
 
 ## Completed steps are kept, and not shown
 

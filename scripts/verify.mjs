@@ -648,7 +648,16 @@ const EN = {
   consent: 'Is this okay for you?',
   yes: 'Yes, that is okay',
   no: 'No',
-  intro: 'Next we will look at five areas of your life',
+  /**
+   * Deliberately the half of the sentence that does not name a number.
+   *
+   * This needle is used in both directions — 4b asserts the introduction *is* on
+   * screen, 25f asserts it is *not* — and the negative is the dangerous one: a
+   * stale needle makes 25f pass while guarding nothing. Matching on
+   * "areas of your life" rather than "five areas of your life" means changing how
+   * many areas there are cannot quietly retire that guard.
+   */
+  intro: 'areas of your life, one at a time',
   introOk: 'Okay',
   review: 'Would you like to change or explore something here?',
   reviewYes: 'Yes',
@@ -705,6 +714,30 @@ const EN = {
   storageOffConfirm: 'Turn saving off and delete',
 }
 
+/**
+ * The life areas: ids as they are persisted, and their English labels.
+ *
+ * Mirrored by hand from `lib/areas.ts` and the catalogs, for the same reason
+ * `STORAGE_KEY` is: this script runs outside the bundle, and owing nothing to the
+ * app's own modules is what makes a passing run mean something.
+ *
+ * **Everything downstream derives from this list** — the progress totals, the
+ * label and link lists, `seedOnboarded()`'s review facts, and how many times a
+ * walk has to answer "Not right now". Adding an area should be a change here and
+ * almost nowhere else. It used to be a change in roughly thirty places, most of
+ * which aborted the run rather than failing a check.
+ */
+const AREAS = [
+  { id: 'body', label: 'Body & Health', de: 'Körper & Gesundheit' },
+  { id: 'relationships', label: 'Relationships & Social Life', de: 'Beziehungen & Soziales' },
+  { id: 'work', label: 'Work & Career', de: 'Arbeit & Beruf' },
+  { id: 'finances', label: 'Finances', de: 'Finanzen' },
+  { id: 'creativity', label: 'Hobbies & Creativity', de: 'Hobbys & Kreativität' },
+]
+
+/** The one the introduction ends on, which is the area §25 interrupts. */
+const LAST_AREA = AREAS[AREAS.length - 1]
+
 /** The collapsed-nav trigger, which is icon-only and so has to be found by name. */
 const MENU = 'button[aria-label="Menu"], button[aria-label="Menü"]'
 
@@ -730,22 +763,34 @@ async function seedOnboarded() {
   const at = '2026-01-01T00:00:00.000Z'
   const step = 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa'
   const facts = [
-    ...['body', 'relationships', 'work', 'finances', 'creativity'].map((area, i) => ({
+    ...AREAS.map(({ id }, i) => ({
       id: `seed-review-${i}`,
-      key: `area.${area}.review`,
-      value: area === 'body' ? 'yes' : 'not_now',
+      key: `area.${id}.review`,
+      value: id === AREAS[0].id ? 'yes' : 'not_now',
       source: 'goals',
       learnedAt: at,
     })),
-    { id: 'seed-goal', key: 'area.body.goal', value: 'Sleep better', source: 'goals', learnedAt: at },
+    {
+      id: 'seed-goal',
+      key: `area.${AREAS[0].id}.goal`,
+      value: 'Sleep better',
+      source: 'goals',
+      learnedAt: at,
+    },
     {
       id: 'seed-text',
-      key: `area.body.step.${step}.text`,
+      key: `area.${AREAS[0].id}.step.${step}.text`,
       value: 'Walk after dinner',
       source: 'goals',
       learnedAt: at,
     },
-    { id: 'seed-active', key: 'area.body.step_active', value: step, source: 'goals', learnedAt: at },
+    {
+      id: 'seed-active',
+      key: `area.${AREAS[0].id}.step_active`,
+      value: step,
+      source: 'goals',
+      learnedAt: at,
+    },
   ]
   const store = { version: 1, consentAt: at, locale: 'en', facts }
   await goto('/')
@@ -786,6 +831,35 @@ async function enterEntries(steps) {
   }
 }
 
+/**
+ * Answers "Not right now" for exactly `count` areas.
+ *
+ * For the walks that have to stop on a *particular* area — §25 interrupts the last
+ * one — so the count is derived from `AREAS.length` rather than written out.
+ */
+async function declineAreas(count, label = EN.reviewNo) {
+  for (let area = 0; area < count; area++) await click(label)
+}
+
+/**
+ * Answers "Not right now" until the introduction closes.
+ *
+ * Bounded by `AREAS.length` rather than trusting a literal count, because a wrong
+ * count here does not fail a check — `__click` throws, `evaluate()` rethrows, and
+ * the run dies mid-section without printing a summary or killing Chrome. Nine
+ * walks each carried their own number; now none of them does.
+ *
+ * Localised through its arguments so the German walk uses the same helper.
+ */
+async function declineRest({ no = EN.reviewNo, done = EN.complete } = {}) {
+  for (let declined = 0; declined <= AREAS.length; declined++) {
+    if ((await text()).includes(done)) return declined
+    if (declined === AREAS.length) break
+    await click(no)
+  }
+  throw new Error(`the introduction did not close after ${AREAS.length} declines`)
+}
+
 // --- 4. consent yes: the whole introduction, then reload with no flash ------
 
 await clearStorage()
@@ -822,18 +896,21 @@ await click(EN.introOk)
 screen = await text()
 check(
   '4c. the first life area is asked about',
-  screen.includes('Body & Health') && screen.includes(EN.review),
+  screen.includes(AREAS[0].label) && screen.includes(EN.review),
 )
 
 let marks = await progress()
 check(
   '4d. progress starts at none reviewed, and says which area this is',
-  marks.now === 0 && marks.max === 5 && marks.text === 'Area 1 of 5',
+  marks.now === 0 && marks.max === AREAS.length && marks.text === `Area 1 of ${AREAS.length}`,
   JSON.stringify(marks && { now: marks.now, max: marks.max, text: marks.text }),
 )
 check(
   '4e. the area being asked about is distinguished but NOT painted as completed',
-  marks.marks[0].paint !== marks.marks[1].paint && marks.marks[1].paint === marks.marks[4].paint,
+  // `at(-1)` rather than a literal index: with a fixed one this keeps passing
+  // while comparing against a mark that is no longer the last.
+  marks.marks[0].paint !== marks.marks[1].paint &&
+    marks.marks[1].paint === marks.marks.at(-1).paint,
   `current=${marks.marks[0].paint} upcoming=${marks.marks[1].paint}`,
 )
 
@@ -841,7 +918,9 @@ await runArea('Sleep better', ['Walk for 20 minutes', 'Read before bed'], 'Walk 
 marks = await progress()
 check(
   '4f. answering an area fills its mark and moves to the next',
-  marks.now === 1 && marks.text === 'Area 2 of 5' && marks.marks[0].paint !== marks.marks[1].paint,
+  marks.now === 1 &&
+    marks.text === `Area 2 of ${AREAS.length}` &&
+    marks.marks[0].paint !== marks.marks[1].paint,
   JSON.stringify({ now: marks.now, text: marks.text }),
 )
 
@@ -852,15 +931,21 @@ screen = await text()
 marks = await progress()
 check(
   '4g. "Not right now" moves straight on without asking for a goal',
-  !screen.includes(EN.goal) && screen.includes('Work & Career') && marks.now === 2,
+  !screen.includes(EN.goal) && screen.includes(AREAS[2].label) && marks.now === 2,
   `${marks.now} reviewed`,
 )
 
 await runArea('Get the portfolio finished', ['Finish the case study'])
-await click(EN.reviewNo)
-await click(EN.reviewNo)
+// Three areas are answered by now — two walked, one declined — so the rest is the
+// remainder. Asserting the count keeps this check falsifiable: without it, the
+// helper's own success would be the only thing 4h could fail on.
+const declined = await declineRest()
 screen = await text()
-check('4h. after the fifth area the introduction closes', screen.includes(EN.complete))
+check(
+  '4h. after the last area the introduction closes, and not before',
+  screen.includes(EN.complete) && declined === AREAS.length - 3,
+  `${declined} declined, expected ${AREAS.length - 3}`,
+)
 
 await click(EN.toHome)
 screen = await text()
@@ -872,7 +957,7 @@ check(
     // prepared but not the one being worked on
     !screen.includes('Read before bed') &&
     // reviewed with "not right now" — present, but not shown as a gap
-    !screen.includes('Finances'),
+    !screen.includes(AREAS[3].label),
   screen.replace(/\n/g, ' / ').slice(0, 120),
 )
 
@@ -882,9 +967,13 @@ check(
   '4j. the store holds the answers verbatim, one goal and one pointer per area',
   stored.version === 1 &&
     typeof stored.consentAt === 'string' &&
-    factsFor(stored, '.review').length === 5 &&
-    stored.facts.some((f) => f.key === 'area.body.goal' && f.value === 'Sleep better') &&
-    stored.facts.some((f) => f.key === 'area.finances.review' && f.value === 'not_now') &&
+    factsFor(stored, '.review').length === AREAS.length &&
+    stored.facts.some(
+      (f) => f.key === `area.${AREAS[0].id}.goal` && f.value === 'Sleep better',
+    ) &&
+    stored.facts.some(
+      (f) => f.key === `area.${AREAS[3].id}.review` && f.value === 'not_now',
+    ) &&
     factsFor(stored, '.text').length === 3 &&
     factsFor(stored, '.step_active').length === 2,
   `${stored.facts.length} facts`,
@@ -1020,7 +1109,7 @@ check(
   doneFacts.length === 1 &&
     store.facts.some((f) => f.value === 'Walk for 20 minutes') &&
     // the state key names the same step the pointer named
-    doneFacts[0].key.startsWith('area.body.step.'),
+    doneFacts[0].key.startsWith(`area.${AREAS[0].id}.step.`),
   `${doneFacts.length} done`,
 )
 
@@ -1096,7 +1185,7 @@ check(
 
 // The cap: three open at a time, counting the one being worked on.
 await clickNav(EN.navAreas)
-check('24m. Life areas lists all five with their state', (await text()).includes(EN.picker))
+check('24m. Life areas lists every one with its state', (await text()).includes(EN.picker))
 await clickOption('Work & Career')
 // Navigation, not a selection: wait for the destination rather than for a fixed delay.
 await waitForText(EN.addStep)
@@ -1323,10 +1412,7 @@ check('5b. the reason is acknowledged and going on is offered', screen.includes(
 await click(EN.contYes)
 await click(EN.introOk)
 await runArea('Move more', ['Walk after lunch'])
-await click(EN.reviewNo)
-await click(EN.reviewNo)
-await click(EN.reviewNo)
-await click(EN.reviewNo)
+await declineRest()
 await click(EN.toHome)
 screen = await text()
 check('5c. the whole introduction works in memory-only mode', screen.includes('Walk after lunch'))
@@ -1405,10 +1491,7 @@ await click(EN.cont)
 await click(EN.contYes)
 await click(EN.introOk)
 await runArea('Move more', ['Walk after lunch'])
-await click(EN.reviewNo)
-await click(EN.reviewNo)
-await click(EN.reviewNo)
-await click(EN.reviewNo)
+await declineRest()
 await click(EN.toHome)
 
 // The precondition, stated rather than assumed: in memory mode the concern and a real
@@ -1482,14 +1565,14 @@ screen = await text()
 marks = await progress()
 check(
   '6b. interpolation reads correctly in German',
-  marks.text === 'Bereich 1 von 5',
+  marks.text === `Bereich 1 von ${AREAS.length}`,
   marks.text,
 )
 check(
   '6c. the life areas and their question are German, with no English leaking',
-  screen.includes('Körper & Gesundheit') &&
+  screen.includes(AREAS[0].de) &&
     screen.includes('Möchtest du hier gerade etwas verändern') &&
-    !screen.includes('Body & Health'),
+    !screen.includes(AREAS[0].label),
 )
 
 await click('Ja')
@@ -1498,7 +1581,7 @@ await click('Weiter')
 await type('20 Minuten spazieren gehen')
 await click('Hinzufügen')
 await click('Das reicht')
-for (let area = 0; area < 4; area++) await click('Gerade nicht')
+await declineRest({ no: 'Gerade nicht', done: 'Das war’s für den Anfang.' })
 await click('Zur Startseite')
 screen = await text()
 check(
@@ -1534,7 +1617,7 @@ check('6g. the locale was persisted with consent', JSON.parse(await raw()).local
 
 /**
  * Closing the tab midway through the **fifth** area is a deliberately accepted
- * edge: by then all five areas have a review answer, so the introduction is over
+ * edge: by then every area has a review answer, so the introduction is over
  * and the app lands on home rather than resuming. Nothing is lost, and the four
  * properties that make that acceptable are what this section pins down.
  *
@@ -1548,15 +1631,15 @@ await clearStorage()
 await goto('/')
 await click(EN.yes)
 await click(EN.introOk)
-for (let area = 0; area < 4; area++) await click(EN.reviewNo)
-// The fifth area: answered, a goal given, then interrupted before any next step.
+await declineAreas(AREAS.length - 1)
+// The last area: answered, a goal given, then interrupted before any next step.
 await click(EN.reviewYes)
 await type('Draw something every week')
 await click(EN.cont)
 await goto('/')
 screen = await text()
 check(
-  '25a. five review answers end the introduction, even with one area left unfinished',
+  '25a. a review answer for every area ends the introduction, even with one left unfinished',
   screen.includes(EN.home) && !screen.includes(EN.review) && !screen.includes(EN.steps),
   screen.replace(/\n/g, ' / ').slice(0, 100),
 )
@@ -1571,20 +1654,20 @@ check(
 const unfinishedLink = await evaluate(
   `(() => {
      const link = [...document.querySelectorAll('main a[href]')]
-       .find((a) => a.textContent.trim() === 'Hobbies & Creativity');
+       .find((a) => a.textContent.trim() === ${JSON.stringify(LAST_AREA.label)});
      return link ? { text: link.textContent.trim(), href: new URL(link.href).pathname } : null;
    })()`,
 )
 check(
   '25b2. the unfinished area is named as a real link to that area',
-  unfinishedLink?.href === '/areas/creativity/',
+  unfinishedLink?.href === `/areas/${LAST_AREA.id}/`,
   unfinishedLink ? `${unfinishedLink.text} → ${unfinishedLink.href}` : 'no link on the area name',
 )
 
 // The trap this page has already fallen into once: something that looks like
 // navigation but writes. Following it must leave the store byte-identical.
 const beforeUnfinished = await raw()
-await clickText('Hobbies & Creativity')
+await clickText(LAST_AREA.label)
 await sleep(400)
 check(
   '25b3. and following it navigates without changing anything',
@@ -1598,9 +1681,9 @@ await clickNav(EN.navAreas)
 screen = await text()
 check(
   '25c. the unfinished area is reachable and says what is missing',
-  screen.includes('Hobbies & Creativity') && screen.includes('not decided yet what could help'),
+  screen.includes(LAST_AREA.label) && screen.includes('not decided yet what could help'),
 )
-await clickOption('Hobbies & Creativity')
+await clickOption(LAST_AREA.label)
 await waitForText('Draw something every week')
 screen = await text()
 check(
@@ -1701,7 +1784,9 @@ check(
 )
 check(
   '38d. and the goal is still stored, which is the whole point of the state',
-  afterUnknown.some((fact) => fact.key === 'area.body.goal' && fact.value === 'Sleep better'),
+  afterUnknown.some(
+    (fact) => fact.key === `area.${AREAS[0].id}.goal` && fact.value === 'Sleep better',
+  ),
   afterUnknown.filter((f) => f.key.endsWith('.goal')).map((f) => f.value).join(' | '),
 )
 
@@ -1714,8 +1799,8 @@ check(
   screen.replace(/\n/g, ' / ').slice(0, 120),
 )
 
-// Finish the remaining four the quick way, so the downstream views can be checked.
-for (let area = 0; area < 4; area++) await click(EN.reviewNo)
+// Finish the remaining areas the quick way, so the downstream views can be checked.
+await declineRest()
 await click(EN.toHome)
 screen = await text()
 check(
@@ -1733,7 +1818,7 @@ check(
 )
 
 // Opening it must offer adding something without re-asking for the goal.
-await clickOption('Body & Health')
+await clickOption(AREAS[0].label)
 await waitForText(EN.addStep)
 screen = await text()
 check(
@@ -1761,8 +1846,8 @@ await chooseIn('Sprache', 'English')
 // colour between current and upcoming, and nothing asserted otherwise.
 //
 // Three clicks reach a frame holding all three states at once: consent, the
-// introduction, then "Not right now" for the first area leaves
-// [done, current, upcoming, upcoming, upcoming].
+// introduction, then "Not right now" for the first area leaves one done, one
+// current, and the rest upcoming.
 
 for (const scheme of ['light', 'dark']) {
   await clearStorage()
@@ -1877,7 +1962,7 @@ await click(EN.no)
 await click(EN.cont)
 await click(EN.contYes)
 await click(EN.introOk)
-for (let area = 0; area < 5; area++) await click(EN.reviewNo)
+await declineRest()
 await click(EN.toHome)
 check(
   '26d. and in memory mode as well — the gate is about the person, not the store',
@@ -1896,23 +1981,17 @@ await seedOnboarded()
 await clickNav('Life areas')
 screen = await text()
 check(
-  '27a. Life areas lists all five with their state',
-  screen.includes('Body & Health') &&
-    screen.includes('Relationships & Social Life') &&
-    screen.includes('Work & Career') &&
-    screen.includes('Finances') &&
-    screen.includes('Hobbies & Creativity'),
+  '27a. Life areas lists every one with its state',
+  AREAS.every((area) => screen.includes(area.label)),
   screen.replace(/\n/g, ' / ').slice(0, 160),
 )
 
-// A set, not a count. Five links all pointing at `body` is the copy-paste bug a
+// A set, not a count. Every link pointing at `body` is the copy-paste bug a
 // count cannot see, and it is the likeliest one in a mapped list.
 const areaHrefs = await evaluate(
   `[...document.querySelectorAll('main a[href]')].map((a) => new URL(a.href).pathname)`,
 )
-const wanted = ['body', 'relationships', 'work', 'finances', 'creativity'].map(
-  (a) => `/areas/${a}/`,
-)
+const wanted = AREAS.map(({ id }) => `/areas/${id}/`)
 check(
   '27b. every row is a real link, and each points at its own area',
   wanted.every((href) => areaHrefs.includes(href)) && new Set(areaHrefs).size === areaHrefs.length,
@@ -1923,7 +2002,7 @@ check(
 // anything, which is the whole difference from the `.option` buttons elsewhere.
 check(
   '27c. and the rows are links, not buttons — this page changes nothing',
-  (await count('main a[href]')) === 5 && (await count('main button')) === 0,
+  (await count('main a[href]')) === AREAS.length && (await count('main button')) === 0,
   `${await count('main a[href]')} link(s), ${await count('main button')} button(s)`,
 )
 
@@ -1933,7 +2012,7 @@ await goto('/areas/body/')
 screen = await text()
 check(
   '27d. a deep link to one area loads it directly, on a cold navigation',
-  screen.includes('Body & Health') && screen.includes('Sleep better'),
+  screen.includes(AREAS[0].label) && screen.includes('Sleep better'),
   screen.replace(/\n/g, ' / ').slice(0, 120),
 )
 await goto('/areas/body/')
@@ -2052,7 +2131,7 @@ check(
 // person's own entries live behind now. 28c used to assert them directly; asserting
 // that expanding reveals them is strictly more than that, because it proves the
 // disclosure works as well as that the data is there.
-await clickSummary('Body & Health')
+await clickSummary(AREAS[0].label)
 screen = await text()
 check(
   '28c3. and expanding one reveals the entries in the person’s own words',
@@ -2176,7 +2255,7 @@ const homeAreaLink = await evaluate(
   `(() => {
      // Contains, not equals: the label carries the area's emoji as well as its name.
      const link = [...document.querySelectorAll('main a[href]')]
-       .find((a) => a.textContent.includes('Body & Health'));
+       .find((a) => a.textContent.includes(${JSON.stringify(AREAS[0].label)}));
      if (!link) return null;
      const url = new URL(link.href);
      return {
@@ -2200,7 +2279,7 @@ check(
 // Following it must navigate and write nothing — the row holds real controls, and the
 // name sitting beside them must not become a third way to change something.
 const beforeAreaNav = await raw()
-await clickText('Body & Health')
+await clickText(AREAS[0].label)
 await sleep(500)
 screen = await text()
 check(
@@ -2241,7 +2320,7 @@ check(
   JSON.stringify(await backLinkOn()),
 )
 
-// --- 34. the areas list has a hierarchy rather than five flat rows ----------
+// --- 34. the areas list has a hierarchy rather than flat rows --------------
 //
 // The area name used to be `text-sm text-muted` while the goal was full-size ink, so
 // the row's own subject was the quietest thing in it. Measured rather than eyeballed:
@@ -2252,10 +2331,10 @@ await goto('/areas/')
 const rowType = await evaluate(
   `(() => {
      const row = [...document.querySelectorAll('main a.option')]
-       .find((a) => a.textContent.includes('Body & Health'));
+       .find((a) => a.textContent.includes(${JSON.stringify(AREAS[0].label)}));
      if (!row) return null;
      const name = [...row.querySelectorAll('p, span')]
-       .find((e) => e.textContent.trim().endsWith('Body & Health'));
+       .find((e) => e.textContent.trim().endsWith(${JSON.stringify(AREAS[0].label)}));
      const goal = [...row.querySelectorAll('span')]
        .find((e) => e.textContent.trim() === 'Sleep better');
      if (!name || !goal) return null;

@@ -354,6 +354,49 @@ last-write-wins merge to get wrong. Only facts sync, and facts cannot conflict
 (§13). This is the single biggest simplification available, which is why it is
 recommended rather than "sync everything".
 
+### One fact key never syncs: `consent_concern`
+
+"Only facts sync" means *all* of them, and there is exactly one exception. It has
+to be written down here, because the exception lives in code that a cloud push
+would not go through.
+
+`consent_concern` holds what someone said when they declined saving. It is the one
+key promised never to reach the device, and the reason is that persisting it would
+be the single write that proves the objection right. `lib/person/schema.ts` names
+it in `MEMORY_ONLY_KEYS`, and `write()` in `lib/person/store.ts` drops those keys
+on the way to `localStorage`. `scripts/verify.mjs` §39 walks the path that made
+this necessary: declining, saying why, then turning saving on from `/data/`, which
+hands the store a snapshot gathered while nothing was being written.
+
+**That filter does not protect a server.** `write()` guards one destination, and
+the in-memory snapshot deliberately still holds the concern so `/data/stored/` can
+show it back for the rest of the visit. A push reads `facts` from that snapshot,
+not from `write()`'s output — so an upload written the obvious way sends the one
+value that was given precisely because nothing was being sent anywhere. That is a
+worse version of the local bug, because a server copy is not the person's to
+clear.
+
+So, when Phase 4 lands:
+
+- **Apply `MEMORY_ONLY_KEYS` in the push path**, at the point rows are built, not
+  at a call site that happens to know about consent. Same reasoning as filtering in
+  `write()` rather than in `grantConsent()`: the guarantee has to hold for paths
+  that do not exist yet.
+- **Filter the import count too** (§21). "You have N answers on this device" must
+  not count an answer it is not going to send, or the number is a small lie on the
+  one screen that asks permission to upload.
+- **A pull can never bring it back**, since it was never sent — the same property
+  §39e checks locally.
+- **Assert it, do not assume it.** The Phase 7 cloud suite needs the §39 walk with
+  a server on the other end: decline, say why, sign in, import, then query
+  `person_facts` as that user and require zero rows with `key = 'consent_concern'`.
+
+Nothing here changes the shape of `person_facts` (§5): the key is simply never a
+row. Deliberately not solved by a database constraint — a `check (key <>
+'consent_concern')` would turn a client bug into a failed insert that the sync
+code then has to interpret, and the honest place to not send something is before
+sending it.
+
 ---
 
 ## 13. Conflict and sync behaviour
@@ -488,7 +531,7 @@ keeps its property that the whole build is `out/` and any static host can serve 
 | Variable | Value | Browser-safe? |
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://oejjomqrugsgpunzmhnd.supabase.co` | Yes — public by design |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | the publishable (anon) key | Yes — grants nothing without a session and RLS |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | the publishable key (`sb_publishable_…`) | Yes — grants nothing without a session and RLS |
 | `SUPABASE_SERVICE_ROLE_KEY` | the service role key | **Never in the browser, never in the repo, never in a Pages build.** It exists in exactly one place: the `delete-account` Edge Function's secrets (D10). |
 
 - Both public values are **inlined into the JavaScript** by the static export.
@@ -507,6 +550,49 @@ keeps its property that the whole build is `out/` and any static host can serve 
   about which values are which.
 - Guard to add: a check that fails the build if any bundled file contains a
   `service_role` JWT, so the boundary is enforced rather than remembered.
+
+### Publishable key, not the legacy anon key (settled during connectivity work)
+
+This section originally said "the publishable (anon) key", treating the two as one
+thing. They are not. The project has four keys: legacy `anon` and `service_role`
+JWTs, and the current `sb_publishable_…` / `sb_secret_…` pair. **The publishable
+key is what the browser gets**; the legacy `anon` JWT exists for compatibility
+only. `scripts/check-supabase.mjs` asserts the configured key starts with
+`sb_publishable_`, so a legacy JWT is now a failure rather than a silent
+substitution.
+
+Two platform changes found in the Supabase changelog while wiring this up, both of
+which affect this plan:
+
+- **The OpenAPI spec at `/rest/v1/` is secret-key-only** (removed for anon keys,
+  effective 2026-04-08). It answers a publishable key with
+  `401 Secret API key required`. That rules it out as a reachability probe — and
+  makes it a useful *positive control* instead: check 6 fails only if our key is
+  ever **accepted** there, which would mean it is not really a publishable key.
+- **Tables are no longer auto-exposed to the Data API** (2026-04-28, opt-in
+  required by 2026-10-30). Privileges and RLS are two separate questions, and RLS
+  on an unreachable table is not the same as a reachable table with policies.
+
+**Correction, measured on this project (2026-08-11).** The bullet above led to the
+wrong conclusion in practice: the danger was not too few grants but too many.
+Supabase's `ALTER DEFAULT PRIVILEGES` on the `public` schema gave the newly created
+`person_facts` **six privileges to `anon`** — `SELECT`, `INSERT`, `DELETE`,
+`REFERENCES`, `TRIGGER`, `TRUNCATE` — before any grant of ours ran. A migration
+that only adds grants therefore leaves an anonymous client fully privileged on the
+table, with RLS as the only thing in the way.
+
+So the rule for every future table in `public` is **revoke first, then grant back**:
+
+```sql
+revoke all on public.<table> from public, anon, authenticated;
+grant select, insert, delete on public.<table> to authenticated;
+```
+
+Verified after the fact with `information_schema.role_table_grants`, where `anon`
+no longer appears at all. An isolation check that only asserts "an anonymous client
+sees no rows" cannot detect any of this, because RLS makes that true either way —
+which is why `scripts/check-rls.mjs` requires the refusal to read
+`permission denied for table`.
 
 ---
 
@@ -580,10 +666,13 @@ actually stored.
   account?*, with declining leaving them local.
 - Push with `on conflict (id) do nothing`; pull by `created_at` window; the union
   merge (§13).
+- `MEMORY_ONLY_KEYS` applied where rows are built, so `consent_concern` is never
+  uploaded and never counted on the import screen — see §12.
 - Offline and unavailable behaviour (D8, §14, §15): writes land locally and are
   acknowledged immediately, always.
 - **Exit:** two browsers converge on the same set; airplane mode loses nothing;
-  stopping the local stack mid-session changes nothing a person can see.
+  stopping the local stack mid-session changes nothing a person can see; and after
+  a decline-then-import walk, `person_facts` holds no `consent_concern` row.
 
 ### Phase 5 — Forget everything and logout, client side
 
@@ -629,6 +718,8 @@ On the first sign-in on a device that has local facts:
   with declining meaning they stay local only.
 - The import inserts existing facts **with their existing UUIDs and `learnedAt`
   values**, so history is preserved and a repeat import is a no-op.
+- **`N` excludes memory-only keys** (§12). `consent_concern` is not uploaded, so
+  counting it here would overstate what the screen is asking for.
 - Nothing is deleted locally afterwards; the local copy remains the working set.
 - If the same local data is imported from two devices, the UUIDs make it one set
   of rows, not two.

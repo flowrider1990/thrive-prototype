@@ -258,7 +258,26 @@ Current stack:
 - static export hosted/planned for GitHub Pages,
 - Git / GitHub.
 
-There are deliberately no additional runtime dependencies at the current stage.
+`@supabase/supabase-js` is the one runtime dependency beyond the framework, added
+for cloud connectivity (decision D3 in `docs/supabase-migration.md`). Nothing in
+`app/` or `components/` imports it yet, so it is not in the shipped bundle.
+Beyond that, there are deliberately no additional runtime dependencies at the
+current stage.
+
+### Supabase secret handling
+- Client/runtime code may use only the Supabase publishable key.
+- Never expose `sb_secret_...`, service-role, or other privileged credentials
+  through `NEXT_PUBLIC_*`, client-side code, static output, or Git.
+- Privileged Supabase credentials may only be used in isolated trusted tooling or
+  test scripts that are outside the shipped application runtime and use gitignored
+  environment files.
+- Never use an admin/service-role client to verify RLS behavior; RLS assertions
+  must run as real authenticated users.
+
+An admin client that asserts RLS proves nothing: it bypasses RLS by definition, so
+every check would pass whether the policies were right, wrong, or absent. Admin
+rights are for creating and destroying throwaway users, never for the assertions
+themselves. Cleanup must run even when the assertions fail.
 
 ### Current persistence model
 - `lib/person/store.ts` is the only storage boundary.

@@ -354,6 +354,49 @@ last-write-wins merge to get wrong. Only facts sync, and facts cannot conflict
 (§13). This is the single biggest simplification available, which is why it is
 recommended rather than "sync everything".
 
+### One fact key never syncs: `consent_concern`
+
+"Only facts sync" means *all* of them, and there is exactly one exception. It has
+to be written down here, because the exception lives in code that a cloud push
+would not go through.
+
+`consent_concern` holds what someone said when they declined saving. It is the one
+key promised never to reach the device, and the reason is that persisting it would
+be the single write that proves the objection right. `lib/person/schema.ts` names
+it in `MEMORY_ONLY_KEYS`, and `write()` in `lib/person/store.ts` drops those keys
+on the way to `localStorage`. `scripts/verify.mjs` §39 walks the path that made
+this necessary: declining, saying why, then turning saving on from `/data/`, which
+hands the store a snapshot gathered while nothing was being written.
+
+**That filter does not protect a server.** `write()` guards one destination, and
+the in-memory snapshot deliberately still holds the concern so `/data/stored/` can
+show it back for the rest of the visit. A push reads `facts` from that snapshot,
+not from `write()`'s output — so an upload written the obvious way sends the one
+value that was given precisely because nothing was being sent anywhere. That is a
+worse version of the local bug, because a server copy is not the person's to
+clear.
+
+So, when Phase 4 lands:
+
+- **Apply `MEMORY_ONLY_KEYS` in the push path**, at the point rows are built, not
+  at a call site that happens to know about consent. Same reasoning as filtering in
+  `write()` rather than in `grantConsent()`: the guarantee has to hold for paths
+  that do not exist yet.
+- **Filter the import count too** (§21). "You have N answers on this device" must
+  not count an answer it is not going to send, or the number is a small lie on the
+  one screen that asks permission to upload.
+- **A pull can never bring it back**, since it was never sent — the same property
+  §39e checks locally.
+- **Assert it, do not assume it.** The Phase 7 cloud suite needs the §39 walk with
+  a server on the other end: decline, say why, sign in, import, then query
+  `person_facts` as that user and require zero rows with `key = 'consent_concern'`.
+
+Nothing here changes the shape of `person_facts` (§5): the key is simply never a
+row. Deliberately not solved by a database constraint — a `check (key <>
+'consent_concern')` would turn a client bug into a failed insert that the sync
+code then has to interpret, and the honest place to not send something is before
+sending it.
+
 ---
 
 ## 13. Conflict and sync behaviour
@@ -623,10 +666,13 @@ actually stored.
   account?*, with declining leaving them local.
 - Push with `on conflict (id) do nothing`; pull by `created_at` window; the union
   merge (§13).
+- `MEMORY_ONLY_KEYS` applied where rows are built, so `consent_concern` is never
+  uploaded and never counted on the import screen — see §12.
 - Offline and unavailable behaviour (D8, §14, §15): writes land locally and are
   acknowledged immediately, always.
 - **Exit:** two browsers converge on the same set; airplane mode loses nothing;
-  stopping the local stack mid-session changes nothing a person can see.
+  stopping the local stack mid-session changes nothing a person can see; and after
+  a decline-then-import walk, `person_facts` holds no `consent_concern` row.
 
 ### Phase 5 — Forget everything and logout, client side
 
@@ -672,6 +718,8 @@ On the first sign-in on a device that has local facts:
   with declining meaning they stay local only.
 - The import inserts existing facts **with their existing UUIDs and `learnedAt`
   values**, so history is preserved and a repeat import is a no-op.
+- **`N` excludes memory-only keys** (§12). `consent_concern` is not uploaded, so
+  counting it here would overstate what the screen is asking for.
 - Nothing is deleted locally afterwards; the local copy remains the working set.
 - If the same local data is imported from two devices, the UUIDs make it one set
   of rows, not two.

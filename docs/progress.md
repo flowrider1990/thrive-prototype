@@ -37,10 +37,10 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 181/181** (25 at the
+the two the plan singles out. **The current count is 185/185** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
-the UX/UI rework); the script itself is the only authority on that number, so treat
-any count written in prose as a snapshot.
+the UX/UI rework, 181 after the Supabase foundation); the script itself is the only
+authority on that number, so treat any count written in prose as a snapshot.
 
 **Pass the base URL explicitly.** The default is `http://localhost:4321`, which is
 not safe on a machine running a second worktree — a stale or foreign server there
@@ -946,6 +946,78 @@ backend is the architectural change that section governs — see
   dependencies too, so CI would download the CLI binary on every build without
   needing it. Worth scoping then.
 
+## Sprint: taxonomy, multiple goals, hierarchy (branch `feature/verify-area-agnostic`)
+
+Foundation-first, and the first two steps are both about being *able* to add a life
+area safely rather than about adding one.
+
+### Step 0 — the suite stopped caring how many life areas there are
+
+No product change; 181/181 before and after, and `git diff` touched only
+`scripts/verify.mjs`.
+
+The reason it went first: **a sixth area does not make the suite fail, it makes it
+abort.** `__click` throws when no control matches its exact text, `evaluate()`
+rethrows, there is exactly one `try` block in 2900 lines, and the run is top-level
+`await`. Nine walks through the introduction each carried their own literal number of
+"Not right now" clicks; the first wrong one throws from inside the page, the process
+dies after 9 of 181 results, no summary is printed, `chrome.kill()` is never reached,
+and a headless Chrome is left running. So the damage could not be measured by running
+the suite — it had to be fixed blind, which is exactly why it was worth isolating.
+
+`AREAS` at the top of the script now carries ids and both languages' labels, mirrored
+by hand from `lib/areas.ts` and the catalogs. Deliberately not imported: the script
+runs outside the bundle, and owing nothing to the app's modules is what makes a
+passing run mean something — the same discipline `STORAGE_KEY` already has.
+`declineRest()` replaced all nine walks, bounded by `AREAS.length`, returning how many
+it declined so §4h can assert the number rather than merely that the helper returned.
+
+Three findings worth keeping:
+
+- **`EN.intro` was a two-directional needle.** §4b asserts the introduction is on
+  screen; §25f asserts it is not. A stale needle fails §4b loudly but makes §25f pass
+  while guarding nothing, and the silent failure is the one to design against. It now
+  matches "areas of your life, one at a time" — no number in it.
+- **§4e compared against `marks[4]`**, which with six areas keeps passing while no
+  longer being the last mark. Now `at(-1)`.
+- **Relabelling `body` is not cosmetic** in a suite that selects controls by exact
+  visible text: ten literals, three of them `clickOption`/`clickSummary`/`clickText`,
+  which abort rather than fail. All ten now go through the fixture.
+
+### Step 1 — the introduction records that it finished
+
+`introductionFinished()` was `areas.every(a => readArea(a).review)` — monotonic in the
+*answers* but not in the *question set*, so adding an area made it false for every
+store that already existed. Now it reads an `introduction_done` fact and falls back to
+`LEGACY_AREAS` for stores written before that fact existed. Behaviour-preserving today:
+185/185, and `LEGACY_AREAS` is currently identical to `areas`.
+
+What the old line actually cost, traced rather than guessed: the start page stops
+rendering `NextSteps`, and `page-shell.tsx` withdraws the navigation from every page —
+including `/data/`, the route to what is stored and to deleting it. Then it self-heals
+after one answer, so it would have read as a cosmetic glitch. Real user impact today is
+zero (Pages disabled, repo private, no users); behavioural impact was 100% of existing
+stores, including every manual-QA profile, and it silently invalidated
+`seedOnboarded()`.
+
+Two things that made the work honest rather than plausible:
+
+- **§40 runs on its own fixture.** `seedOnboarded()` now writes the fact, so it could
+  only ever prove the easy half. `seedLegacyOnboarded()` writes the five area ids out
+  as literals — deriving them from `AREAS` would make it agree with the app by
+  construction and assert nothing. §40c also asserts the conclusion **wrote nothing**:
+  the fallback is a read.
+- **The fallback was falsified before being trusted.** Temporarily reducing
+  `introductionFinished()` to the fact alone fails §25a, §25b and §25b2 *before* it
+  fails §40 — because §25's scenario is interrupted before `nextArea()` closes the
+  pass, so it has always been the fallback carrying it. Worth knowing: that section
+  will keep exercising the fallback rather than the fact.
+
+`introduction_done` is a token, so `/data/stored/` renders it through a new
+`stored.tokens` map instead of printing `yes` at the person it is about. The generic
+list prints `fact.value` directly, which is right for an utterance and wrong for
+anything the app wrote.
+
 ## The repository
 
 Pushed to <https://github.com/flowrider1990/thrive-prototype>, **private** for
@@ -1043,6 +1115,16 @@ genuinely is unfinished — which is the tell. The shape of the fix is additive:
 key, no `version` bump, per the rule in `docs/person-model.md`. It should be decided
 together with the status concept already parked in `docs/goals-and-areas.md`, not before
 it.
+
+**Amended (2026-08-13, `introduction_done`).** Still open, and deliberately not fixed —
+but its *worst* consequence is gone. `resumeArea` is only consulted when `step === 'area'`,
+which now requires `introductionFinished()` to be false, so nobody is routed back into
+onboarding by this. What remains is the narrow original complaint: a reload mid-pass can
+re-offer the steps question for an area that answered "I do not know yet", and answering
+again appends a redundant `step_active`. `introduction_done` records that the **pass**
+finished; `isSettled` decides **where an interrupted pass resumes**. Those are separated on
+purpose in `lib/person/goals.ts`, and conflating them is the mistake the comments there
+exist to prevent.
 
 ### 4. Switching focus requires retiring the previous entry
 

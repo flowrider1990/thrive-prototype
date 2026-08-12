@@ -67,6 +67,13 @@ the first:
 - **a token or a reference** — written by the app: `'yes'`, `'done'`, or a step's
   internal id. Never shown as itself.
 
+`/data/stored/`'s generic list prints `value` directly, which is correct for an
+utterance and wrong for a token. `stored.tokens` in the catalogs maps a token to the
+sentence it reads as — the same division of labour `stored.areas.review` / `yes`
+already uses one level down: the label supplies the occasion, the value is a whole
+sentence. An unrecognised token still falls through and prints, because a
+hand-edited store should look odd rather than be quietly omitted.
+
 A reference must never reach a screen. That is why `/data/stored/` renders life-area facts
 through `lib/person/goals.ts` rather than through its generic key-grouped list —
 see `docs/goals-and-areas.md`.
@@ -80,6 +87,7 @@ see `docs/goals-and-areas.md`.
 | `area.<a>.step.<sid>.text` | the next-step question | the step's words; re-appended when reworded |
 | `area.<a>.step.<sid>.state` | done, or removed from current steps | `'done'` / `'retired'`; absent means open |
 | `area.<a>.step_active` | choosing what to work on | holds a step id, so it is never rendered raw |
+| `introduction_done` | reaching the end of the introduction | `'yes'`. A token: rendered through `stored.tokens`, never as itself |
 | `consent_concern` | the question after declining | **memory mode only** — never written to the device |
 | `preferred_name` | *parked* — the name question was removed | still shown on `/data/stored/` if it is there |
 | `opening_intent` | *parked* — the open question was removed | still shown on `/data/stored/` if it is there |

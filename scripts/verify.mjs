@@ -791,6 +791,58 @@ async function seedOnboarded() {
       source: 'goals',
       learnedAt: at,
     },
+    // Both this and the review facts above, deliberately: this fixture stands for
+    // someone who really finished, not for someone who merely satisfies the gate.
+    // `seedLegacyOnboarded()` is the one that tests the fallback.
+    {
+      id: 'seed-intro',
+      key: 'introduction_done',
+      value: 'yes',
+      source: 'goals',
+      learnedAt: at,
+    },
+  ]
+  const store = { version: 1, consentAt: at, locale: 'en', facts }
+  await goto('/')
+  await evaluate(
+    `localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, ${JSON.stringify(JSON.stringify(store))})`,
+  )
+  await goto('/')
+}
+
+/**
+ * A store written **before** the introduction recorded its own completion.
+ *
+ * The area ids here are deliberately written out rather than taken from `AREAS`,
+ * and that is the entire point of the fixture: it has to keep representing the five
+ * areas that existed when it was written, however many there are now. Deriving them
+ * would make it agree with the app by construction and assert nothing.
+ *
+ * It carries no `introduction_done` fact, so the only thing that can carry it past
+ * the introduction is the `LEGACY_AREAS` fallback. §40 is what stands between an
+ * added life area and every existing store losing its home screen and its
+ * navigation — including the route to the page that offers to delete the data.
+ */
+async function seedLegacyOnboarded() {
+  const at = '2026-01-01T00:00:00.000Z'
+  const step = 'bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb'
+  const facts = [
+    ...['body', 'relationships', 'work', 'finances', 'creativity'].map((area, i) => ({
+      id: `legacy-review-${i}`,
+      key: `area.${area}.review`,
+      value: area === 'body' ? 'yes' : 'not_now',
+      source: 'goals',
+      learnedAt: at,
+    })),
+    { id: 'legacy-goal', key: 'area.body.goal', value: 'Sleep better', source: 'goals', learnedAt: at },
+    {
+      id: 'legacy-text',
+      key: `area.body.step.${step}.text`,
+      value: 'Walk after dinner',
+      source: 'goals',
+      learnedAt: at,
+    },
+    { id: 'legacy-active', key: 'area.body.step_active', value: step, source: 'goals', learnedAt: at },
   ]
   const store = { version: 1, consentAt: at, locale: 'en', facts }
   await goto('/')
@@ -935,6 +987,10 @@ check(
   `${marks.now} reviewed`,
 )
 
+// Sampled while the introduction is still running, so 4j2's "not before" half is
+// a real observation rather than an assumption about when the write happens.
+const doneMidway = JSON.parse(await raw()).facts.filter((f) => f.key === 'introduction_done')
+
 await runArea('Get the portfolio finished', ['Finish the case study'])
 // Three areas are answered by now — two walked, one declined — so the rest is the
 // remainder. Asserting the count keeps this check falsifiable: without it, the
@@ -978,6 +1034,17 @@ check(
     factsFor(stored, '.step_active').length === 2,
   `${stored.facts.length} facts`,
 )
+// Recorded rather than re-derived. The count of answered areas used to be the whole
+// answer, which made "the introduction is over" depend on how many areas there are —
+// so adding one took the home screen and the navigation away from every store that
+// already existed. See `introductionFinished()`.
+const introDone = stored.facts.filter((f) => f.key === 'introduction_done')
+check(
+  '4j2. finishing the introduction is recorded once, and not before it finished',
+  doneMidway.length === 0 && introDone.length === 1 && introDone[0].value === 'yes',
+  `${doneMidway.length} midway, ${introDone.length} after`,
+)
+
 // A step's id is in its key, which is what leaves the value free to be the
 // person's own words — and what makes rewording a step expressible at all. The
 // one place an id is a *value* is the pointer at the active step; check 7f is
@@ -1233,7 +1300,7 @@ check(
 )
 check(
   '7d. both goals are kept, and the newer one is the current one',
-  store.facts.filter((f) => f.key === 'area.work.goal').length === 2,
+  store.facts.filter((f) => f.key === `area.${AREAS[2].id}.goal`).length === 2,
   `${store.facts.filter((f) => f.key === 'area.work.goal').length} goal facts`,
 )
 
@@ -2912,6 +2979,52 @@ check(
 // theirs and still shown. Parked, not discarded.
 await goto('/data/stored/')
 check('18b. and a parked answer inside it still shows on /you', (await text()).includes('Ada'))
+
+// --- 40. a store that finished the introduction before we wrote it down ----
+//
+// The regression guard for adding a life area, and the reason `introduction_done`
+// exists. `introductionFinished()` used to be "every area has a review answer",
+// which is monotonic in the *answers* but not in the *question set* — so a sixth
+// area made it false for every store that already existed.
+//
+// What that costs is not one extra screen. `app/page.tsx` stops rendering what
+// someone is working on and shows a review question instead, and
+// `components/page-shell.tsx` withdraws the navigation from every page — including
+// `/data/`, which is where the app explains what it holds and offers to delete it.
+// Then it self-heals after one answer, so it would have read as a cosmetic glitch.
+//
+// This is asserted on its own fixture rather than `seedOnboarded()`, which now
+// writes the fact and so could only ever prove the easy half.
+
+await seedLegacyOnboarded()
+screen = await text()
+check(
+  '40a. a store from before the fact still counts as past the introduction',
+  screen.includes(EN.home) &&
+    screen.includes('Walk after dinner') &&
+    !screen.includes(EN.review) &&
+    !screen.includes(EN.intro),
+  screen.replace(/\n/g, ' / ').slice(0, 140),
+)
+// By name, not by count: three links that all say the same thing would satisfy a
+// count, and the one that has to be there is the route to the data itself.
+const legacyNav = await navLinks()
+check(
+  '40b. and it keeps the whole navigation, including the way to its own data',
+  legacyNav.length === 3 &&
+    [EN.navHome, EN.navAreas, EN.navData].every((label) =>
+      legacyNav.some((link) => link.text === label),
+    ),
+  legacyNav.map((link) => `${link.text} -> ${link.href}`).join(' / '),
+)
+// Nothing was written to reach that conclusion: the fallback is a read. A store that
+// silently gained a fact on load would be a write outside the consent gate's intent,
+// and it would also make this fixture untestable a second time.
+check(
+  '40c. reaching that conclusion wrote nothing — the fallback is a read',
+  JSON.parse(await raw()).facts.every((f) => f.key !== 'introduction_done'),
+  JSON.parse(await raw()).facts.map((f) => f.key).join(' '),
+)
 
 // --- 9. nothing leaves the browser ---------------------------------------
 

@@ -12,7 +12,7 @@ import { QuestionCard } from '@/components/question-card'
 import { TextAnswer } from '@/components/text-answer'
 import { areas, type AreaId } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
-import { introductionFinished, isSettled, readArea } from '@/lib/person/goals'
+import { finishIntroduction, introductionFinished, isSettled, readArea } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
 type Step =
@@ -75,9 +75,13 @@ export default function Home() {
 
   const ackText = ack === 'consent' ? m.consent.ack : ack === 'declined' ? m.declined.ack : null
 
-  /** Moves to the next area, or to the closing screen after the fifth. */
+  /** Moves to the next area, or to the closing screen after the last one. */
   function nextArea() {
     const following = areas[areas.indexOf(area) + 1]
+    // The one place the introduction closes, exactly once per pass — which is why
+    // the fact is written here rather than anywhere it could be inferred.
+    // `AreaManage` passes its own `onDone`, so opening an area later cannot fire it.
+    if (!following) finishIntroduction(person)
     setChosenArea(following ?? null)
     setStep(following ? 'area' : 'complete')
   }

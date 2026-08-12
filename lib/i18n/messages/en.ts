@@ -331,6 +331,23 @@ export const en = {
       preferred_name: 'What I should call you',
       opening_intent: 'What you wanted when you arrived',
       consent_concern: 'What you said about saving',
+      introduction_done: 'When you finished the introduction',
+    },
+    /**
+     * Values the app wrote rather than words someone chose, and the sentence each
+     * one reads as.
+     *
+     * The generic list on this page prints `fact.value` directly, which is right for
+     * an utterance and wrong for a token — `docs/person-model.md` is explicit that a
+     * token must never reach a screen as itself. Same division of labour as
+     * `areas.review` / `areas.yes` one level down: the label supplies the occasion,
+     * the value is a whole sentence, and neither needs the other to make sense.
+     *
+     * Deliberately says nothing about how many areas there are. A sentence that
+     * counted them would have to be rewritten every time the list changed.
+     */
+    tokens: {
+      introduction_done: { yes: 'You went through all the life areas once' },
     },
     /** Life-area facts are shown through the domain layer, so no internal id is ever printed. */
     areas: {

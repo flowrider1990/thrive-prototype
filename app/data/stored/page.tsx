@@ -6,7 +6,7 @@ import { BackLink } from '@/components/back-link'
 import { PageShell } from '@/components/page-shell'
 import { StoredAreas } from '@/components/stored-areas'
 import { formatWhen, useI18n } from '@/lib/i18n'
-import { isAreaKey } from '@/lib/person/goals'
+import { INTRODUCTION_DONE, isAreaKey } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
 /**
@@ -16,7 +16,12 @@ import { usePerson } from '@/lib/person/store'
  * longer asks either question — but anyone who answered them before still has the
  * answers, and this page's whole job is to show what is there.
  */
-const KEY_ORDER = ['preferred_name', 'opening_intent', 'consent_concern']
+const KEY_ORDER = [
+  'preferred_name',
+  'opening_intent',
+  'consent_concern',
+  INTRODUCTION_DONE,
+]
 
 /** Nothing → one confirmation → gone. Deleting is never one tap away. */
 type Deleting = 'no' | 'confirming'
@@ -71,6 +76,19 @@ export default function StoredPage() {
     .filter((group) => group.entries.length > 0)
 
   const labels: Record<string, string | undefined> = m.stored.keys
+
+  /**
+   * Some values are tokens the app wrote, not words someone chose, so printing them
+   * would show an internal enum to the person it is about. Utterances fall through
+   * unchanged, which is the whole point — they are already the answer.
+   *
+   * An unrecognised token still falls through rather than being hidden: a
+   * hand-edited store should degrade to something odd-looking, never to a page that
+   * quietly omits what it holds.
+   */
+  const tokens: Record<string, Record<string, string | undefined> | undefined> = m.stored.tokens
+  const readable = (fact: { key: string; value: string }) =>
+    tokens[fact.key]?.[fact.value] ?? fact.value
   const intro =
     mode === 'local' ? m.stored.introSaved : mode === 'memory' ? m.stored.introMemory : m.stored.introUnknown
 
@@ -109,7 +127,7 @@ export default function StoredPage() {
                 </dt>
                 {group.entries.map((fact) => (
                   <dd key={fact.id} className="space-y-1 border-s-2 border-line ps-5">
-                    <p className="whitespace-pre-line leading-relaxed text-ink">{fact.value}</p>
+                    <p className="whitespace-pre-line leading-relaxed text-ink">{readable(fact)}</p>
                     <p className="text-xs text-muted">
                       {t(m.stored.learnedAt, { when: formatWhen(fact.learnedAt, locale) })}
                     </p>

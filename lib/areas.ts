@@ -12,6 +12,28 @@ export const areas = ['body', 'relationships', 'work', 'finances', 'creativity']
 
 export type AreaId = (typeof areas)[number]
 
+/**
+ * The areas that existed before the introduction recorded its own completion.
+ *
+ * **This list must never grow.** It is not "the important areas" or "the original
+ * five" as a matter of taste — it is the only remaining answer to *what did
+ * finishing the introduction mean, for a store written before we wrote it down*.
+ *
+ * `introductionFinished()` reads a real fact first and falls back to this. Adding
+ * an area here would re-open the trap the fact exists to close: every store that
+ * finished under the old rules would count as unfinished again, dropping people
+ * back into onboarding and taking the navigation with it.
+ *
+ * See `docs/goals-and-areas.md`, "Introduction state".
+ */
+export const LEGACY_AREAS: readonly AreaId[] = [
+  'body',
+  'relationships',
+  'work',
+  'finances',
+  'creativity',
+]
+
 export function isAreaId(value: unknown): value is AreaId {
   return typeof value === 'string' && (areas as readonly string[]).includes(value)
 }

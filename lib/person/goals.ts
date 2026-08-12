@@ -1,6 +1,6 @@
 'use client'
 
-import { areas, type AreaId } from '@/lib/areas'
+import { LEGACY_AREAS, type AreaId } from '@/lib/areas'
 import { newId, remember, type Person } from './store'
 
 /**
@@ -32,6 +32,14 @@ import { newId, remember, type Person } from './store'
  */
 
 export const SOURCE = 'goals'
+
+/**
+ * That the introduction was finished, rather than a conclusion drawn from counting
+ * the areas that have been answered. Not an `area.` key — it is about the pass, not
+ * about one area — so `isAreaKey()` correctly leaves it to the generic list on
+ * `/data/stored/`.
+ */
+export const INTRODUCTION_DONE = 'introduction_done'
 
 /** Three at a time, counting the active one. Enough to choose from, not a list. */
 export const MAX_OPEN_STEPS = 3
@@ -206,19 +214,52 @@ export function isSettled(state: AreaState): boolean {
 /**
  * Is the introduction over?
  *
- * The count of areas holding a `review` fact, which **never decreases** — that is
- * the whole reason this exists as its own function rather than as a comparison
- * written out at each call site. `isSettled()` looks like it would do the job and
- * must not be used for it: completing something and choosing "Later" un-settles an
- * area, which would drop a person back into onboarding months later.
+ * Two callers rely on it and have to agree: `app/page.tsx` decides whether to show
+ * the introduction or the home screen, and `components/page-shell.tsx` decides
+ * whether the navigation exists yet. A nav appearing mid-introduction offers pages
+ * that are empty until it is finished.
  *
- * Two callers rely on it, and they have to agree: `app/page.tsx` decides whether to
- * show the introduction or the home screen, and `components/page-shell.tsx` decides
- * whether the navigation exists yet. A nav that appears mid-introduction offers
- * pages that are empty until it is finished.
+ * `isSettled()` looks like it would do the job and must not be used for it:
+ * completing something and choosing "Later" un-settles an area, which would drop a
+ * person back into onboarding months later.
+ *
+ * ### Why this is a fact and no longer only a derivation
+ *
+ * It used to be `areas.every(a => readArea(a).review)` — monotonic, but only by the
+ * accident that a review answer is never taken away. It was monotonic *in the
+ * answers* and not in the **question set**, so adding a life area made this false
+ * for every store that already existed. Not "showed one more screen": the start page
+ * stopped showing what someone was working on, and `page-shell.tsx` withdrew the
+ * navigation from every page — including `/data/`, the one that explains what is
+ * stored and offers to delete it. It also self-heals after a single answer, so it
+ * would have looked like a cosmetic glitch rather than what it was.
+ *
+ * So completion is recorded. The fallback covers stores written before it was, and
+ * `LEGACY_AREAS` must never grow — see the note there.
+ *
+ * One consequence worth knowing rather than discovering: a *fresh* visitor who
+ * deep-links past the introduction and answers exactly the legacy areas also
+ * satisfies the fallback. It cannot be told apart from an upgraded store from the
+ * facts alone, and the outcome is the same one upgrading produces — the newer area
+ * waits on `/areas/` as "no goal yet" — so it is accepted rather than guarded
+ * against with a stored format marker.
  */
 export function introductionFinished(person: Person): boolean {
-  return areas.every((area) => Boolean(readArea(person, area).review))
+  if (person.current(INTRODUCTION_DONE)) return true
+  return LEGACY_AREAS.every((area) => Boolean(readArea(person, area).review))
+}
+
+/**
+ * Records that the introduction was carried to its end.
+ *
+ * A token, not an utterance: `/data/stored/` renders it as a sentence and must never
+ * print the value. Written once, at the one transition that closes the introduction
+ * — appending a second would be harmless under append-only but would show up as a
+ * duplicate entry on the page whose job is to be readable.
+ */
+export function finishIntroduction(person: Person): void {
+  if (person.current(INTRODUCTION_DONE)) return
+  remember(INTRODUCTION_DONE, 'yes', SOURCE)
 }
 
 /**

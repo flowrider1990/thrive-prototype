@@ -197,6 +197,10 @@ export const de: Messages = {
       preferred_name: 'Wie ich dich nennen soll',
       opening_intent: 'Was du beim Ankommen wolltest',
       consent_concern: 'Was du zum Speichern gesagt hast',
+      introduction_done: 'Als du die Einführung abgeschlossen hast',
+    },
+    tokens: {
+      introduction_done: { yes: 'Du hast alle Lebensbereiche einmal durchgesehen' },
     },
     areas: {
       note: 'Hier wird nichts entfernt. Frühere Formulierungen und Dinge, die du beiseitegelegt hast, bleiben erhalten — so bleibt sichtbar, wie sich etwas verändert hat.',

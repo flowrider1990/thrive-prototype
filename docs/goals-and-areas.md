@@ -308,11 +308,50 @@ areas, which is the same thing `/about` has always done for a fresh visitor.
 
 Two derivations that are easy to confuse:
 
-- **whether the introduction is over** — `introductionFinished()`: every area has a
-  `review` fact. This is monotonic, because a review answer is never taken away.
+- **whether the introduction is over** — `introductionFinished()`: the
+  `introduction_done` fact, or, for a store written before that fact existed, a
+  `review` fact for every area in `LEGACY_AREAS`.
 - **where an interrupted pass resumes** — `isSettled()`, which is *not* monotonic.
   Completing something and choosing "Later" makes an area unsettled again, which is
   a perfectly good state to be in.
+
+### Why the first one is a fact and not only a derivation
+
+It used to be `areas.every(a => readArea(a).review)`, and that was monotonic — but
+only **in the answers**, not in the *question set*. A review answer is never taken
+away, so the count could not fall; adding a life area moved the bar instead.
+
+The consequence was much worse than one extra screen, and it is worth writing down
+because nothing about the old line looked dangerous:
+
+- `app/page.tsx` stops rendering `NextSteps` and shows a review question, so what
+  someone is working on disappears;
+- `components/page-shell.tsx` withdraws the navigation from **every** page —
+  including `/data/`, which is where the app explains what it holds and offers to
+  delete it. For a product whose privacy story is a feature, that is the real damage;
+- `resumeArea` is `states.find(s => !isSettled(s))`, *not* the first unreviewed one,
+  so anyone who had chosen "Later" was re-asked about an area they had answered;
+- it self-heals after one answer, so it would have read as a cosmetic glitch.
+
+So completion is recorded: one token fact, written once, at the single transition in
+`nextArea()` where the introduction closes. `LEGACY_AREAS` in `lib/areas.ts` is the
+fallback for stores written before it, and **it must never grow** — growing it would
+re-open exactly this trap on the next area added.
+
+One consequence recorded rather than guarded against: a *fresh* visitor who
+deep-links past the introduction and answers exactly the legacy areas also satisfies
+the fallback. It cannot be told apart from an upgraded store from the facts alone,
+and the outcome is the one upgrading already produces — the newer area waits on
+`/areas/` as "no goal yet" — so it is accepted rather than fixed with a stored format
+marker.
+
+`scripts/verify.mjs` §40 is the guard, on its own fixture: `seedOnboarded()` now
+writes the fact, so it could only ever prove the easy half. §40 also asserts that
+reaching the conclusion **wrote nothing** — the fallback is a read.
+
+The value is a token, so `/data/stored/` renders it through `stored.tokens` as a
+sentence. The generic list on that page prints `fact.value` directly, which is right
+for an utterance and wrong for anything the app wrote itself.
 
 Using `isSettled` for the first would drop someone back into onboarding months
 later. Using the review count for the second would skip an area whose goal was
@@ -331,13 +370,17 @@ still being empty.
 
 ### Interrupted setup is accepted, not fixed
 
-Closing the tab midway through the **fifth** area lands on home rather than
-resuming, because all five areas have a review answer by then. Complicating the
+Closing the tab midway through the **last** area lands on home rather than
+resuming, because every area has a review answer by then. Complicating the
 onboarding state to resume there is not worth it while nothing is lost — but that
 only holds if four things stay true, so all four are asserted by
 `scripts/verify.mjs` §25:
 
-1. **five review answers end the introduction**, whatever state an area was left in;
+1. **a review answer for every area ends the introduction**, whatever state an area
+   was left in. Note that this scenario is carried by the `LEGACY_AREAS` fallback
+   rather than by the fact: the pass is interrupted before `nextArea()` closes it, so
+   `introduction_done` is never written. Removing the fallback fails §25a before it
+   fails §40 — measured, not assumed;
 2. **unfinished setup stays reachable afterward** — the area keeps its goal, and the
    list of life areas shows it as "no next step yet";
 3. **home says so.** A goal with no step *ever* written is interrupted setup, and

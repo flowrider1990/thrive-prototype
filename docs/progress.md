@@ -966,6 +966,118 @@ gh workflow enable "Deploy to GitHub Pages"
 gh workflow run "Deploy to GitHub Pages"
 ```
 
+## Pending follow-ups (non-blocking)
+
+Raised during the cross-reviews of PR #4 (UI refinement) and PR #5 (Supabase
+foundation). **Both were approved and merged with these outstanding**, so none of them
+blocks anything today. They are written down because each one is cheap to fix now and
+expensive to rediscover later — two of them only become wrong when a future phase
+lands, which is exactly the kind of thing that gets found by the failure rather than by
+the note.
+
+Recorded, deliberately **not** implemented. Each needs its own task.
+
+### 1. Automate the `out/` secret guard before the app imports the Supabase client
+
+`docs/supabase-migration.md` §20 lists it in Phase 1's scope — "a build guard that fails
+if any file in `out/` contains a `service_role` JWT" — and it is the one Phase 1 item not
+built. The property currently holds and was measured by hand on the merge build: `out/`
+contains no `sb_publishable_`, `sb_secret_`, `service_role`, `supabase.co`, `@supabase`
+or `SUPABASE`, even though `next build` reads `.env.local`.
+
+**Why it holds is the reason it is not urgent, and also the reason it will stop holding.**
+Nothing in `app/` or `components/` imports `lib/supabase/client.ts`, so no Supabase
+identifier reaches the bundle at all. The first real import changes that in one commit,
+and from then on "no privileged value in the export" depends on the env var names being
+right rather than on the graph. A checked property that becomes a remembered one is
+precisely what a guard is for.
+
+So the trigger is not a date: **land it before or with the first import of the Supabase
+client into `app/` or `components/`** — Phase 2. `CLAUDE.md` §8 already forbids the thing;
+this makes it enforced.
+
+### 2. Consider filtering `MEMORY_ONLY_KEYS` on read as well as on write
+
+`write()` (`lib/person/store.ts:210`) drops memory-only keys on the way to
+`localStorage`, which is what closed the blocker found in PR #4. `parse()` does not: its
+only filter is `facts.filter(isFact)` (line 186).
+
+Consequence: a store written by a build from *before* that fix — or a hand-edited one —
+loads `consent_concern` back into the snapshot and `/data/stored/` presents it as saved
+data. It is dropped again on the next `write()`, so it self-heals, but not immediately
+and not visibly.
+
+Filtering symmetrically in `parse()` would make "never on the device" true on both sides
+and would close the hand-edited case too. `scripts/verify.mjs` §39 covers the write path
+and would pass unchanged; the read path has no check. Low severity — nothing is released
+and the window is narrow — but it is the one remaining gap in the guarantee as
+`docs/person-model.md` states it.
+
+### 3. "I do not know yet" has no fact of its own, and the resume walk shows it
+
+`isSettled()` is `Boolean(state.goal && state.active)` for a reviewed area, so an area
+left by answering "I do not know yet" — a `review` fact, a `goal` fact, no step facts —
+never counts as settled. `docs/goals-and-areas.md` records the visible half: a reload
+mid-introduction resumes at the steps question of that area and re-offers a question
+already answered.
+
+**The cross-review found it is broader than one re-asked question.** `app/page.tsx` picks
+`resumeArea` as the first area that is not settled, but `nextArea()` then advances by
+**array index**, not by settledness. So after answering the resumed area the flow steps
+into the next one by position, and `resume()` in `components/area-flow.tsx` returns
+`'focus'` for any area with open entries — including one that already has an active
+entry. That re-asks "which one first?" on a settled area, and answering appends a
+redundant `area.<a>.step_active` fact. Nothing is lost or falsified, and the defect is
+structurally older than the "I do not know yet" button; what the button changed is that a
+rare tab-close became the ordinary outcome of a deliberate answer.
+
+**The root is a missing fact, not a wrong predicate.** "There is nothing I want to change
+here" is recorded as a real answer (`review = 'not_now'`, and `components/area-flow.tsx`
+says so in as many words). "I want to change something but do not know what yet" is
+recorded as nothing at all. Those two have the same standing to the person and opposite
+treatment in the store. The same absence is why one copy string has to serve both a
+deliberate answer and interrupted setup on the start page and on `/areas/`.
+
+Relaxing `isSettled()` to accept a goal alone would be wrong — interrupted setup
+genuinely is unfinished — which is the tell. The shape of the fix is additive: one token
+key, no `version` bump, per the rule in `docs/person-model.md`. It should be decided
+together with the status concept already parked in `docs/goals-and-areas.md`, not before
+it.
+
+### 4. Switching focus requires retiring the previous entry
+
+`m.manage.changeStep` ("Focus on something else") was removed from the area page, and the
+two dissatisfaction answers on the start page were merged into one that calls
+`retireStep()`. In `main` before PR #4, "I would rather do something else" wrote
+**nothing** — it offered the choice and left the old entry open.
+
+The result is that `chooseStep()` is now reachable only from the onboarding focus
+question, from `AreaManage`'s add view when nothing is active, and from the start page's
+pick phase — which is entered only *after* `completeStep()` or `retireStep()`. So
+**`step_active` can no longer be moved without also writing `done` or `retired` on the
+entry being left**, and `retireStep` has no inverse in the UI: nothing writes `'open'`.
+
+Copy and behaviour agree — "This does not fit me anymore" is honest about retiring — and
+`docs/goals-and-areas.md` records the change. The consequence not yet recorded is a data
+one: `retired` stops meaning "I decided this no longer applies" and starts also meaning
+"I deprioritised this", which is exactly the set a future resurfacing, check-in or journey
+summary would read. It also quietly frees a slot under the three-entry cap that swapping
+used to occupy.
+
+Belongs with the priority-and-ranking follow-up in `docs/goals-and-areas.md`, since that
+is what should replace free swapping.
+
+### 5. Correct the stale verification counts in `docs/supabase-migration.md`
+
+Four places still say the suite is 40 checks — §1 ("all asserted by `pnpm verify` (40
+checks)"), and the Phase 1, Phase 2 and Phase 7 exit criteria ("still 40/40", "40/40 in
+local mode", "the existing 40 checks mirrored"). The count on this merge is **181**.
+
+`CLAUDE.md` §16 needs no change: it already says the script is the authority on the count
+rather than naming one, which is the pattern the migration doc should adopt instead of a
+fresh number that will go stale the same way. The phase exit criteria are the ones that
+matter, because "still 40/40" read literally is a target that can never be met again.
+
 ## Open decisions
 
 - **Publishing.** Still private, so the site is not live and step 12 is only

@@ -88,7 +88,25 @@ export const en = {
   },
 
   areas: {
-    body: 'Body & Health',
+    /**
+     * "Physical Health" rather than "Body & Health", now that mental wellbeing has an
+     * area of its own: without the contrast, "Body & Health" quietly claimed all of
+     * health. The id stays `body`, because ids are persisted inside fact keys.
+     */
+    body: 'Physical Health',
+    /**
+     * Scoped to inner life on purpose — rest, mood, stress, calm, how you are in
+     * yourself. The risk with this area is not that it is too narrow but that it
+     * absorbs the whole app: stress from work and loneliness both land here, and both
+     * have areas that own them. Kept separate from Physical Health because physical
+     * health is one input to wellbeing, while wellbeing is downstream of
+     * relationships, work and circumstance too — merging them would make the merged
+     * area the place everything hard goes.
+     *
+     * "Wellbeing", not "Health": this is not a clinical category and the app makes no
+     * medical claims.
+     */
+    mind: 'Mental Wellbeing',
     relationships: 'Relationships & Social Life',
     work: 'Work & Career',
     finances: 'Finances',
@@ -98,13 +116,13 @@ export const en = {
   intro: {
     // The thanks is the consent acknowledgement above this question, so it is
     // not repeated here.
-    question: 'Next we will look at five areas of your life, one at a time.',
+    question: 'Next we will look at six areas of your life, one at a time.',
     note: 'You do not need a goal in every one. "Not right now" is a real answer, and anything you note can be changed later.',
     submit: 'Okay',
   },
 
   goals: {
-    /** The five marks are a progressbar; these are its accessible name and value. */
+    /** The marks are a progressbar; these are its accessible name and value. */
     progressLabel: 'Life areas looked at',
     progressValue: 'Area {current} of {total}',
 
@@ -352,7 +370,7 @@ export const en = {
     /** Life-area facts are shown through the domain layer, so no internal id is ever printed. */
     areas: {
       /**
-       * Said once, above all five areas, because it is true of every line under it
+       * Said once, above every area, because it is true of every line under it
        * and because the words below — "set aside", "changed from" — would otherwise
        * be read as things having been removed. Nothing on this page is ever deleted
        * except by deleting all of it: the store is append-only.
@@ -521,7 +539,7 @@ export const en = {
   about: {
     title: 'About {app}',
     isTitle: 'What this is',
-    isP1: '{app} is a prototype of an app meant to support a person in living and thriving. What you have seen is its beginning: a question about consent, and five areas of a life to look at one at a time.',
+    isP1: '{app} is a prototype of an app meant to support a person in living and thriving. What you have seen is its beginning: a question about consent, and six areas of a life to look at one at a time.',
     /**
      * "For now" and "at the moment" carry the same weight here as "currently" does in
      * the `data` group. These are the strongest claims the app makes about itself, and

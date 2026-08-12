@@ -9,7 +9,7 @@ import { readArea } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
 /**
- * The five life areas and where each one stands.
+ * The life areas and where each one stands.
  *
  * A list, not a dashboard. No history, no counts, no completed entries —
  * `docs/goals-and-areas.md` is explicit that what is finished is kept and *not*
@@ -45,7 +45,7 @@ export default function AreasPage() {
          * Three levels, and they have to be three: the area's name, then the goal,
          * then where that goal stands. Previously the name was `text-sm text-muted`
          * and the goal was full-size ink — so the row's *subject* was the quietest
-         * thing in it, and five rows read as ten interchangeable lines.
+         * thing in it, and the rows read as twice as many interchangeable lines.
          *
          * The goal stays `text-ink` and only drops in size. Muting the person's own
          * words to make room for a label the app chose would be the wrong trade, and

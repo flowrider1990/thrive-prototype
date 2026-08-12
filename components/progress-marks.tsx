@@ -1,7 +1,7 @@
 export type MarkState = 'done' | 'current' | 'upcoming'
 
 /**
- * How far through the five life areas, as five marks.
+ * How far through the life areas, one mark each.
  *
  * It measures **areas looked at** — not goals set, not steps completed. Saying
  * "not right now" advances it exactly as much as setting a goal does, because

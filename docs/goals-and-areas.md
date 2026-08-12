@@ -1,6 +1,6 @@
 # Life areas, goals, and what to try
 
-Five fixed life areas. In each, at most one current goal, at most three prepared
+Six fixed life areas. In each, at most one current goal, at most three prepared
 things to try, and at most one being worked on. That is the whole feature.
 
 This file holds the parts that are not self-evident from the code: why the keys
@@ -38,19 +38,57 @@ saying `action` while the keys say `step`, which is a worse mismatch than this o
 
 A code-level rename stays cheap and available. A **key** rename is a migration.
 
-## The five areas
+## The areas
 
 `lib/areas.ts` holds ids and nothing else:
 
 ```ts
-export const areas = ['body', 'relationships', 'work', 'finances', 'creativity'] as const
+export const areas = ['body', 'mind', 'relationships', 'work', 'finances', 'creativity'] as const
 ```
+
+| id | label |
+| --- | --- |
+| `body` | Physical Health |
+| `mind` | Mental Wellbeing |
+| `relationships` | Relationships & Social Life |
+| `work` | Work & Career |
+| `finances` | Finances |
+| `creativity` | Hobbies & Creativity |
 
 Names live in the message catalogs, emoji in `components/area-icon.tsx`. So an
 area can be renamed or redrawn freely — but **the ids themselves cannot change**.
 They are persisted inside fact keys, which puts them under the same rule as
 `STORAGE_KEY`: renaming one orphans everything stored under it, invisibly. That is
-a migration, not an edit.
+a migration, not an edit. `body` reads as "Physical Health" while keeping the id it
+was given, which is exactly the separation this rule buys.
+
+### Why these six
+
+**Physical and mental are separate on purpose.** Physical health is one input to
+wellbeing; wellbeing is also downstream of relationships, work and circumstance.
+Merging them would make the merged area the place everything hard goes.
+
+The risk runs the other way, and it is a copy problem rather than a structural one:
+Mental Wellbeing can absorb the whole app, because stress from work and loneliness
+both land there and both have areas that own them. Its copy scopes it to *inner
+life* — rest, mood, stress, calm, how you are in yourself — and leaves causes with
+the areas they belong to. "Wellbeing" rather than "Health", and `Mentales` rather
+than `Psychisches`, because this is not a clinical category and the app makes no
+medical claims.
+
+Six is the cap. Growth/Learning is the most defensible seventh and is absorbed by
+Work and Creativity; Home/Environment is excluded outright.
+
+**Order is presentation, not data.** It drives the sequence the introduction asks in
+and the order of the progress marks, and nothing else. `mind` sits at index 1 so the
+two health areas are adjacent, which is the only thing the ordering says.
+
+### Adding an area is safe for the store, and used to break something else
+
+No existing key changes, so nothing is orphaned — but until `introduction_done`
+existed, adding an area silently un-finished the introduction for every store that
+already had one. See "Introduction state" below; the short version is that
+`LEGACY_AREAS` must never grow.
 
 ## The keys
 
@@ -290,7 +328,7 @@ of DONE rows.
 | route | what it is |
 | --- | --- |
 | `/` | the introduction, then the few things being worked on |
-| `/areas/` | the five areas and where each one stands |
+| `/areas/` | the life areas and where each one stands |
 | `/areas/<id>/` | one area, deep-linkable — `components/area-manage.tsx` |
 
 The last two used to be two states inside the home page's state machine, which is

@@ -728,7 +728,8 @@ const EN = {
  * which aborted the run rather than failing a check.
  */
 const AREAS = [
-  { id: 'body', label: 'Body & Health', de: 'Körper & Gesundheit' },
+  { id: 'body', label: 'Physical Health', de: 'Körperliche Gesundheit' },
+  { id: 'mind', label: 'Mental Wellbeing', de: 'Mentales Wohlbefinden' },
   { id: 'relationships', label: 'Relationships & Social Life', de: 'Beziehungen & Soziales' },
   { id: 'work', label: 'Work & Career', de: 'Arbeit & Beruf' },
   { id: 'finances', label: 'Finances', de: 'Finanzen' },
@@ -1253,7 +1254,10 @@ check(
 // The cap: three open at a time, counting the one being worked on.
 await clickNav(EN.navAreas)
 check('24m. Life areas lists every one with its state', (await text()).includes(EN.picker))
-await clickOption('Work & Career')
+// The area §4's walk gave its second goal to — not a fixed one. §7 below keeps
+// working on this same area, which is why it reads from `AREAS` rather than naming
+// it: inserting an area anywhere before it silently moves which one this is.
+await clickOption(AREAS[2].label)
 // Navigation, not a selection: wait for the destination rather than for a fixed delay.
 await waitForText(EN.addStep)
 await click(EN.addStep)
@@ -2657,7 +2661,7 @@ check(
 // words sit next to its id, and moved those words into accessible names, which
 // `innerText` cannot see at all.
 
-for (const route of ['/', '/areas/', '/areas/body/', '/data/', '/data/stored/']) {
+for (const route of ['/', '/areas/', '/areas/body/', '/areas/mind/', '/data/', '/data/stored/']) {
   await goto(route)
   // Everything folded has to be unfolded first, or this sweep silently stops looking
   // at it: `innerText` cannot see inside a closed `<details>`, so the areas on
@@ -2767,7 +2771,7 @@ check(
 // with the scrollbar gutter.
 await clearStorage()
 const columnX = {}
-for (const route of ['/', '/areas/', '/areas/body/', '/data/', '/data/stored/', '/about/']) {
+for (const route of ['/', '/areas/', '/areas/body/', '/areas/mind/', '/data/', '/data/stored/', '/about/']) {
   await goto(route)
   columnX[route] = await mainX()
 }

@@ -234,7 +234,7 @@ item shifts nothing.
 
 ### The progress marks
 
-`components/progress-marks.tsx` follows the same rule. Five marks, three states, and
+`components/progress-marks.tsx` follows the same rule. One mark per area, three states, and
 a 12×12 box in every one of them, so advancing cannot reflow the question
 underneath:
 
@@ -261,13 +261,13 @@ The marks must stay **direct children** of the `[role="progressbar"]` element �
 silently rather than loudly.
 
 `docs/plan.md` rejected a progress bar for onboarding — "there is nothing to
-endure" — and that still holds for a flow of unknown length. The five areas are a
+endure" — and that still holds for a flow of unknown length. The life areas are a
 known, small, finite set, and knowing how many are left is orientation rather than
 a demand. Percentages were considered and rejected: they frame reviewing your own
 life as a task to complete.
 
 It is a real `role="progressbar"` with `aria-valuenow` and a translated
-`aria-valuetext` ("Area 2 of 5"), because five dots say nothing out loud. What it
+`aria-valuetext` ("Area 2 of 6"), because a row of dots says nothing out loud. What it
 measures is **areas looked at** — "not right now" advances it exactly as much as
 setting a goal does.
 
@@ -285,8 +285,8 @@ Two rules that are easy to undo by accident:
   `<div>` is not allowed; an `<h2>` is. That is why `components/stored-areas.tsx`
   lays its summary out as a **grid** rather than nesting boxes — it needs a heading
   and a line of text beside a marker, and the grid places them without a wrapper the
-  content model forbids. Keeping the real `h2` is what keeps five stored areas
-  visible as five sections in the document outline.
+  content model forbids. Keeping the real `h2` is what keeps each stored area
+  visible as its own section in the document outline.
 - **Only the marker moves.** The chevron rotates; no height, padding or weight
   changes, so opening a section shifts nothing except the content it reveals. The
   hover cue is on the marker rather than the summary text, because recolouring the
@@ -398,7 +398,7 @@ and is `text-ink`; `row` labels an area inside a list and is `text-sm text-muted
 
 `card` exists because that list had no hierarchy: the name was `text-sm text-muted`
 while the goal beneath it was full-size ink, so the row's own *subject* was the
-quietest thing in it and five rows read as ten interchangeable lines. The goal drops a
+quietest thing in it and the rows read as twice as many interchangeable lines. The goal drops a
 step in size but **stays `text-ink`** — muting the person's own words to make room for
 a label the app chose would be the wrong trade, and size alone separates them once the
 name is bigger. §34a measures the two font sizes rather than trusting the eye, and
@@ -471,7 +471,7 @@ a substring.)*
 
 ## Page rhythm
 
-Five pages drifted into five different spacings for the same relationships. These are
+Five pages had drifted into five different spacings for the same relationships. These are
 now one set of numbers, and the point of writing them down is that the next page uses
 them instead of picking again:
 

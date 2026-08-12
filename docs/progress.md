@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 185/185** (25 at the
+the two the plan singles out. **The current count is 186/186** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework, 181 after the Supabase foundation); the script itself is the only
 authority on that number, so treat any count written in prose as a snapshot.
@@ -1017,6 +1017,35 @@ Two things that made the work honest rather than plausible:
 `stored.tokens` map instead of printing `yes` at the person it is about. The generic
 list prints `fact.value` directly, which is right for an utterance and wrong for
 anything the app wrote.
+
+### Step 2 — a sixth life area, and Physical Health
+
+`mind` / "Mental Wellbeing" at **index 1**, not appended, and that is a verification
+decision as much as a product one: §25 is built entirely on "closing the tab midway
+through the *last* area" and pins `Hobbies & Creativity` and `/areas/creativity/` in
+six places. Appending makes the new area last and moves all six. Inserting keeps
+`creativity` last, and physical-then-mental is the better reading anyway. The cost is
+one needle — §4g asserts which area comes third — against six.
+
+`body` keeps its id and reads as "Physical Health". Without the contrast, "Body &
+Health" quietly claimed all of health.
+
+Step 0 paid off: the suite needed **one line** in `AREAS`, plus `/areas/mind/` added
+to two route loops. 186/186.
+
+It did leave one coupling that only a real sixth area could expose, and it is worth
+recording because it is the same class of bug Step 0 was about:
+`clickOption('Work & Career')` at §24m named the area §4's walk gives its second goal
+to. That area is `AREAS[2]`, so inserting anything before it moves which one it is —
+and the failure was not a failed assertion but an abort, on a screen showing the
+"reconsider" view because the area it landed on had no goal. Now derived, with a
+comment saying why.
+
+Three compile-time guards caught the rest before any of it ran, which is worth
+knowing about for the next area: `Record<AreaId, string>` in `area-icon.tsx`,
+`m.areas[area]` indexing in `area-label.tsx` and `next-steps.tsx`, and `de: Messages`.
+A half-added area does not build. `generateStaticParams` produced `/areas/mind/`
+itself, and `ProgressMarks` needed no change at all — it was already generic.
 
 ## The repository
 

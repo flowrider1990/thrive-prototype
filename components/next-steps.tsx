@@ -57,7 +57,7 @@ export function NextSteps() {
   // area paused *on purpose* has entries behind it and is excluded: that is a real
   // answer, and pointing at it would be nagging.
   //
-  // The first one rather than all of them, and that is the calm choice: naming five
+  // The first one rather than all of them, and that is the calm choice: naming every
   // areas at once would be a list of things you have not done. Once this one is
   // finished the next takes its place, so nothing is hidden.
   const unfinished = states.find((state) => state.goal && state.steps.length === 0)
@@ -309,7 +309,7 @@ function Row({
         type="button"
         className="btn btn-quiet"
         // Names the thing as well as the question, so the control is unambiguous
-        // out loud where five rows each offer the same visible words.
+        // out loud where several rows each offer the same visible words.
         aria-label={t(m.home.checkOn, { text: active.text })}
         onClick={() => onBusy({ area: state.area, phase: 'check' })}
       >

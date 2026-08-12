@@ -29,7 +29,7 @@ import { useI18n } from '@/lib/i18n'
  *   supplies the context and the label should recede.
  * - `card` titles an area on `/areas/`, where it is the *subject* of the row
  *   rather than a label on one. There the name and its state were within a step
- *   of each other in size and both muted, so a list of five read as ten equally
+ *   of each other in size and both muted, so the list read as twice as many equally
  *   weighted lines and the eye had nothing to land on. It is the one place the
  *   name has to win.
  *

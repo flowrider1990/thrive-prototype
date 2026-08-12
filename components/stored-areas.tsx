@@ -20,7 +20,7 @@ import { usePerson } from '@/lib/person/store'
  * difference between this page and the start page.
  *
  * **Each area folds away.** The page grows without bound as the app is used, and
- * five areas of full history is a wall of text to scroll through when you came to
+ * every area's full history is a wall of text to scroll through when you came to
  * check one thing. A closed area still says which area it is, what the goal is and
  * how much is behind it, so folding hides detail rather than hiding that anything
  * is there — and `<details>` means find-in-page can still open a closed section, so
@@ -63,7 +63,7 @@ export function StoredAreas() {
 
   return (
     <div className="space-y-6">
-      {/* Once, above all five. "set aside" and "changed from" would otherwise read as
+      {/* Once, above all of them. "set aside" and "changed from" would otherwise read as
           things having been taken away, and on the page whose whole job is to be
           checkable that would be the one misleading sentence. */}
       <p className="max-w-prose text-sm leading-relaxed text-muted">{m.stored.areas.note}</p>
@@ -80,7 +80,7 @@ export function StoredAreas() {
             <details key={detail.area} className="disclosure border-t border-line pt-3">
               {/* A grid rather than nested boxes, because `summary` may only contain
                   phrasing and heading content — the `h2` is allowed, a wrapping `div`
-                  is not. Keeping the real `h2` matters: five areas are five sections
+                  is not. Keeping the real `h2` matters: each area is a section
                   of this document, and the outline should say so.
 
                   The marker spans both rows so it aligns with the heading while the

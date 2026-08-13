@@ -704,17 +704,17 @@ const EN = {
   navHome: 'Start',
   navAreas: 'Life areas',
   picker: 'Your life areas',
-  addStep: 'Add something to try',
+  addStep: 'Add something',
   manageDone: 'Done',
-  goalAdd: 'Add a goal',
+  goalAdd: '+ Add another goal',
   goalNewQuestion: 'What else do you want here?',
-  goalChange: 'Change this goal',
+  goalChange: 'Edit',
   goalReword: 'Change the wording',
   goalTop: 'Move this to the top',
   goalReached: 'I have reached this',
   goalDrop: 'Remove from your current goals',
   goalCloseNote: 'What you were trying for it is set aside with it. Nothing is deleted.',
-  goalsLabel: 'What you want',
+  goalNumber: 'Goal #1:',
   editSubmit: 'Save',
   contYes: 'Yes, let us go on',
   navData: 'Data protection',
@@ -1347,10 +1347,11 @@ await type('Get hired somewhere I like')
 await click(EN.cont)
 screen = await text()
 check(
-  '7a. a second goal sits beside the first, under one label, in a numbered list',
+  '7a. a second goal sits beside the first, each one named and numbered',
   screen.includes('Get hired somewhere I like') &&
     screen.includes('Get the portfolio finished') &&
-    screen.includes(EN.goalsLabel),
+    screen.includes(EN.goalNumber) &&
+    screen.includes('Goal #2:'),
   screen.replace(/\n/g, ' / ').slice(0, 200),
 )
 // Order is the priority, so the ordinals have to be real list markers rather than
@@ -1364,14 +1365,16 @@ const ordered = await evaluate(
 )
 check(
   '7b. and they are an ordered list, oldest first until something says otherwise',
-  ordered?.length === 2 && ordered[0].startsWith('1.') && ordered[1].startsWith('2.'),
+  ordered?.length === 2 &&
+    ordered[0].startsWith('Goal #1:') &&
+    ordered[1].startsWith('Goal #2:'),
   JSON.stringify(ordered),
 )
 
 // One tap, one write, and the order changes. This is the whole priority feature:
 // there is no rank to rewrite and no second goal to renumber.
 await clickAria('Change this goal: Get hired somewhere I like')
-await clickOption(EN.goalTop)
+await click(EN.goalTop)
 const reordered = await evaluate(
   `(() => [...document.querySelector('main ol').children].map((li) => li.textContent.trim().slice(0, 40)))()`,
 )
@@ -1385,7 +1388,8 @@ check(
 // Rewording is the case the old walk fired on, and the case that no longer needs it.
 const beforeReword = JSON.parse(await raw()).facts.length
 await clickAria('Change this goal: Get the portfolio finished')
-await clickOption(EN.goalReword)
+// No menu step any more: opening a goal opens the field, prefilled. Renaming is an
+// edit rather than a decision, and it used to cost a whole screen to say so.
 await type('Finish the portfolio properly')
 await click(EN.editSubmit)
 screen = await text()
@@ -1404,7 +1408,7 @@ check(
 // closing a goal here would take the only active entry in the run with it.
 const beforeDrop = JSON.parse(await raw()).facts.length
 await clickAria('Change this goal: Get hired somewhere I like')
-await clickOption(EN.goalDrop)
+await click(EN.goalDrop)
 screen = await text()
 check(
   '7e. setting aside a goal nothing was being tried for takes one tap and one fact',
@@ -1414,9 +1418,15 @@ check(
   screen.replace(/\n/g, ' / ').slice(0, 200),
 )
 check(
-  '7f. and with one goal left the ordinals go away — a lone "1." implies siblings',
-  !(await evaluate(`!!document.querySelector('main ol li span[aria-hidden]')`)),
-  'no ordinal',
+  // Inverted rather than dropped. The old rule hid a bare `1.` marker when only one
+  // goal was left, because it implied a sibling that was not there. The label reads
+  // "Goal #1:" and sits above an "+ Add another goal" that says where #2 would come
+  // from, so it is shown always now — and as visible words rather than an
+  // `aria-hidden` ordinal, which is the better thing to assert anyway.
+  '7f2. and with one goal left the label stays, as words rather than a bare ordinal',
+  (await text()).includes(EN.goalNumber) &&
+    !(await evaluate(`!!document.querySelector('main ol li span[aria-hidden]')`)),
+  (await text()).replace(NL, ' / ').slice(0, 80),
 )
 
 await click(EN.manageDone)
@@ -3273,7 +3283,7 @@ check(
 await seedGoals()
 await goto(`/areas/${AREAS[3].id}/`)
 await clickAria('Change this goal: Finish the portfolio')
-await clickOption(EN.goalReached)
+await click(EN.goalReached)
 screen = await text()
 check(
   '41g. closing a goal states what it takes with it, before it happens',
@@ -3302,47 +3312,51 @@ check(
 
 const whyIn = (fact, area) => new RegExp(`^area\.${area}\.goal\.[^.]+\.why$`).test(fact.key)
 
-// The optional reason: written where there is none, and cleared where there is.
+/**
+ * The optional reason is **parked**: there is no longer any way to write one, and every
+ * reason already written still shows.
+ *
+ * Writing it was a fifth peer on the screen someone opens to rename a goal, which is
+ * the weight it should never have had. Removing the flow is only safe if the read path
+ * survives it, so that is what these assert — the same shape as the parked name
+ * question, and the reason `setGoalWhy` went rather than sitting uncalled.
+ *
+ * `seedGoals()` writes a `why` on a goal in `AREAS[3]`, so the fixture is a store from
+ * before the change: exactly the case that must not lose anything.
+ */
 await seedGoals()
-await goto(`/areas/${AREAS[0].id}/`)
-await clickAria('Change this goal: Sleep better')
+await goto(`/areas/${AREAS[3].id}/`)
 screen = await text()
 check(
-  '41i. a goal with no reason is offered one, with why anyone would bother',
-  screen.includes('Write down why this matters') &&
-    screen.includes('Some people find it easier'),
-  screen.replace(/\n/g, ' / ').slice(0, 200),
-)
-await clickOption('Write down why this matters')
-await type('I am tired of being tired')
-await click(EN.editSubmit)
-screen = await text()
-check(
-  '41j. and it sits under the goal it belongs to, not beside it',
-  screen.includes('I am tired of being tired') && screen.includes('Sleep better'),
-  screen.replace(/\n/g, ' / ').slice(0, 200),
+  '41i. a reason written before still shows under the goal it belongs to',
+  screen.includes('It has been open for years') && screen.includes('Finish the portfolio'),
+  screen.replace(NL, ' / ').slice(0, 160),
 )
 
-// Clearing it. An append-only log has no delete, so the way to take something back
-// is to say nothing — and nothing reads as absent. Without `allowEmpty` on that
-// field there would be no way to undo a reason once written.
-await clickAria('Change this goal: Sleep better')
-await clickOption('Change why this matters')
-await type('')
-await click(EN.editSubmit)
-screen = await text()
-const cleared = JSON.parse(await raw())
+// And on the page whose whole job is to show everything the app holds.
+await goto('/data/stored/')
+await expandAll()
 check(
-  '41k. submitting it empty takes it back, and keeps what was said in the history',
-  !screen.includes('I am tired of being tired') &&
-    screen.includes('Sleep better') &&
-    // Both facts are there for *this* goal: the reason, and the empty one that
-    // retracts it. Scoped to the area, since the fixture seeds one elsewhere too.
-    cleared.facts.filter((f) => whyIn(f, AREAS[0].id)).length === 2,
-  cleared.facts
-    .filter((f) => whyIn(f, AREAS[0].id))
-    .map((f) => JSON.stringify(f.value))
-    .join(' '),
+  '41j. and on /you, so nothing anyone wrote became unreachable',
+  (await text()).includes('It has been open for years'),
+  'reason present',
+)
+
+// The other half: opening that goal offers no way to write one, so the flow really is
+// gone rather than merely moved. Asserted against the goal that has a reason, because
+// "no invitation" is easiest to get wrong where one already exists.
+await goto(`/areas/${AREAS[3].id}/`)
+await clickAria('Change this goal: Finish the portfolio')
+screen = await text()
+const whyFacts = JSON.parse(await raw()).facts.filter((f) => whyIn(f, AREAS[3].id)).length
+check(
+  '41k. and editing it offers no way to write one — the field is the screen now',
+  !screen.includes('why this matters') &&
+    !screen.includes('What would you like to change?') &&
+    screen.includes('Finish the portfolio') &&
+    // Nothing was written by looking, which is the point of a read path.
+    whyFacts === 1,
+  `${screen.replace(NL, ' / ').slice(0, 110)} — ${whyFacts} why fact(s)`,
 )
 
 // --- 42. pinning, the skippable goal, and the pointer that became a pin ---------
@@ -3968,6 +3982,160 @@ check(
 )
 await setScheme('light')
 await evaluate('localStorage.clear()')
+
+// --- 48. the refinement pass: recede, hierarchy, and editing that edits -----
+//
+// Three claims, all of them the kind that pass by eye and regress silently: a row
+// recedes without becoming unreadable, the goal hierarchy reads in order, and opening a
+// goal opens the field rather than a menu.
+
+await seedGoals()
+await goto('/areas/')
+
+/**
+ * Recede is a *comparison*, so it has to be measured as one.
+ *
+ * `seedGoals()` gives some areas a goal and leaves others untouched, so both kinds of
+ * row are on this page at once. Asserting the quiet row's colour alone would pass just
+ * as happily if every row were muted, which is the failure mode this is here to catch.
+ */
+const areaRows = await evaluate(`(() => {
+  const all = [...document.querySelectorAll('main a.option')];
+  const pick = (quiet) => {
+    const el = all.find((a) => a.classList.contains('option-recede') === quiet);
+    if (!el) return null;
+    const label = el.querySelector('p');
+    return {
+      border: getComputedStyle(el).borderTopColor,
+      text: getComputedStyle(label).color,
+      opacity: getComputedStyle(el).opacity,
+      pointer: getComputedStyle(el).pointerEvents,
+      href: el.getAttribute('href'),
+      disabled: el.getAttribute('aria-disabled'),
+      padding: getComputedStyle(el).padding,
+      borderWidth: getComputedStyle(el).borderTopWidth,
+    };
+  };
+  return { quiet: pick(true), loud: pick(false), ink: getComputedStyle(document.body).color };
+})()`)
+check(
+  '48a. an area with nothing being worked on recedes against one that has a goal',
+  areaRows.quiet !== null &&
+    areaRows.loud !== null &&
+    areaRows.quiet.border !== areaRows.loud.border &&
+    areaRows.quiet.text !== areaRows.loud.text &&
+    areaRows.loud.text === areaRows.ink,
+  areaRows.quiet && areaRows.loud
+    ? `quiet ${areaRows.quiet.border}/${areaRows.quiet.text} vs loud ${areaRows.loud.border}/${areaRows.loud.text}`
+    : JSON.stringify(areaRows),
+)
+check(
+  // The whole risk of "de-emphasise" is shipping something that reads as switched off.
+  // Full opacity, live pointer events, a real destination, no `aria-disabled`, and the
+  // same box as its neighbour: quieter is a statement about attention, not about state.
+  '48b. and it is quieter without being disabled — same box, real link, full opacity',
+  areaRows.quiet.opacity === '1' &&
+    areaRows.quiet.pointer !== 'none' &&
+    areaRows.quiet.href &&
+    areaRows.quiet.disabled === null &&
+    // The frame, not the height: a row holding a goal has three lines and one without
+    // has two, so equal heights was never the right thing to want. What must not differ
+    // is the box — same padding, same border width — so nothing shifts as an area gains
+    // a goal, and nothing reads as a smaller or thinner control.
+    areaRows.quiet.padding === areaRows.loud.padding &&
+    areaRows.quiet.borderWidth === areaRows.loud.borderWidth,
+  JSON.stringify(areaRows.quiet),
+)
+
+// Restored on focus, and by a real Tab rather than a scripted `.focus()` — the same
+// standard §23 holds itself to, because `:focus-visible` depends on how focus arrived.
+const reached = await tabTo('a.option-recede')
+// `.option` carries `transition-colors`, so reading straight after focus catches an
+// interpolated colour matching neither end — 86,83,79 for a value that should be one of
+// 107 or 31. Wait the transition out rather than asserting against a frame of it.
+await sleep(400)
+const focusRestored = await evaluate(
+  `(() => {
+     const el = document.activeElement;
+     return { text: getComputedStyle(el.querySelector('p')).color, border: getComputedStyle(el).borderTopColor };
+   })()`,
+)
+check(
+  '48c. and a keyboard restores it in full, not only a pointer',
+  // Text back to full ink, and the edge no longer the receded one. Compared against the
+  // quiet border rather than pinned to a token value, so this survives a palette retune.
+  reached > 0 &&
+    focusRestored.text === areaRows.ink &&
+    focusRestored.border !== areaRows.quiet.border,
+  `${reached} tab(s), ${focusRestored.text} / ${focusRestored.border}`,
+)
+
+/**
+ * The hierarchy, asserted as an *order* rather than as three separate presences.
+ *
+ * Label, then the person's words in quotes, then the question that turns one into the
+ * other. Each of those could exist while sitting in the wrong place, and the wrong place
+ * is precisely the complaint this pass answered — so position is the assertion.
+ */
+await goto(`/areas/${AREAS[3].id}/`)
+const shape48 = await evaluate(`(() => {
+  const li = document.querySelector('main ol li');
+  if (!li) return null;
+  const lines = li.innerText.split(String.fromCharCode(10)).map((l) => l.trim()).filter(Boolean);
+  return {
+    lines: lines.slice(0, 3),
+    // Searched across every line rather than the first few: a goal carrying a reason
+    // pushes the question further down, which is correct. What matters is that it is
+    // under the goal, not that it sits at a fixed offset from it.
+    hasQuestion: lines.some((l) => l.startsWith('How do you want to reach this goal?')),
+    quoted: /^[\u201e\u201c]/.test(lines[1] ?? ''),
+    goalIsHeading: (li.querySelector('h2')?.innerText ?? '').includes('Finish the portfolio'),
+  };
+})()`)
+check(
+  '48d. a goal reads as label, then the person’s own words quoted, then the question',
+  shape48 !== null &&
+    shape48.lines[0].startsWith('Goal #1:') &&
+    shape48.quoted === true &&
+    shape48.goalIsHeading === true &&
+    shape48.hasQuestion === true,
+  JSON.stringify(shape48),
+)
+
+// Editing sits with the goal, not among the entry controls: one level per group.
+const editPlacement = await evaluate(`(() => {
+  const li = document.querySelector('main ol li');
+  const heading = li.querySelector('h2');
+  const edit = [...li.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Edit');
+  const add = [...li.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Add something');
+  if (!heading || !edit || !add) return null;
+  return {
+    editBesideGoal: edit.parentElement === heading.parentElement,
+    editSharesRowWithAdd: edit.parentElement === add.parentElement,
+  };
+})()`)
+check(
+  '48e. and its Edit sits beside the goal rather than next to “Add something”',
+  editPlacement?.editBesideGoal === true && editPlacement?.editSharesRowWithAdd === false,
+  JSON.stringify(editPlacement),
+)
+
+// And opening it lands in a prefilled field. `innerText` cannot see a form value, so
+// this reads the input directly — the one place where asserting the DOM is the only
+// honest option.
+await clickAria('Change this goal: Finish the portfolio')
+const editing = await evaluate(`(() => {
+  const field = document.querySelector('main input, main textarea');
+  return {
+    value: field ? field.value : null,
+    options: document.querySelectorAll('main button.option').length,
+  };
+})()`)
+check(
+  '48f. opening a goal opens the field, prefilled, with no menu of peers in front of it',
+  editing.value === 'Finish the portfolio' && editing.options === 0,
+  JSON.stringify(editing),
+)
 
 check(
   '9. no request went anywhere but the app’s own assets',

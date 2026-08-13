@@ -329,16 +329,37 @@ export const en = {
     reconsiderNo: 'Leave it for now',
 
     /**
-     * One label for the whole list rather than one per goal: the serif heading is
-     * already unmistakably the thing you want.
+     * A label per goal, numbered, rather than one label over all of them.
      *
-     * There is deliberately **no** matching label over each goal's entries. It used to
-     * repeat `goals.entriesLabel` there, which put the same sentence on screen once per
-     * goal; the indent rule already says those belong to the goal above. That label is
-     * still used where it earns its place — the onboarding screen, where there is no
-     * indent to say it.
+     * "What you want" named the list. This names each item, which is what makes the
+     * three levels on this page legible without a diagram: the numbered label is the
+     * app's word, the quoted line under it is the person's, and the question below that
+     * turns the goal into something to do.
+     *
+     * Shown even with a single goal, which reverses the earlier rule that a lone ordinal
+     * "implies siblings that are not there". That rule was about a bare `1.` list marker
+     * with nothing to explain it; "Goal #1:" reads as a label on a numbered thing, and
+     * "+ Add another goal" sits directly beneath saying where #2 would come from.
      */
-    goalsLabel: 'What you want',
+    goalNumber: 'Goal #{n}:',
+    /**
+     * The goal in the person's own words, shown as theirs.
+     *
+     * Typographic quotes belong in the catalog and not in JSX: German sets them low then
+     * high („so“) while English sets both high (“so”), so one hardcoded pair would be
+     * wrong in one language. Same reason no other user-visible punctuation lives in a
+     * component.
+     */
+    goalQuoted: '“{text}”',
+    /**
+     * Over each goal's entries, where Package B deliberately left no heading at all.
+     *
+     * That removal was right about the *label* and wrong about what the line was for.
+     * Repeating "What you want to try" three times said nothing the indent had not
+     * already said — but a question earns the line, because it says what the entries are
+     * *for*: the bridge from something you want to something you could do this week.
+     */
+    goalHow: 'How do you want to reach this goal?',
     /**
      * Kept in view on the start page. Deliberately not "focus": several entries can
      * be pinned, so a word implying one would be a promise the model does not make.
@@ -348,32 +369,33 @@ export const en = {
     unpin: 'Unpin',
     pinOn: 'Pin: {text}',
     unpinOn: 'Unpin: {text}',
-    addStep: 'Add something to try',
+    addStep: 'Add something',
     /** Three visible "Add" buttons are three identical controls out loud. */
-    addStepFor: 'Add something to try for: {goal}',
-    goalAdd: 'Add a goal',
-    goalChange: 'Change this goal',
+    addStepFor: 'Add something for: {goal}',
+    goalAdd: '+ Add another goal',
+    /**
+     * The visible word shortens to "Edit" because it now sits beside the goal it acts
+     * on, where "Change this goal" repeated the subject the line above already names.
+     *
+     * The **accessible name** keeps naming it, because out loud there is no "line above"
+     * — three buttons reading "Edit" are three identical controls to anyone listening.
+     */
+    goalChange: 'Edit',
     goalChangeOn: 'Change this goal: {goal}',
     done: 'Done',
 
     /** "Else", because the first one was asked for during the introduction. */
     goalNewQuestion: 'What else do you want here?',
-    goalMenuQuestion: 'What would you like to change?',
-    goalReword: 'Change the wording',
-
     /**
-     * Rewritten from "Need more motivation? …", which opens by telling someone they
-     * lack motivation — a diagnosis nobody asked for, and the kind of claim the
-     * Feature Manifest rules out. This reports instead, and leaves the reader to
-     * decide whether it applies to them.
+     * **The menu question and the reason-writing copy are gone**, along with the screen
+     * that asked them. Opening a goal opens the field now; `editQuestion` below is what
+     * it asks.
+     *
+     * Deleted rather than parked. `m.stored.areas.why` still renders a reason someone
+     * already wrote, so nothing anyone said is lost — but copy for a control that no
+     * longer exists reads as a regression to whoever finds it, which is the same reason
+     * the storage toggle's "off" copy went rather than being kept.
      */
-    goalWhy: 'Write down why this matters',
-    goalWhyEdit: 'Change why this matters',
-    goalWhyInvite: 'Some people find it easier to keep going when the reason is written down.',
-    goalWhyQuestion: 'Why does reaching this goal matter to you?',
-    /** The ceiling stated in prose, the way the three-entry cap already is. */
-    goalWhyNote: 'A sentence or two is plenty. You can leave it empty.',
-
     goalTop: 'Move this to the top',
     goalTopNote: 'The one at the top is what this area is about right now.',
 

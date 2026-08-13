@@ -447,16 +447,6 @@ export function editGoal(area: AreaId, goal: string, text: string): void {
   remember(goalTextKey(area, goal), text, SOURCE)
 }
 
-/**
- * Why this goal matters, in the person's own words.
- *
- * An empty string is how one is cleared: an append-only log has no delete, so taking
- * something back means saying nothing, and `readGoals` reads nothing as absent. The
- * earlier wording stays in history, exactly as rewording already behaves.
- */
-export function setGoalWhy(area: AreaId, goal: string, why: string): void {
-  remember(goalWhyKey(area, goal), why, SOURCE)
-}
 
 /**
  * Reached. One write: its entries leave the open set by derivation rather than by a

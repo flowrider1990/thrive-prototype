@@ -330,6 +330,43 @@
     @apply leading-relaxed text-ink transition-colors;
   }
 
+  /**
+   * An `.option` row for a life area with nothing being worked on.
+   *
+   * It recedes so the areas that *do* hold a goal dominate the page at a glance. Two
+   * dials, both already in the token set: the edge drops from `line-strong` to `line`,
+   * and the text from ink to muted. Restored in full on hover **and** focus, so a
+   * keyboard reaches the same state a pointer does.
+   *
+   * Deliberately **not** `opacity`. Opacity multiplies against the background and would
+   * quietly walk the text under the contrast floor §31 exists to hold — and it would dim
+   * the focus ring with it. Muted is a measured token; 40% of ink is a guess.
+   *
+   * Nothing here says "disabled": the row keeps its border, its cursor, its focus ring
+   * and its full hit area, and `aria-disabled` appears nowhere near it. Quieter is a
+   * statement about the person's attention, not about whether the row works.
+   *
+   * It works by **inheritance**, which is not a stylistic preference: a `text-ink`
+   * utility on the label inside could not be overridden from here at all, because
+   * Tailwind's `utilities` layer wins over `components` regardless of specificity. So
+   * `AreaLabel size="card"` sets no colour and takes the row's, and this sets the row's.
+   *
+   * The hover border is deliberately left to `.option:hover`, which follows this rule in
+   * the file and therefore wins — a receding row hovers into exactly the state every
+   * other row hovers into, rather than into a third appearance of its own.
+   */
+  .option-recede {
+    @apply border-line;
+    color: var(--color-muted);
+  }
+  .option-recede:hover,
+  .option-recede:focus-visible {
+    color: var(--color-ink);
+  }
+  .option-recede:focus-visible {
+    @apply border-muted;
+  }
+
   .option:hover {
     @apply border-muted;
   }

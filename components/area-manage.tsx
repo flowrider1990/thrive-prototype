@@ -177,9 +177,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
       </h1>
 
       <div className="space-y-3">
-        <p className="text-sm text-muted">{m.manage.goalsLabel}</p>
-
-        <ol className="space-y-8">
+        <ol className="space-y-10">
           {goals.map((goal, index) => {
             /**
              * **Pinning deliberately does not reorder this list**, though it does reorder
@@ -202,21 +200,43 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
             const trying = state.open.filter((step) => step.goalId === goal.id)
 
             return (
-              <li key={goal.id} className="flex items-start gap-x-3">
-                {/* The ordinal is the priority indicator, and `aria-hidden` because
-                    the list already conveys position. Hidden entirely with one goal:
-                    a lone "1." implies siblings that are not there. */}
-                {goals.length > 1 && (
-                  <span aria-hidden="true" className="pt-2 text-sm text-muted tabular-nums">
-                    {index + 1}.
-                  </span>
-                )}
-
-                <div className="min-w-0 flex-1 space-y-4">
-                  <div className="space-y-2">
-                    <h2 className="heading text-2xl leading-snug">{goal.text}</h2>
-                    {/* Only when it is there. An absent reason is not an empty one,
-                        and nothing invites filling it in from here. */}
+              <li key={goal.id}>
+                <div className="min-w-0 space-y-4">
+                  {/**
+                   * Three lines, and together they *are* the hierarchy: the app's label,
+                   * the person's own words, then the question that turns one into the
+                   * other.
+                   *
+                   * The visible numbered label replaces an `aria-hidden` ordinal. That
+                   * marker was hidden with a single goal because a lone "1." implied
+                   * siblings that were not there; a labelled "Goal #1:" does not, with
+                   * "+ Add another goal" directly beneath it saying where #2 comes from.
+                   * Position is still the priority, so the number is read off the list
+                   * rather than stored anywhere.
+                   */}
+                  <div className="space-y-1.5">
+                    <p className="text-sm text-muted tabular-nums">
+                      {t(m.manage.goalNumber, { n: String(index + 1) })}
+                    </p>
+                    {/* Editing belongs to the goal, so its control sits with the goal —
+                        not down among the entry controls, which act on a different level
+                        of the hierarchy. `items-baseline` so the small button sits on the
+                        serif line rather than floating beside it. */}
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <h2 className="heading text-2xl leading-snug">
+                        {t(m.manage.goalQuoted, { text: goal.text })}
+                      </h2>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-quiet"
+                        aria-label={t(m.manage.goalChangeOn, { goal: goal.text })}
+                        onClick={() => setView({ at: 'goal', goalId: goal.id })}
+                      >
+                        {m.manage.goalChange}
+                      </button>
+                    </div>
+                    {/* Only when it is there. There is no longer any way to write one,
+                        and an absent reason is not an empty one. */}
                     {goal.why && (
                       <p className="max-w-prose text-sm leading-relaxed text-muted">{goal.why}</p>
                     )}
@@ -224,16 +244,22 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
 
                   {/* The rule is what says "these belong to the goal above". It stays
                       on `line` because it is decorative rather than a control edge. */}
-                  <div className="space-y-4 border-s-2 border-line ps-5">
+                  <div className="space-y-3 border-s-2 border-line ps-5">
+                    {/* A question, where Package B deliberately left no heading at all.
+                        That removal was right about the *label*: repeating "What you want
+                        to try" once per goal said nothing the indent had not already said.
+                        A question earns the line, because it says what the entries are
+                        *for* — the step from something you want to something you could
+                        actually do this week. */}
+                    <p className="max-w-prose text-sm leading-relaxed text-muted">
+                      {m.manage.goalHow}
+                    </p>
                     {/* One list, no split. There used to be "Focusing on" above
                         "Also prepared", which claimed a distinction the model no
                         longer draws: entries are peers, and what you want kept in
                         view is a pin rather than a rank. */}
                     {trying.length > 0 ? (
                       <div>
-                        {/* No heading over it. The indent rule says these belong to the
-                            goal above, and repeating "What you want to try" once per
-                            goal was the same sentence three times on one screen. */}
                         <ul className="space-y-1">
                           {trying.map((step) => (
                             <li key={step.id}>
@@ -250,12 +276,12 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                       <p className="text-sm text-muted">{m.manage.noStep}</p>
                     )}
 
-                    {/* `.btn-sm` is exactly what that size is for: these are
-                        subordinate to the goal beside them, not to the page. Their
-                        accessible names name the goal, because three visible "Change
-                        this goal" buttons are three identical controls out loud. */}
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                      {!atCap && (
+                    {/* Alone here now. "Add something" and "Change this goal" used to sit
+                        side by side as equals, which was the wrong claim: one adds to this
+                        goal, the other acts on the goal itself. Editing moved up beside the
+                        goal, so everything left in this indent operates on one level. */}
+                    {!atCap && (
+                      <div>
                         <button
                           type="button"
                           className="btn btn-sm btn-quiet"
@@ -264,16 +290,8 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                         >
                           {m.manage.addStep}
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-quiet"
-                        aria-label={t(m.manage.goalChangeOn, { goal: goal.text })}
-                        onClick={() => setView({ at: 'goal', goalId: goal.id })}
-                      >
-                        {m.manage.goalChange}
-                      </button>
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </li>

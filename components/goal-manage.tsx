@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { Choice } from '@/components/choice'
-import { OptionList } from '@/components/option-list'
 import { QuestionCard } from '@/components/question-card'
 import { TextAnswer } from '@/components/text-answer'
 import type { AreaId } from '@/lib/areas'
@@ -12,12 +11,12 @@ import {
   editGoal,
   prioritiseGoal,
   retireGoal,
-  setGoalWhy,
   type AreaState,
   type Goal,
 } from '@/lib/person/goals'
 
-type View = 'menu' | 'reword' | 'why' | 'closing'
+/** The field, or the one question that closing a goal still has to ask. */
+type View = 'edit' | 'closing'
 
 /**
  * One goal, opened from its area to be changed.
@@ -27,8 +26,28 @@ type View = 'menu' | 'reword' | 'why' | 'closing'
  * done to it would have made it thirteen. The area owns the list and what is being
  * tried; this owns one goal.
  *
- * Every option here is a peer in an `OptionList`, so none of them is emphasised —
- * there is no recommended thing to do to a goal you opened on purpose.
+ * **This opens on the field, not on a menu.** It used to present five equally weighted
+ * `.option` cards — reword, reason, put first, reached, remove — so changing a word
+ * meant answering "what would you like to change?" first. Five peers with none
+ * emphasised is the right shape for a *decision*; renaming is not a decision, it is an
+ * edit, and the menu made the commonest thing the slowest.
+ *
+ * So the rename is the screen. What is left of the other actions sits under it as quiet
+ * `.btn-sm` controls, subordinate to the field rather than competing with it:
+ *
+ * - **Remove from your current goals** — the other thing basic management means.
+ * - **I have reached this** — kept because it is semantically *not* removal, and the
+ *   record distinguishes them (`done` versus `retired`). It is one quiet control here
+ *   rather than a peer card, which is what stops that distinction from turning basic
+ *   editing back into a four-option workflow.
+ * - **Move this to the top** — only where there is something to be first among.
+ *
+ * **Writing a reason is gone from the flow**, and the read path stays. `goal.why` still
+ * renders under its goal on the area page and on `/data/stored/`, so a reason someone
+ * already wrote is still theirs and still visible; there is simply no longer a way to
+ * add one. It was a fifth peer on the commonest management screen, which is exactly the
+ * weight it should not have had. `setGoalWhy` went with the flow rather than being left
+ * uncalled — reads never write, the same rule the legacy area pointers follow.
  */
 export function GoalManage({
   area,
@@ -42,7 +61,7 @@ export function GoalManage({
   onDone: () => void
 }) {
   const { m } = useI18n()
-  const [view, setView] = useState<View>('menu')
+  const [view, setView] = useState<View>('edit')
   /** Which of the two ways of closing a goal is being confirmed. */
   const [closing, setClosing] = useState<'reached' | 'dropped'>('reached')
 
@@ -64,46 +83,6 @@ export function GoalManage({
     setView('closing')
   }
 
-  if (view === 'reword') {
-    return (
-      <QuestionCard eyebrow={heading} question={m.manage.editQuestion}>
-        <TextAnswer
-          placeholder={m.goals.goalPlaceholder}
-          submitLabel={m.goals.stepsEditSubmit}
-          initialValue={goal.text}
-          onSubmit={(value) => {
-            // The same goal said differently — same id, so everything being tried
-            // for it stays attached and nothing has to be asked about.
-            editGoal(area, goal.id, value)
-            onDone()
-          }}
-        />
-      </QuestionCard>
-    )
-  }
-
-  if (view === 'why') {
-    return (
-      <QuestionCard eyebrow={heading} question={m.manage.goalWhyQuestion} note={m.manage.goalWhyNote}>
-        <TextAnswer
-          multiline
-          // Load-bearing: submitting empty is how a reason is taken back. An
-          // append-only log has no delete, so clearing means saying nothing, and
-          // nothing reads as absent. The earlier wording stays in the history.
-          allowEmpty
-          maxLength={600}
-          placeholder={m.goals.goalPlaceholder}
-          submitLabel={m.goals.stepsEditSubmit}
-          initialValue={goal.why ?? ''}
-          onSubmit={(value) => {
-            setGoalWhy(area, goal.id, value)
-            onDone()
-          }}
-        />
-      </QuestionCard>
-    )
-  }
-
   if (view === 'closing') {
     return (
       <QuestionCard
@@ -121,43 +100,56 @@ export function GoalManage({
                 onDone()
               },
             },
-            { label: m.manage.goalCloseCancel, tone: 'quiet', onSelect: () => setView('menu') },
+            { label: m.manage.goalCloseCancel, tone: 'quiet', onSelect: () => setView('edit') },
           ]}
         />
       </QuestionCard>
     )
   }
 
+  // The eyebrow stays even though the field is prefilled with the same words: a form
+  // control's value is not text on the page, so without it the goal being edited would
+  // be unreadable to anything that reads the page rather than the DOM — including the
+  // person, once there are three goals that all open the same screen.
   return (
-    <QuestionCard eyebrow={heading} question={m.manage.goalMenuQuestion}>
-      <OptionList
-        options={[
-          { id: 'reword', label: m.manage.goalReword },
-          {
-            id: 'why',
-            label: goal.why ? m.manage.goalWhyEdit : m.manage.goalWhy,
-            // The invitation, and the reason for it, only where it is being offered
-            // — not as a standing suggestion on the area's own page.
-            note: goal.why ? undefined : m.manage.goalWhyInvite,
-          },
-          // Only where there is something to be first among. One goal put first is a
-          // statement about nothing.
-          ...(state.activeGoals.length > 1 && state.priority?.id !== goal.id
-            ? [{ id: 'top', label: m.manage.goalTop, note: m.manage.goalTopNote }]
-            : []),
-          { id: 'reached', label: m.manage.goalReached },
-          { id: 'drop', label: m.manage.goalDrop },
-        ]}
-        onSelect={(id) => {
-          if (id === 'reword') setView('reword')
-          else if (id === 'why') setView('why')
-          else if (id === 'top') {
-            prioritiseGoal(area, goal.id)
-            onDone()
-          } else if (id === 'reached') close('reached')
-          else close('dropped')
+    <QuestionCard eyebrow={heading} question={m.manage.editQuestion}>
+      <TextAnswer
+        placeholder={m.goals.goalPlaceholder}
+        submitLabel={m.goals.stepsEditSubmit}
+        initialValue={goal.text}
+        onSubmit={(value) => {
+          // The same goal said differently — same id, so everything being tried for it
+          // stays attached and nothing has to be asked about.
+          editGoal(area, goal.id, value)
+          onDone()
         }}
       />
+
+      {/* Under the field and quieter than it, on a rule: these act on the goal as a
+          whole, while the field above acts on its wording. `.btn-sm btn-quiet` is what
+          that size is for — subordinate to the thing beside them, not to the page. */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-line pt-5">
+        {/* Only where there is something to be first among. One goal put first is a
+            statement about nothing. */}
+        {state.activeGoals.length > 1 && state.priority?.id !== goal.id && (
+          <button
+            type="button"
+            className="btn btn-sm btn-quiet"
+            onClick={() => {
+              prioritiseGoal(area, goal.id)
+              onDone()
+            }}
+          >
+            {m.manage.goalTop}
+          </button>
+        )}
+        <button type="button" className="btn btn-sm btn-quiet" onClick={() => close('reached')}>
+          {m.manage.goalReached}
+        </button>
+        <button type="button" className="btn btn-sm btn-quiet" onClick={() => close('dropped')}>
+          {m.manage.goalDrop}
+        </button>
+      </div>
     </QuestionCard>
   )
 }

@@ -100,7 +100,7 @@ through the store's `remember()` with `source: 'goals'`.
 area.<a>.review              'yes' | 'not_now'
 area.<a>.goal                the goal, verbatim   — LEGACY, read but never written
 area.<a>.goal.<gid>.text     the goal, verbatim   — newest wins, history = rewordings
-area.<a>.goal.<gid>.why      why it matters       — empty reads as absent
+area.<a>.goal.<gid>.why      why it matters       — READ ONLY, see below
 area.<a>.goal.<gid>.state    'done' | 'retired'   — absent means active
 area.<a>.goal_priority       <gid>
 area.<a>.step.<sid>.text     the entry, verbatim  — newest wins, history = rewordings
@@ -109,6 +109,24 @@ area.<a>.step.<sid>.goal     <gid>                — absent means "attribute it
 area.<a>.step.<sid>.pinned   'yes' | 'no'         — absent means not pinned
 area.<a>.step_active         <sid>                — LEGACY, read as a pin
 ```
+
+### `why` is a read path now
+
+There is no longer any way to write `area.<a>.goal.<gid>.why`. It was offered on the
+screen someone opens to rename a goal, as one of five equally weighted options — so the
+commonest management action shared its weight with the rarest, and renaming meant
+answering "what would you like to change?" first.
+
+The **read** survives in full: a reason already written still renders under its goal on
+the area page and on `/data/stored/`, so nothing anyone said became unreachable. `empty
+reads as absent` still describes stored data, and the two-fact retraction some stores
+carry (a reason, then an empty one taking it back) still resolves correctly — there is
+simply no control that produces either any more.
+
+`setGoalWhy` was deleted rather than left uncalled, which is the same rule the legacy
+area pointers follow: **reads never write.** Restoring the feature means restoring a
+writer and its copy, not un-hiding a control. §41i–41k assert the read path against a
+fixture written before the change.
 
 `GOAL_KEY` cannot match the legacy `area.<a>.goal` (too few segments) or
 `area.<a>.goal_priority` (`goal_priority` is not `goal`), so all three coexist

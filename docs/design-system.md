@@ -214,6 +214,33 @@ pattern above. If a danger token is ever added it needs the same treatment `--co
 got, which is the treatment `--color-line-strong` got: a contrast floor against both
 backgrounds, in both themes, asserted — §31e.
 
+## A row that recedes
+
+`.option-recede` is an `.option` for a life area with nothing being worked on. Two dials,
+both already in the token set: the edge drops from `line-strong` to `line`, and the text
+from ink to muted. Both restore on hover **and** focus, so a keyboard reaches the state a
+pointer does.
+
+**Not `opacity`.** Opacity multiplies against the background, so it would walk the text
+under the contrast floor the rest of this file defends — and dim the focus ring with it.
+`muted` is a measured token; 40% of ink is a guess.
+
+**Nothing about it says disabled.** It keeps its border, its padding, its cursor, its
+focus ring and its full hit area, and `aria-disabled` appears nowhere near it. §48b
+asserts the frame — same padding, same border width, opacity 1, live pointer events, a
+real `href` — because "de-emphasised" shipping as "switched off" is the whole risk of
+this pattern.
+
+**It works by inheritance, and that is not a preference.** A `text-ink` utility on the
+label inside could not be overridden from a component class at all: Tailwind's
+`utilities` layer wins over `components` regardless of specificity. So `AreaLabel
+size="card"` sets no colour and takes the row's. Ink is the inherited value everywhere
+else, so nothing changed for its other uses.
+
+The hover border is deliberately left to `.option:hover`, which follows it in the file
+and therefore wins — a receding row hovers into exactly the state every other row hovers
+into, rather than into a third appearance of its own.
+
 ## Icon-only controls
 
 There are three, and they share a shape: `inline-flex … rounded-full border

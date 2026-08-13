@@ -171,27 +171,24 @@ export const de: Messages = {
     reconsiderYes: 'Ja',
     reconsiderNo: 'Erst einmal so lassen',
 
-    goalsLabel: 'Was du willst',
+    goalNumber: 'Ziel #{n}:',
+    // Tiefe und hohe Anführungszeichen, wie im Deutschen üblich — im Englischen beide
+    // oben. Deshalb steht die Zeichensetzung im Katalog und nicht im Bauteil.
+    goalQuoted: '„{text}“',
+    goalHow: 'Wie willst du dieses Ziel erreichen?',
     pin: 'Anpinnen',
     unpin: 'Loslösen',
     pinOn: 'Anpinnen: {text}',
     unpinOn: 'Loslösen: {text}',
-    addStep: 'Etwas zum Ausprobieren hinzufügen',
-    addStepFor: 'Etwas zum Ausprobieren hinzufügen für: {goal}',
-    goalAdd: 'Ziel hinzufügen',
-    goalChange: 'Dieses Ziel ändern',
+    addStep: 'Etwas hinzufügen',
+    addStepFor: 'Etwas hinzufügen für: {goal}',
+    goalAdd: '+ Weiteres Ziel hinzufügen',
+    goalChange: 'Ändern',
     goalChangeOn: 'Dieses Ziel ändern: {goal}',
     done: 'Fertig',
 
     goalNewQuestion: 'Was willst du hier außerdem?',
-    goalMenuQuestion: 'Was möchtest du ändern?',
-    goalReword: 'Formulierung ändern',
 
-    goalWhy: 'Aufschreiben, warum es dir wichtig ist',
-    goalWhyEdit: 'Ändern, warum es dir wichtig ist',
-    goalWhyInvite: 'Manchen hilft es, den Grund einmal aufzuschreiben.',
-    goalWhyQuestion: 'Warum ist es dir wichtig, dieses Ziel zu erreichen?',
-    goalWhyNote: 'Ein oder zwei Sätze genügen. Du kannst es auch leer lassen.',
 
     goalTop: 'Nach oben setzen',
     goalTopNote: 'Ganz oben steht, worum es in diesem Bereich gerade geht.',

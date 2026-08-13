@@ -58,9 +58,17 @@ export default function AreasPage() {
         <ul className="space-y-3">
           {states.map((state) => {
             const top = state.priority ?? state.activeGoals[0]
+            // Nothing being worked on here yet — whether that is "not now" or simply
+            // not yet. The row recedes rather than disappearing: at a glance the page
+            // should show where you are working on something, while every area stays
+            // readable and one tap away. See `.option-recede`.
+            const quiet = top === undefined
             return (
             <li key={state.area}>
-              <Link href={`/areas/${state.area}`} className="option block space-y-1.5">
+              <Link
+                href={`/areas/${state.area}`}
+                className={`option block space-y-1.5 ${quiet ? 'option-recede' : ''}`}
+              >
                 <AreaLabel area={state.area} size="card" />
                 {/* The one put first, or the oldest still standing. A row is a door
                     rather than a summary: six areas listing three goals each would be

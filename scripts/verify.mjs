@@ -3681,7 +3681,9 @@ check(
   // between two containers, where the gap was 24px instead of 20px, so the list shifted
   // under the control that acted on it.
   '42b. starring one moves it to the top of one list, without shifting the others',
-  order[0].startsWith('Read before bed') &&
+  // A bullet leads each row now, so this asks which entry is first rather than what
+  // the row's text begins with.
+  order[0].includes('Read before bed') &&
     !screen.includes(EN.pinnedLabel) &&
     // One list: two would put a different gap on either side of the boundary.
     (await count('main ul')) === 1 &&
@@ -3763,7 +3765,8 @@ const legacyOrder = await evaluate(
 )
 check(
   '42e. a retired pointer reads as a pin, with nothing written to convert it',
-  legacyOrder[0].startsWith('Walk after dinner') &&
+  // Bullet-led rows: which entry is first is the claim, not the row's first character.
+  legacyOrder[0].includes('Walk after dinner') &&
     !(await text()).includes(EN.pinnedLabel) &&
     JSON.parse(await raw()).facts.every((f) => !f.key.endsWith('.pinned')),
   JSON.stringify(legacyOrder),

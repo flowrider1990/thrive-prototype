@@ -129,8 +129,21 @@ export function NextSteps() {
        * system says a state change must never do.
        */}
       <ul className="space-y-5">
-        {[...pinned, ...rest].map((row) => (
-          <li key={row.step.id}>
+        {[...pinned, ...rest].map((row, index) => (
+          /**
+           * The line sits on the first unstarred row, inside the single list.
+           *
+           * A separate container for each group is what caused rows to shift by the
+           * difference between two gaps; a border on one child divides the groups without
+           * reintroducing that. Only where both groups exist — a rule above the first row
+           * of a list divides it from nothing.
+           */
+          <li
+            key={row.step.id}
+            className={
+              pinned.length > 0 && index === pinned.length ? 'border-t border-line pt-5' : ''
+            }
+          >
             <EntryRow
               row={row}
               busy={busy?.stepId === row.step.id ? busy : null}
@@ -286,19 +299,13 @@ function EntryRow({
      * with the controls tucked beside them instead of stacked underneath.
      */
     <div className="flex items-start gap-x-3">
-      {/* The pin comes first in source order but contributes no text, which keeps the
-          entry's own words the start of the row's text content — §42b reads the first
-          thirty characters of the `li` to prove pinning reorders the list. */}
-      <button
-        type="button"
-        className={`pin-toggle ${step.pinned ? "pin-toggle-on" : ""}`}
-        aria-label={t(step.pinned ? m.manage.unpinOn : m.manage.pinOn, { text: step.text })}
-        onClick={() =>
-          step.pinned ? unpinStep(state.area, step.id) : pinStep(state.area, step.id)
-        }
-      >
-        <Star filled={step.pinned} />
-      </button>
+      {/* A bullet where the star used to be, matching the area page: it marks these as a
+          list and gives the words a left edge to sit against. `aria-hidden` — the `ul`
+          already says "list item". */}
+      <span aria-hidden="true" className="mt-1 shrink-0 text-lg leading-none text-muted">
+        &bull;
+      </span>
+
 
       <div className="min-w-0 flex-1 space-y-0.5">
         {/* Plain text, and a step above the metadata under it. Not a button, not an
@@ -309,24 +316,40 @@ function EntryRow({
             controls and never wraps them — a link containing "How is it going?" would
             navigate on every answer. */}
         <p className="flex flex-wrap items-center gap-x-1.5 text-sm leading-relaxed text-muted">
-          {goal && <GoalIcon />}
-          {goal && <span className="min-w-0">{goal.text}</span>}
-          {goal && <span aria-hidden="true">·</span>}
-          {/* The emoji sits *outside* the link, deliberately.
-              
-              It gives the row's area the same recognisable mark it carries on `/areas/`
-              and on its own page, so the three screens agree at a glance. Outside the
-              link because 37b clicks a leaf whose text is the bare area name — and because
-              a link whose accessible name began with "person walking" would announce the
+          {/* **Area first, then goal** — outermost container inwards, which is the order
+              the hierarchy is stated in everywhere else: an area holds goals, a goal holds
+              this. Read the other way it named the goal before saying where the goal
+              lived.
+
+              The emoji sits *outside* the link, deliberately. It gives the row's area the
+              same recognisable mark it carries on `/areas/` and on its own page. Outside
+              because 37b clicks a leaf whose text is the bare area name — and because a
+              link whose accessible name began with "person walking" would announce the
               decoration before the destination. `AreaIcon` is `aria-hidden`, so the name
               stays exactly the area's. */}
           <AreaIcon area={state.area} size="eyebrow" />
           <Link href={`/areas/${state.area}?from=home`} className="link-inline">
             {m.areas[state.area]}
           </Link>
+          {goal && <span aria-hidden="true">·</span>}
+          {goal && <GoalIcon />}
+          {goal && <span className="min-w-0">{goal.text}</span>}
         </p>
       </div>
 
+      {/* Beside the outcome control rather than out at the left edge, so a row is words
+          on one side and the things you can do to them on the other — the same grouping
+          the area page uses. */}
+      <button
+        type="button"
+        className={`pin-toggle shrink-0 ${step.pinned ? "pin-toggle-on" : ""}`}
+        aria-label={t(step.pinned ? m.manage.unpinOn : m.manage.pinOn, { text: step.text })}
+        onClick={() =>
+          step.pinned ? unpinStep(state.area, step.id) : pinStep(state.area, step.id)
+        }
+      >
+        <Star filled={step.pinned} />
+      </button>
       <button
         ref={trigger}
         type="button"

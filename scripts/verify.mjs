@@ -683,8 +683,8 @@ const EN = {
   steps: 'What could help you move toward this goal?',
   entries: 'What you want to try',
   entriesNote: 'One is enough. You can add up to three.',
-  add: 'Add',
-  addMore: 'Add another',
+  forGoal: 'Goal: “Sleep better”',
+  ack: 'Very good, thank you!',
   full: 'Three is plenty to start with.',
   edit: 'Edit',
   editSubmit: 'Save',
@@ -896,22 +896,26 @@ async function runArea(goal, steps) {
   await type(goal)
   await click(EN.cont)
   await enterEntries(steps)
-  await click(steps.length >= 3 ? EN.cont : EN.enough)
+  // One way on from both states that can follow the entries: the cap notice and the
+  // saved-something list both offer Continue. With nothing written the field is still
+  // open, and the only honest way past is saying so.
+  await click(steps.length === 0 ? EN.stepsUnknown : EN.cont)
 }
 
 /**
  * Types the entries in, one at a time. Extracted from `runArea` so §29 can stop
  * part-way through the list and exercise editing.
  *
- * The button label differs for the first entry, and that is deliberate rather than
- * incidental: the change from "Add" to "Add another" is what tells someone more
- * than one is allowed. §29 asserts the two really are different.
+ * **Two steps per entry after the first**, which is the shape of the flow rather than an
+ * artefact of the test: saving closes the field, and opening it again is a separate
+ * choice. The button says "Save" every time — it used to say "Add another" from the
+ * second entry on, naming a thing the person had not yet decided to do.
  */
 async function enterEntries(steps) {
   for (const [index, step] of steps.entries()) {
-    console.log('DEBUG enterEntries', index, '|', (await text()).split('\n').join(' / ').slice(0, 300))
+    if (index > 0) await click(EN.addStep)
     await type(step)
-    await click(index === 0 ? EN.add : EN.addMore)
+    await click(EN.save)
   }
 }
 
@@ -1033,6 +1037,14 @@ check(
   '4h. after the last area the introduction closes, and not before',
   screen.includes(EN.complete) && declined === AREAS.length - 3,
   `${declined} declined, expected ${AREAS.length - 3}`,
+)
+check(
+  // Order matters, which is why this is an index comparison and not two `includes`.
+  // Opening with "That is it for now." lands as a dismissal right after someone has
+  // answered questions about six areas of their life; the thanks has to come first.
+  '4h2. and it thanks you before it says that is it, not instead of it',
+  screen.includes(EN.ack) && screen.indexOf(EN.ack) < screen.indexOf(EN.complete),
+  screen.replace(NL, ' / ').slice(0, 110),
 )
 
 await click(EN.toHome)
@@ -1537,21 +1549,49 @@ await click(EN.cont)
 
 screen = await text()
 check(
-  '29a. the cap is stated before the first entry, not discovered at the third',
-  screen.includes(EN.entriesNote) && (await count('ol li')) === 0,
-  `${await count('ol li')} entries listed`,
+  /**
+   * "What could help you move toward this goal?" needs a *this*.
+   *
+   * The goal used to be shown only where an area held more than one, on the reasoning
+   * that with one it was redundant — true about telling goals apart, wrong about the
+   * question, whose subject was then nowhere on the screen. This area holds exactly one,
+   * which is the case that used to be blank.
+   */
+  '29a0. the goal is named while the action is asked for, even with one goal',
+  screen.includes(EN.forGoal),
+  screen.replace(NL, ' / ').slice(0, 120),
+)
+check(
+  // Inverted. It used to be stated *before* the field, so the first thing read on a
+  // screen asking what could help was a rule about how many — an answer to a question
+  // nobody had asked. The question and the field now stand alone.
+  '29a. the cap is not stated before the first entry — the question stands alone',
+  !screen.includes(EN.entriesNote) && screen.includes(EN.steps) && (await count('input')) === 1,
+  `${await count('ol li')} entries listed, note shown: ${screen.includes(EN.entriesNote)}`,
 )
 
-// The label really has to differ, or the change from "Add" to "Add another" — the
-// thing that says more is allowed — could be absent while every click still lands.
-const addFirst = (await visible(EN.add)) && !(await visible(EN.addMore))
+// Saving is one act and adding another is the next, so the field closes on save and the
+// cap appears at the point it becomes useful. The old flow relabelled the same button
+// "Add another" and left an empty field open, which named the wrong act and implied a
+// second entry was expected.
+const savesFirst = (await visible(EN.save)) && !(await visible(EN.addStep))
 await type('Walk after dinner')
-await click(EN.add)
-const addNext = (await visible(EN.addMore)) && !(await visible(EN.add))
+await click(EN.save)
+screen = await text()
+const afterSave = {
+  field: await count('input'),
+  addOffered: await visible(EN.addStep),
+  note: screen.includes(EN.entriesNote),
+  on: await visible(EN.cont),
+}
 check(
-  '29b. the add control says "Add" for the first entry and "Add another" after it',
-  addFirst && addNext,
-  `first: ${addFirst}, after one: ${addNext}`,
+  '29b. saving says "Save", closes the field, and only then offers another',
+  savesFirst &&
+    afterSave.field === 0 &&
+    afterSave.addOffered === true &&
+    afterSave.note === true &&
+    afterSave.on === true,
+  `first: ${savesFirst}, after: ${JSON.stringify(afterSave)}`,
 )
 
 check(
@@ -1562,10 +1602,12 @@ check(
   (await ariaLabels()).join(' / '),
 )
 
+await click(EN.addStep)
 await type('Read before bed')
-await click(EN.addMore)
+await click(EN.save)
+await click(EN.addStep)
 await type('Stretch in the morning')
-await click(EN.addMore)
+await click(EN.save)
 screen = await text()
 check(
   '29d. the third entry fills the list and the field gives way',
@@ -1773,8 +1815,10 @@ await click('Ja')
 await type('Besser schlafen')
 await click('Weiter')
 await type('20 Minuten spazieren gehen')
-await click('Hinzufügen')
-await click('Das reicht')
+await click('Speichern')
+// "Weiter" now, not "Das reicht": with something saved the field has closed and the way
+// on is the primary. "Das reicht" is the quiet skip beside an *open* field.
+await click('Weiter')
 await declineRest({ no: 'Gerade nicht', done: 'Das war’s für den Anfang.' })
 await click('Zur Startseite')
 screen = await text()
@@ -1966,7 +2010,7 @@ const stepsButtons = await evaluate(
 )
 check(
   '38b. adding stays the primary action, and every way out of it is quiet',
-  stepsButtons.find((b) => b.label === EN.add)?.primary === true &&
+  stepsButtons.find((b) => b.label === EN.save)?.primary === true &&
     stepsButtons.find((b) => b.label === EN.stepsUnknown)?.quiet === true &&
     stepsButtons.find((b) => b.label === EN.stepsUnknown)?.primary === false &&
     // Exactly one, over every control on the screen: entering something concrete.
@@ -3694,13 +3738,13 @@ check(
   (await visible(EN.goalAnother)) &&
     // Still the entries question, and adding one is still the primary thing to do.
     screen.includes(EN.steps) &&
-    (await visible(EN.add)),
+    (await visible(EN.save)),
   screen.replace(NL, ' / ').slice(0, 160),
 )
 
 // An entry first, so the second goal has something to be told apart from.
 await type('Walk after dinner')
-await click(EN.add)
+await click(EN.save)
 await click(EN.goalAnother)
 screen = await text()
 check(
@@ -3726,7 +3770,7 @@ check(
 // The cap counts across the area, not per goal — so an entry for the second goal plus
 // the first goal's one leaves room for exactly one more.
 await type('Sign up for a race')
-await click(EN.add)
+await click(EN.save)
 const linked = JSON.parse(await raw()).facts.filter((f) => /\.step\.[^.]+\.goal$/.test(f.key))
 check(
   '45d. its entries are linked to it, not to the goal that came first',
@@ -3751,7 +3795,7 @@ check(
   `${await count('input')} field(s)`,
 )
 await type('Wind down earlier')
-await click(EN.add)
+await click(EN.save)
 check(
   '45g. the third entry fills the area, whichever goals they belong to',
   (await count('input')) === 0 && (await text()).includes(EN.full),
@@ -4119,6 +4163,25 @@ check(
   editPlacement?.editBesideGoal === true && editPlacement?.editSharesRowWithAdd === false,
   JSON.stringify(editPlacement),
 )
+
+/**
+ * Asking for an action outside the introduction has to look like asking for one inside
+ * it, or the two screens teach different vocabularies for the same act.
+ *
+ * Same goal line, same question, same "Save" — one label for saving an action across the
+ * introduction, this page, and the start page. It used to read `home.newStepSubmit` here,
+ * which said the right word from the wrong namespace.
+ */
+await click('Add something')
+const askedHere = await text()
+check(
+  '48g. and adding an action here says it the way the introduction does',
+  askedHere.includes('Goal: “Finish the portfolio”') &&
+    askedHere.includes(EN.steps) &&
+    (await visible(EN.save)),
+  askedHere.replace(NL, ' / ').slice(0, 140),
+)
+await goto(`/areas/${AREAS[3].id}/`)
 
 // And opening it lands in a prefilled field. `innerText` cannot see a form value, so
 // this reads the input directly — the one place where asserting the DOM is the only

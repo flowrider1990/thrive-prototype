@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ActionEntry } from '@/components/action-entry'
+import { GoalLine } from '@/components/goal-line'
 import { Choice } from '@/components/choice'
 import { QuestionCard } from '@/components/question-card'
 import { TextAnswer } from '@/components/text-answer'
@@ -133,14 +134,18 @@ export function AreaFlow({
         <QuestionCard
           subject={area}
           question={m.goals.stepsQuestion}
-          note={m.goals.stepsNote}
-          // Which goal these are for. With one it is redundant, with two it is the
-          // only thing telling them apart.
-          eyebrow={
-            state.activeGoals.length > 1 ? (
-              <p className="text-sm text-muted">{goal.text}</p>
-            ) : undefined
-          }
+          /**
+           * No note. "One is enough. You can add up to three." used to sit here, so the
+           * first thing read on a screen asking what could help was a rule about how
+           * many — an answer to a question nobody had asked. `ActionEntry` says it once
+           * there is a first entry to add to.
+           *
+           * The goal, on the other hand, is now **always** shown. It used to appear only
+           * with more than one goal in the area, which was right about telling goals
+           * apart and wrong about the question: "this goal" needs a *this*, and with a
+           * single goal its subject was nowhere on the screen.
+           */
+          eyebrow={<GoalLine text={goal.text} />}
         >
           <ActionEntry
             area={area}

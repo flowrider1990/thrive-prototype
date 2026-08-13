@@ -13,10 +13,11 @@ import { addStep, editStep, MAX_OPEN_STEPS, type Step } from '@/lib/person/goals
  * Three things about the old version were not obvious enough, and each has a
  * specific answer here:
  *
- * - **That more than one is allowed.** The cap is now stated before the first
- *   entry rather than discovered on reaching it, and the list is a numbered
- *   `<ol>`, so "1." and "2." make three feel like a real ceiling without a
- *   counter. From the second entry the button itself says "Add another".
+ * - **That more than one is allowed.** The list is a numbered `<ol>`, so "1." and "2."
+ *   make three feel like a real ceiling without a counter, and the cap is stated in
+ *   words *once there is a first entry to add to*. It used to be stated before the
+ *   field, where the first thing read on a screen asking what could help was a rule
+ *   about quantity — an answer to a question nobody had asked yet.
  * - **That entries can be changed.** They used to render as a read-only list with
  *   a left rule and no affordance at all. Each now carries an explicit Edit
  *   control whose accessible name includes the entry's own words — three buttons
@@ -54,8 +55,31 @@ export function ActionEntry({
 }) {
   const { m, t } = useI18n()
   const [editing, setEditing] = useState<string | null>(null)
+  /**
+   * Whether the field is open.
+   *
+   * **Saving an action and adding another are two acts, and this is what separates
+   * them.** The field used to reappear the instant one was saved, with its button
+   * relabelled "Add another" — so the control that saved what you had just written was
+   * named after a thing you had not decided to do, and an empty field sat waiting as
+   * though two were expected.
+   *
+   * Now saving closes the field and shows what you have, with adding another offered
+   * beside the way on.
+   */
+  const [adding, setAdding] = useState(false)
 
   const full = atCap ?? entries.length >= MAX_OPEN_STEPS
+  /**
+   * With nothing written there is nothing to choose between, so the field is simply
+   * there — a screen asking what could help has to have somewhere to answer.
+   *
+   * Derived rather than initial state, because this component is **not** remounted
+   * between goals: the introduction can move from one goal's entries to the next, and an
+   * `adding` flag left over from the previous goal would show a "what next" list with an
+   * empty list in it. Reading the entries makes that impossible rather than unlikely.
+   */
+  const showField = adding || entries.length === 0
 
   return (
     <div className="space-y-6">
@@ -119,13 +143,48 @@ export function ActionEntry({
               <Choice options={[{ label: m.goals.stepsContinue, onSelect: onEnough }]} />
             )}
           </div>
+        ) : !showField ? (
+          /**
+           * What you have, and the two things that can follow it — after a save rather
+           * than instead of one.
+           *
+           * The cap belongs here and not above the field: it is worth knowing once there
+           * is something to add to. Continuing is the primary, because with one thing
+           * written the expected next step is to get on with it; adding another is
+           * genuinely available but nothing pushes toward three. One primary per state,
+           * as everywhere.
+           */
+          <div className="space-y-4">
+            <p className="text-sm text-muted">{m.goals.stepsNote}</p>
+            <Choice
+              options={[
+                ...(onEnough
+                  ? [{ label: m.goals.stepsContinue, onSelect: onEnough }]
+                  : []),
+                {
+                  /**
+                   * `manage.addStep` on purpose, which is the label the area page uses
+                   * for this same act — adding an action to a goal reads the same in the
+                   * introduction and afterwards.
+                   *
+                   * It also avoids a collision the obvious wording walked into: during
+                   * the introduction this sits beside "Add another goal", so calling it
+                   * "Add another" would put two near-identical labels next to each other
+                   * for acts on two different levels of the hierarchy.
+                   */
+                  label: m.manage.addStep,
+                  tone: onEnough ? ('quiet' as const) : undefined,
+                  onSelect: () => setAdding(true),
+                },
+              ]}
+            />
+          </div>
         ) : (
-          // Remounted per entry so the field clears itself and takes focus again,
-          // which is what makes adding three in a row feel like one action.
+          // Remounted per entry so the field clears itself and takes focus again.
           <TextAnswer
             key={entries.length}
             placeholder={m.goals.stepsPlaceholder}
-            submitLabel={entries.length === 0 ? m.goals.stepsAdd : m.goals.stepsAddAnother}
+            submitLabel={m.goals.stepsSave}
             /**
              * The way out is always offered; only what it is called changes.
              *
@@ -151,6 +210,9 @@ export function ActionEntry({
             }
             onSubmit={(value) => {
               addStep(area, value, goalId)
+              // Saving ends here. What happens next is the person's choice, offered
+              // above rather than assumed by leaving an empty field open.
+              setAdding(false)
             }}
             onSkip={onEnough}
           />

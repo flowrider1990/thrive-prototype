@@ -69,6 +69,33 @@ thank people for objecting. The two replies now land the right way round.
 - The language a person *answers* in is not detected and not recorded. Their words
   are stored verbatim, whatever language they are in.
 
+## One act, one word — across onboarding and everyday use
+
+The same action must read the same wherever it is offered, or the introduction teaches a
+vocabulary the rest of the app then contradicts. Three keys carry that:
+
+- **`goals.stepsSave`** — saving an action, used by the introduction, the area page and
+  the start page. It replaced `home.newStepSubmit`, which said the right word from the
+  wrong namespace while two other screens borrowed it.
+- **`manage.addStep`** — adding an action to a goal, used by the area page *and* by the
+  introduction's "one more?" choice. Deliberately not "Add another" there: during the
+  introduction it sits beside "Add another goal", and two near-identical labels for acts
+  on two different levels of the hierarchy is exactly the confusion the hierarchy work
+  set out to remove.
+- **`goals.forGoal`** — the goal an action is being written for, rendered by `GoalLine` at
+  both places that ask. Always shown, including when an area holds one goal: "this goal"
+  needs a *this*, and it used to be hidden precisely where nothing else on the screen
+  named it.
+
+**Saving is not adding another.** The submit says "Save" for the first action and every
+later one. It used to relabel itself "Add another" from the second on, which named an act
+the person had not decided to take, while an empty field sat open as though a second were
+expected. Saving now closes the field; adding another is the choice that follows.
+
+`stepsNote` ("One is enough. You can add up to three.") moved with it — from above the
+field, where it answered a question nobody had asked yet, to under the list, where there
+is a first entry to add to.
+
 ## Rules for adding copy
 
 1. Add the key to `en.ts` first, then `de.ts` — the build will not let you forget.

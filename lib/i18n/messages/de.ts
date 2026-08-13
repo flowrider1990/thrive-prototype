@@ -109,11 +109,11 @@ export const de: Messages = {
     goalAnother: 'Noch ein Ziel hinzufügen',
 
     stepsQuestion: 'Was könnte dir helfen, diesem Ziel näherzukommen?',
+    forGoal: 'Ziel: „{text}“',
     stepsNote: 'Eines reicht. Du kannst bis zu drei hinzufügen.',
     stepsPlaceholder: 'Etwas Kleines und Konkretes',
     entriesLabel: 'Was du ausprobieren willst',
-    stepsAdd: 'Hinzufügen',
-    stepsAddAnother: 'Noch etwas hinzufügen',
+    stepsSave: 'Speichern',
     stepsEnough: 'Das reicht',
     stepsUnknown: 'Ich weiß es noch nicht',
     stepsFull: 'Drei sind für den Anfang genug.',
@@ -126,6 +126,7 @@ export const de: Messages = {
   },
 
   complete: {
+    ack: 'Sehr gut, vielen Dank!',
     title: 'Das war’s für den Anfang.',
     body: 'Was du ausprobieren willst, findest du auf der Startseite.',
     submit: 'Zur Startseite',
@@ -147,7 +148,6 @@ export const de: Messages = {
     restLabel: 'Alles andere',
     newStepQuestion: 'Was könnte dir helfen, diesem Ziel näherzukommen?',
     newStepPlaceholder: 'Etwas Kleines und Konkretes',
-    newStepSubmit: 'Speichern',
     savedNote: 'Was du mir erzählt hast, liegt aktuell nur auf diesem Gerät.',
     memoryNote: 'Es wird nichts gespeichert. Was du mir erzählt hast, bleibt in diesem Tab.',
     ack: 'Danke. Das war alles, was ich fragen wollte.',

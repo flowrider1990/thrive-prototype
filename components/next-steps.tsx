@@ -247,7 +247,7 @@ function EntryRow({
         <p className="max-w-prose leading-relaxed text-ink">{m.home.newStepQuestion}</p>
         <TextAnswer
           placeholder={m.home.newStepPlaceholder}
-          submitLabel={m.home.newStepSubmit}
+          submitLabel={m.goals.stepsSave}
           skipLabel={m.home.cancel}
           onSubmit={(value) => {
             addStep(state.area, value, goal?.id)

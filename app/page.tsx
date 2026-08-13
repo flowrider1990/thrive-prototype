@@ -236,7 +236,11 @@ export default function Home() {
           has just finished answering questions and wants to leave. It now says the
           introduction is over and where to go. */}
       {step === 'complete' && (
-        <QuestionCard question={m.complete.title} note={m.complete.body}>
+        // `ack` rather than a screen of its own: that slot exists for exactly this —
+        // an acknowledgement riding above what comes next, so there is nothing extra to
+        // tap through. Opening with "That is it for now." landed as a dismissal right
+        // after someone had answered questions about six areas of their life.
+        <QuestionCard ack={m.complete.ack} question={m.complete.title} note={m.complete.body}>
           <Choice options={[{ label: m.complete.submit, onSelect: toHome }]} />
         </QuestionCard>
       )}

@@ -168,14 +168,43 @@ export const en = {
      * the work and the concept stays unnamed. `docs/goals-and-areas.md`.
      */
     stepsQuestion: 'What could help you move toward this goal?',
+    /**
+     * The goal the question above is about, shown while an action is written for it.
+     *
+     * Rendered by `GoalLine` at both places that ask — the introduction and the area
+     * page — so the Goal → Action relationship is stated the same way in each. The
+     * quotation marks are here rather than in JSX because German sets them low then high
+     * („so“) and English sets both high (“so”).
+     */
+    forGoal: 'Goal: “{text}”',
     /** The cap, stated before the first entry rather than discovered at the third. */
+    /**
+     * **Shown only once something has been written**, and quietly, beneath the list.
+     *
+     * It used to sit under the question before the field, where it answered a question
+     * nobody had asked yet — the first thing read on a screen asking what could help was
+     * a rule about quantity. The question and the field now stand alone; how many are
+     * allowed is worth knowing only once there is a first one to add to.
+     */
     stepsNote: 'One is enough. You can add up to three.',
     stepsPlaceholder: 'Something small and concrete',
     /** Heads the numbered list once there is something in it. */
     entriesLabel: 'What you want to try',
-    stepsAdd: 'Add',
+    /**
+     * **"Save", for the first action and every later one.**
+     *
+     * The button used to read "Add" and then "Add another" from the second entry on,
+     * which described the wrong act: at the moment it is pressed the person is saving
+     * what they have just written, not adding a further one. "Add another" is now a
+     * separate choice that comes *after* the save, which is the order the person is
+     * actually working in.
+     *
+     * The same key is used by the area page and the start page, so saving an action says
+     * one thing everywhere. It replaced `home.newStepSubmit`, which said exactly this but
+     * lived under `home` while two other screens borrowed it.
+     */
+    stepsSave: 'Save',
     /** From the second entry on, so the button itself says more is allowed. */
-    stepsAddAnother: 'Add another',
     stepsEnough: 'That is enough',
     /**
      * The answer this screen was missing.
@@ -209,6 +238,15 @@ export const en = {
   },
 
   complete: {
+    /**
+     * Said before the closing sentence, not instead of it.
+     *
+     * The screen used to open with "That is it for now.", which lands as a dismissal
+     * directly after someone has answered questions about six areas of their life.
+     * A short thanks first makes it a close rather than a stop. Deliberately one short
+     * line and not a screen of its own — warmth here is a sentence, not a step.
+     */
+    ack: 'Very good, thank you!',
     title: 'That is it for now.',
     body: 'What you want to try is on the start page.',
     submit: 'Go to the start page',
@@ -271,7 +309,6 @@ export const en = {
     restLabel: 'Everything else',
     newStepQuestion: 'What could help you move toward this goal?',
     newStepPlaceholder: 'Something small and concrete',
-    newStepSubmit: 'Save',
     /**
      * "Currently" is load-bearing. The sentence describes the storage mode in
      * force right now, not a permanent property of the product, so it stays true

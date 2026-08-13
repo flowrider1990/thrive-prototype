@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { AreaFlow } from '@/components/area-flow'
 import { AreaIcon } from '@/components/area-icon'
+import { GoalLine } from '@/components/goal-line'
 import { Choice } from '@/components/choice'
 import { GoalManage } from '@/components/goal-manage'
 import { Pin } from '@/components/icons'
@@ -123,13 +124,10 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
     const goal = state.activeGoals.find((candidate) => candidate.id === view.goalId)
     if (!goal) return <Fallback onDone={back} />
     return (
-      <QuestionCard
-        eyebrow={<p className="text-sm text-muted">{goal.text}</p>}
-        question={m.goals.stepsQuestion}
-      >
+      <QuestionCard eyebrow={<GoalLine text={goal.text} />} question={m.goals.stepsQuestion}>
         <TextAnswer
           placeholder={m.goals.stepsPlaceholder}
-          submitLabel={m.home.newStepSubmit}
+          submitLabel={m.goals.stepsSave}
           onSubmit={(value) => {
             // Not pinned. Nothing here decides what to keep in view — adding
             // something and choosing to look at it are two different intentions,

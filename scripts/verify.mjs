@@ -740,7 +740,8 @@ const EN = {
   goalAnother: 'Add another goal',
   storedBack: 'Back to data protection',
   delRestart: 'Start again',
-  reconsiderQuestion: 'Would you like to change or explore something here now?',
+  emptyNote: 'Everything seems fine here.',
+  goalCreate: 'Create a goal',
   pin: 'Pin',
   unpin: 'Unpin',
   storageOptionLocal: 'Save on this device',
@@ -3728,7 +3729,11 @@ const goalOrder = await evaluate(
 )
 check(
   '42d2. but inside a goal, pinning leaves the order alone',
-  goalOrder?.length === 2 && goalOrder[0].startsWith('Walk after dinner'),
+  // Each entry carries a bullet in front of its words now, so the claim is which entry
+  // sits first rather than what the row's text begins with.
+  goalOrder?.length === 2 &&
+    goalOrder[0].includes('Walk after dinner') &&
+    goalOrder[1].includes('Read before bed'),
   JSON.stringify(goalOrder),
 )
 
@@ -3830,9 +3835,26 @@ check(
    * field instead, and the assertion follows: the way in is still there, with the
    * intermediate question gone rather than merely quieter.
    */
-  '42j. and it stays completable from its own page, without confirming the tap first',
-  screen.includes(EN.goal) && !screen.includes(EN.reconsiderQuestion),
+  /**
+   * Opening a skipped area shows **what state it is in**, and one way on.
+   *
+   * This asserted a text field, because the page used to answer a tap on a row with the
+   * goal question. A tap is a request to see the area; the field skipped the only screen
+   * that says what is there. Creation starts from the button instead — asserted below,
+   * so "shows the empty state" cannot pass while the way on is broken.
+   */
+  '42j. and it opens on what is there, with one way to start something',
+  screen.includes(EN.emptyNote) &&
+    (await visible(EN.goalCreate)) &&
+    !screen.includes(EN.goal),
   screen.replace(NL, ' / ').slice(0, 140),
+)
+await click(EN.goalCreate)
+screen = await text()
+check(
+  '42j1. and that button is what opens the goal question',
+  screen.includes(EN.goal) && (await count('main input')) === 1,
+  screen.replace(NL, ' / ').slice(0, 120),
 )
 check(
   /**

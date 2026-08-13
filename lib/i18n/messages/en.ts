@@ -447,9 +447,6 @@ export const en = {
     tryingOne: '1 activity planned',
     trying: '{count} activities planned',
 
-    reconsiderQuestion: 'Would you like to change or explore something here now?',
-    reconsiderYes: 'Yes',
-    reconsiderNo: 'Leave it for now',
 
     /**
      * A label per goal, numbered, rather than one label over all of them.

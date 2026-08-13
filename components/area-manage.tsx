@@ -3,9 +3,7 @@
 import { useState } from 'react'
 import { AreaFlow } from '@/components/area-flow'
 import { AreaIcon, GoalIcon } from '@/components/area-icon'
-import { Choice } from '@/components/choice'
 import { Cross, Pencil, Star } from '@/components/icons'
-import { QuestionCard } from '@/components/question-card'
 import { TextAnswer } from '@/components/text-answer'
 import type { AreaId } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
@@ -21,14 +19,12 @@ import {
   readArea,
   retireGoal,
   retireStep,
-  setReview,
   unpinStep,
   type Step,
 } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
 type View =
-  | { at: 'reconsider' }
   | { at: 'flow' }
   | { at: 'overview' }
   /**
@@ -67,19 +63,20 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
   const state = readArea(person, area)
 
   /**
-   * An area with nothing current opens on the field, not on a question about opening it.
+   * Always the overview, empty or not.
    *
-   * It used to land on "Would you like to change or explore something here now?" — which
-   * someone had just answered by tapping a row that said "No goals yet". A confirmation
-   * step for a navigation is the kind of ceremony that teaches people to tap through the
-   * steps that matter.
+   * Opening an area with no goals used to go straight to "Was ist dein Ziel?" — asked for
+   * once, then reconsidered: a tap on a row is a request to *see* the area, and answering
+   * it with a text field skips past the one screen that says what state the area is in. The
+   * overview draws its own empty state now, and "Ziel erstellen" there is what starts the
+   * flow.
    *
-   * `reconsider` is still reachable and still needed: `AreaFlow`'s own review question
-   * covers the introduction, where an area arrives unbidden.
+   * That leaves `reconsider` with no way in, so it is gone. Its question — "Would you like
+   * to change or explore something here now?" — is what the empty state replaced, and the
+   * `setReview(area, 'yes')` it used to record now happens where a goal is actually written
+   * (`AreaFlow`'s goal submit), so the invariant survives without it.
    */
-  const [view, setView] = useState<View>(
-    state.activeGoals.length > 0 ? { at: 'overview' } : { at: 'flow' },
-  )
+  const [view, setView] = useState<View>({ at: 'overview' })
 
   /**
    * The four inline modes, each keyed by the id it acts on.
@@ -118,34 +115,26 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
    * of which they were already in. It used to leave the page entirely, which meant the one
    * screen showing what had just been created was the one you were sent away from.
    */
+  /**
+   * Where finishing the flow lands depends on whether the area has anything to come back
+   * to — and the same expression answers both cases, because `state` is re-read after every
+   * write.
+   *
+   * Backing out of the *first* goal leaves the area as empty as it was found, so returning
+   * to its page would show a screen with nothing on it but the invitation just declined:
+   * `/areas/` is the useful place. Backing out with goals already there returns to them.
+   * And *finishing* always lands on the area, because by then `allGoals` counts the goal
+   * that was just written — no flag needed to tell the two apart.
+   */
   if (view.at === 'flow')
-    return <AreaFlow area={area} straightToGoal onDone={back} />
-
-  if (view.at === 'reconsider') {
     return (
-      <QuestionCard eyebrow={heading()} question={m.manage.reconsiderQuestion}>
-        <Choice
-          options={[
-            {
-              label: m.manage.reconsiderYes,
-              onSelect: () => {
-                // Recorded explicitly, so the newest review answer can never say
-                // "not right now" while the area holds a live goal.
-                setReview(area, 'yes')
-                setView({ at: 'flow' })
-              },
-            },
-            {
-              // Nothing written: the previous answer is still the newest one.
-              label: m.manage.reconsiderNo,
-              tone: 'quiet',
-              onSelect: onDone,
-            },
-          ]}
-        />
-      </QuestionCard>
+      <AreaFlow
+        area={area}
+        straightToGoal
+        onDone={allGoals.length === 0 ? onDone : back}
+      />
     )
-  }
+
 
 
 
@@ -403,6 +392,12 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                   </div>
 
                   {/**
+                   * The indent stays; the rule down its side does not. Inset is what says
+                   * "these belong to the goal above" and it does that quietly — the line was
+                   * a second edge inside the card, drawing a boundary within a boundary. A
+                   * bullet on each entry carries what the rule was really for: marking these
+                   * as a list rather than as loose lines.
+                   *
                    * Hidden while the goal's removal is being confirmed.
                    *
                    * The question and the add control belong to a goal that may be about to
@@ -411,11 +406,9 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                    * be orphaned by the next tap. With them gone the confirmation is the
                    * only thing on the goal, which is what a confirmation is for.
                    *
-                   * The rule is what says "these belong to the goal above". It stays on
-                   * `line` because it is decorative rather than a control edge.
                    */}
                   {deletingGoal !== goal.id && (
-                  <div className="space-y-3 border-s-2 border-line ps-5">
+                  <div className="space-y-3 ps-5">
                     {/* A question, where Package B deliberately left no heading at all.
                         That removal was right about the *label*: repeating "What you want
                         to try" once per goal said nothing the indent had not already said.
@@ -554,10 +547,6 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
       )}
     </section>
   )
-
-  function heading() {
-    return <p className="text-sm text-muted">{m.areas[area]}</p>
-  }
 }
 
 /**
@@ -604,6 +593,14 @@ function Entry({
     <div className="flex items-start gap-x-2.5">
       {/* Plain text, not a control. Tapping someone's own words used to complete the
           thing they described, with no confirmation and nothing saying it would. */}
+      {/* A bullet, and a deliberately heavy one: with the rule gone it is what marks
+          these as a list belonging to the goal above. `aria-hidden` because the `ul` it
+          sits in already says "list item" — a spoken bullet would be the markup read
+          twice. `leading-none` with a nudge down so it sits on the text's own line
+          rather than shifting it. */}
+      <span aria-hidden="true" className="mt-1 shrink-0 text-lg leading-none text-muted">
+        &bull;
+      </span>
       <p className="min-w-0 flex-1 leading-relaxed text-ink">{step.text}</p>
       {/* All three controls together, to the right of the words.
           

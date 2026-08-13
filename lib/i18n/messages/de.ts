@@ -169,9 +169,6 @@ export const de: Messages = {
     tryingOne: '1 Aktivität geplant',
     trying: '{count} Aktivitäten geplant',
 
-    reconsiderQuestion: 'Möchtest du hier jetzt etwas verändern oder ausprobieren?',
-    reconsiderYes: 'Ja',
-    reconsiderNo: 'Erst einmal so lassen',
 
     goalNumber: 'Ziel #{n}:',
     goalOnly: 'Ziel:',

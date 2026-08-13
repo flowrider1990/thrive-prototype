@@ -475,6 +475,34 @@ export const en = {
      */
     goalHow: 'How do you want to reach this goal?',
     /**
+     * The same line once there is something under it.
+     *
+     * A question asks for the first entry; with entries already listed it would be asking
+     * about what is plainly there. The statement introduces the list instead — same slot,
+     * same weight, and which one shows is decided by whether the list is empty.
+     */
+    goalHowDone: 'How you want to reach it:',
+    /** Opens a field in place. The `+` matches "+ Add another goal" one level up. */
+    addEntry: '+ Add an entry',
+    editOn: 'Edit: {text}',
+    deleteOn: 'Remove: {text}',
+    deleteGoalOn: 'Remove goal: {goal}',
+    /**
+     * Deleting a goal asks once, in place, and briefly.
+     *
+     * Not a modal: a floating overlay needs focus trapping, and the project's rule is to
+     * reach for a headless primitive rather than hand-roll that — a dependency this does
+     * not need. The confirmation replaces the goal's own row, so the thing being removed
+     * is what the question is attached to.
+     *
+     * Entries get no confirmation at all, and that is safe rather than sloppy: nothing is
+     * destroyed. Append-only has no delete, so "remove" records that an item is no longer
+     * current and `/data/stored/` still shows it. A mis-tap costs a re-add.
+     */
+    confirmDelete: 'Are you sure?',
+    confirmYes: 'Yes',
+    confirmNo: 'No',
+    /**
      * Kept in view on the start page. Deliberately not "focus": several entries can
      * be pinned, so a word implying one would be a promise the model does not make.
      * Separate from goal priority, which orders goals rather than entries.
@@ -496,7 +524,18 @@ export const en = {
      */
     goalChange: 'Edit',
     goalChangeOn: 'Change this goal: {goal}',
-    done: 'Done',
+    /**
+     * "Back", not "Done" — and quiet.
+     *
+     * Nothing on this page needs finishing: every edit takes effect as it is made, so
+     * "Done" implied a save that had already happened and made leaving look like the
+     * concluding step of a task. It is navigation, so it says where it goes.
+     *
+     * That leaves two quiet controls at the foot of the page and no primary, which is
+     * deliberate here: neither adding a goal nor leaving is the recommended thing to do
+     * next. The recommended thing is on the page above them.
+     */
+    done: 'Back',
 
     /** "Else", because the first one was asked for during the introduction. */
     goalNewQuestion: 'What else do you want here?',

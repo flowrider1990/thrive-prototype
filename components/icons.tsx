@@ -80,6 +80,57 @@ export function ArrowLeft({ className = '' }: { className?: string }) {
  * `aria-hidden` like the others, but for a different reason: here the *button* is named,
  * not the words beside it.
  */
+/**
+ * Edit, as a pencil.
+ *
+ * Paired with `Cross` and `Pin` on every row of the area page, so the three share one
+ * box and one stroke weight — the row reads as three hit areas rather than three
+ * unrelated marks. Like `Pin`, it is the whole content of its control, so the *button*
+ * carries the name ("Ändern: gesünder Essen") and the glyph stays hidden.
+ */
+export function Pencil({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 12 12"
+      aria-hidden="true"
+      className={`size-3.5 shrink-0 ${className}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {/* Nib at the bottom left, body running up to the right. */}
+      <path d="M2.2 9.8l.5-2 5.1-5.1a1 1 0 0 1 1.4 1.4L4.1 9.3z" />
+      <path d="M7.4 3.2l1.4 1.4" />
+    </svg>
+  )
+}
+
+/**
+ * Delete, as a cross.
+ *
+ * A cross rather than a bin: what it does is closer to putting something aside than to
+ * destroying it. Nothing is erased — the store is append-only, so this records that the
+ * item is no longer current and `/data/stored/` can still show it.
+ */
+export function Cross({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 12 12"
+      aria-hidden="true"
+      className={`size-3.5 shrink-0 ${className}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3.2 3.2l5.6 5.6M8.8 3.2l-5.6 5.6" />
+    </svg>
+  )
+}
+
 export function Pin({ filled = false, className = '' }: { filled?: boolean; className?: string }) {
   return (
     <svg

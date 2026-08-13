@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
+import { AreaIcon } from '@/components/area-icon'
 import { Choice } from '@/components/choice'
 import { Pin } from '@/components/icons'
 import { OptionList } from '@/components/option-list'
@@ -303,6 +304,15 @@ function EntryRow({
         <p className="flex flex-wrap items-center gap-x-1.5 text-sm leading-relaxed text-muted">
           {goal && <span className="min-w-0">{goal.text}</span>}
           {goal && <span aria-hidden="true">·</span>}
+          {/* The emoji sits *outside* the link, deliberately.
+              
+              It gives the row's area the same recognisable mark it carries on `/areas/`
+              and on its own page, so the three screens agree at a glance. Outside the
+              link because 37b clicks a leaf whose text is the bare area name — and because
+              a link whose accessible name began with "person walking" would announce the
+              decoration before the destination. `AreaIcon` is `aria-hidden`, so the name
+              stays exactly the area's. */}
+          <AreaIcon area={state.area} size="eyebrow" />
           <Link href={`/areas/${state.area}?from=home`} className="link-inline">
             {m.areas[state.area]}
           </Link>

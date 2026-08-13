@@ -3,10 +3,8 @@
 import { useState } from 'react'
 import { AreaFlow } from '@/components/area-flow'
 import { AreaIcon } from '@/components/area-icon'
-import { GoalLine } from '@/components/goal-line'
 import { Choice } from '@/components/choice'
-import { GoalManage } from '@/components/goal-manage'
-import { Pin } from '@/components/icons'
+import { Cross, Pencil, Pin } from '@/components/icons'
 import { QuestionCard } from '@/components/question-card'
 import { TextAnswer } from '@/components/text-answer'
 import type { AreaId } from '@/lib/areas'
@@ -14,11 +12,16 @@ import { useI18n } from '@/lib/i18n'
 import {
   addGoal,
   addStep,
+  completeGoal,
+  editGoal,
   editStep,
   MAX_GOALS,
   MAX_OPEN_STEPS,
   pinStep,
+  prioritiseGoal,
   readArea,
+  retireGoal,
+  retireStep,
   setReview,
   unpinStep,
   type Step,
@@ -29,10 +32,13 @@ type View =
   | { at: 'reconsider' }
   | { at: 'flow' }
   | { at: 'overview' }
+  /**
+   * Adding a *goal* keeps its own screen; everything else about a goal or an entry now
+   * happens inline. `goal`, `add` and `editStep` are gone with `GoalManage`: managing
+   * something used to mean leaving the page that draws the hierarchy and coming back,
+   * which is the jumping this pass removed.
+   */
   | { at: 'goalNew' }
-  | { at: 'goal'; goalId: string }
-  | { at: 'add'; goalId: string }
-  | { at: 'editStep'; stepId: string }
 
 /**
  * One life area, opened on purpose rather than walked through.
@@ -72,6 +78,19 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
   const [view, setView] = useState<View>(
     state.activeGoals.length > 0 ? { at: 'overview' } : { at: 'flow' },
   )
+
+  /**
+   * The four inline modes, each keyed by the id it acts on.
+   *
+   * Separate pieces of state rather than one union, because they are genuinely
+   * independent: a goal being edited does not constrain which entry is. What *is*
+   * coordinated is that opening one closes the others — two fields on screen at once is
+   * two places the next keystroke could go.
+   */
+  const [editingGoal, setEditingGoal] = useState<string | null>(null)
+  const [deletingGoal, setDeletingGoal] = useState<string | null>(null)
+  const [editingStep, setEditingStep] = useState<string | null>(null)
+  const [addingTo, setAddingTo] = useState<string | null>(null)
 
   const back = () => setView({ at: 'overview' })
 
@@ -124,50 +143,8 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
     )
   }
 
-  if (view.at === 'goal') {
-    const goal = state.activeGoals.find((candidate) => candidate.id === view.goalId)
-    // Only reachable through a hand-edited store; degrading beats throwing.
-    if (!goal) return <Fallback onDone={back} />
-    return <GoalManage area={area} state={state} goal={goal} onDone={back} />
-  }
 
-  if (view.at === 'add') {
-    const goal = state.activeGoals.find((candidate) => candidate.id === view.goalId)
-    if (!goal) return <Fallback onDone={back} />
-    return (
-      <QuestionCard eyebrow={<GoalLine text={goal.text} />} question={m.goals.stepsQuestion}>
-        <TextAnswer
-          placeholder={m.goals.stepsPlaceholder}
-          submitLabel={m.goals.stepsSave}
-          onSubmit={(value) => {
-            // Not pinned. Nothing here decides what to keep in view — adding
-            // something and choosing to look at it are two different intentions,
-            // and the second one has its own control.
-            addStep(area, value, goal.id)
-            back()
-          }}
-        />
-      </QuestionCard>
-    )
-  }
 
-  if (view.at === 'editStep') {
-    const step = state.steps.find((candidate) => candidate.id === view.stepId)
-    if (!step) return <Fallback onDone={back} />
-    return (
-      <QuestionCard eyebrow={heading()} question={m.manage.editQuestion}>
-        <TextAnswer
-          placeholder={m.goals.stepsPlaceholder}
-          submitLabel={m.manage.editSubmit}
-          initialValue={step.text}
-          onSubmit={(value) => {
-            editStep(area, step.id, value)
-            back()
-          }}
-        />
-      </QuestionCard>
-    )
-  }
 
   // The cap is on the **area**, not the goal: three goals holding three each would
   // be nine open entries here, which is the task manager this is not.
@@ -237,19 +214,118 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                         not down among the entry controls, which act on a different level
                         of the hierarchy. `items-baseline` so the small button sits on the
                         serif line rather than floating beside it. */}
-                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                      <h2 className="heading text-2xl leading-snug">
-                        {t(m.manage.goalQuoted, { text: goal.text })}
-                      </h2>
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-quiet"
-                        aria-label={t(m.manage.goalChangeOn, { goal: goal.text })}
-                        onClick={() => setView({ at: 'goal', goalId: goal.id })}
-                      >
-                        {m.manage.goalChange}
-                      </button>
-                    </div>
+                    {editingGoal === goal.id ? (
+                      /**
+                       * Editing happens **here**, not on a screen of its own.
+                       *
+                       * Managing a goal used to mean leaving the page for `GoalManage` and
+                       * coming back, which is the jumping this pass exists to remove. The
+                       * field takes the heading's place, so what is being edited is where
+                       * it was being read.
+                       *
+                       * "I have reached this" lives inside this state rather than on the
+                       * row: the record distinguishes *reached* from *given up on*, and
+                       * that distinction is worth keeping — but not worth a third icon on
+                       * every goal.
+                       */
+                      <div className="space-y-3">
+                        <TextAnswer
+                          placeholder={m.goals.goalPlaceholder}
+                          submitLabel={m.manage.editSubmit}
+                          skipLabel={m.goals.stepsEditCancel}
+                          initialValue={goal.text}
+                          onSubmit={(value) => {
+                            editGoal(area, goal.id, value)
+                            setEditingGoal(null)
+                          }}
+                          onSkip={() => setEditingGoal(null)}
+                        />
+                        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-quiet"
+                            onClick={() => {
+                              completeGoal(area, goal.id)
+                              setEditingGoal(null)
+                            }}
+                          >
+                            {m.manage.goalReached}
+                          </button>
+                          {/* Only where there is something to be first among. */}
+                          {state.activeGoals.length > 1 && state.priority?.id !== goal.id && (
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-quiet"
+                              onClick={() => {
+                                prioritiseGoal(area, goal.id)
+                                setEditingGoal(null)
+                              }}
+                            >
+                              {m.manage.goalTop}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : deletingGoal === goal.id ? (
+                      /* One question, in place of the row it is about, so the thing being
+                         removed is what the question is attached to. Not a modal: an
+                         overlay needs focus trapping, and that is a dependency this does
+                         not need. */
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <p className="text-ink">{m.manage.confirmDelete}</p>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-quiet"
+                          onClick={() => {
+                            retireGoal(area, goal.id)
+                            setDeletingGoal(null)
+                          }}
+                        >
+                          {m.manage.confirmYes}
+                        </button>
+                        {/* Emphasised, because in a destructive step the safe choice is
+                            the recommended one. */}
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-primary"
+                          onClick={() => setDeletingGoal(null)}
+                        >
+                          {m.manage.confirmNo}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                        <h2 className="heading text-2xl leading-snug">
+                          {t(m.manage.goalQuoted, { text: goal.text })}
+                        </h2>
+                        {/* The same bordered circle as the pin, so a row reads as hit
+                            areas rather than as marks. Each is named after the goal it
+                            acts on: three buttons called "Edit" are three identical
+                            controls to anyone listening. */}
+                        <button
+                          type="button"
+                          className="pin-toggle"
+                          aria-label={t(m.manage.goalChangeOn, { goal: goal.text })}
+                          onClick={() => {
+                            setDeletingGoal(null)
+                            setEditingGoal(goal.id)
+                          }}
+                        >
+                          <Pencil />
+                        </button>
+                        <button
+                          type="button"
+                          className="pin-toggle"
+                          aria-label={t(m.manage.deleteGoalOn, { goal: goal.text })}
+                          onClick={() => {
+                            setEditingGoal(null)
+                            setDeletingGoal(goal.id)
+                          }}
+                        >
+                          <Cross />
+                        </button>
+                      </div>
+                    )}
                     {/* Only when it is there. There is no longer any way to write one,
                         and an absent reason is not an empty one. */}
                     {goal.why && (
@@ -266,8 +342,11 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                         A question earns the line, because it says what the entries are
                         *for* — the step from something you want to something you could
                         actually do this week. */}
+                    {/* A question asks for the first entry; with entries listed it would
+                        be asking about what is plainly there, so it introduces them
+                        instead. Same slot, same weight. */}
                     <p className="max-w-prose text-sm leading-relaxed text-muted">
-                      {m.manage.goalHow}
+                      {trying.length > 0 ? m.manage.goalHowDone : m.manage.goalHow}
                     </p>
                     {/* One list, no split. There used to be "Focusing on" above
                         "Also prepared", which claimed a distinction the model no
@@ -281,37 +360,62 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                               <Entry
                                 area={area}
                                 step={step}
-                                onEdit={() => setView({ at: 'editStep', stepId: step.id })}
+                                editing={editingStep === step.id}
+                                onEdit={() => setEditingStep(step.id)}
+                                onDone={() => setEditingStep(null)}
                               />
                             </li>
                           ))}
                         </ul>
                       </div>
-                    ) : (
-                      // The same hint, drawn the same way as on `/areas/`: one
-                      // sentence, one colour, one slant, wherever a goal stands without
-                      // a next step.
-                      <p className="text-sm italic leading-relaxed text-note">
-                        {m.manage.noStep}
-                      </p>
-                    )}
+                    ) : null}
 
                     {/* Alone here now. "Add something" and "Change this goal" used to sit
                         side by side as equals, which was the wrong claim: one adds to this
                         goal, the other acts on the goal itself. Editing moved up beside the
                         goal, so everything left in this indent operates on one level. */}
-                    {!atCap && (
-                      <div>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-quiet"
-                          aria-label={t(m.manage.addStepFor, { goal: goal.text })}
-                          onClick={() => setView({ at: 'add', goalId: goal.id })}
-                        >
-                          {m.manage.addStep}
-                        </button>
-                      </div>
-                    )}
+                    {!atCap &&
+                      (addingTo === goal.id ? (
+                        // In place, not on a screen of its own. The whole point of this
+                        // pass is that managing a goal and its entries never leaves the
+                        // page the hierarchy is drawn on.
+                        <TextAnswer
+                          placeholder={m.goals.stepsPlaceholder}
+                          submitLabel={m.goals.stepsSave}
+                          skipLabel={m.goals.stepsEditCancel}
+                          onSubmit={(value) => {
+                            // Not pinned. Adding something and choosing to keep it in view
+                            // are two intentions, and the second has its own control.
+                            addStep(area, value, goal.id)
+                            setAddingTo(null)
+                          }}
+                          onSkip={() => setAddingTo(null)}
+                        />
+                      ) : (
+                        <div>
+                          <button
+                            type="button"
+                            /**
+                             * Primary while the goal has nothing under it, quiet once it
+                             * does.
+                             *
+                             * A hint used to sit here saying nothing had been decided yet.
+                             * The question directly above already says that, so the
+                             * sentence was the third thing on screen making the same point
+                             * — and none of them said what to do. Emphasis on the one
+                             * control that does is the shorter way to say it.
+                             */
+                            className={`btn btn-sm ${trying.length === 0 ? 'btn-primary' : 'btn-quiet'}`}
+                            aria-label={t(m.manage.addStepFor, { goal: goal.text })}
+                            onClick={() => {
+                              setEditingStep(null)
+                              setAddingTo(goal.id)
+                            }}
+                          >
+                            {m.manage.addEntry}
+                          </button>
+                        </div>
+                      ))}
                   </div>
                 </div>
               </li>
@@ -331,7 +435,9 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                   <Entry
                     area={area}
                     step={step}
-                    onEdit={() => setView({ at: 'editStep', stepId: step.id })}
+                    editing={editingStep === step.id}
+                    onEdit={() => setEditingStep(step.id)}
+                    onDone={() => setEditingStep(null)}
                   />
                 </li>
               ))}
@@ -352,7 +458,9 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
             {m.manage.goalAdd}
           </button>
         )}
-        <button type="button" className="btn btn-primary" onClick={onDone}>
+        {/* Quiet, beside the equally quiet "add a goal". Nothing here is the
+            recommended next thing — what is worth doing is in the list above. */}
+        <button type="button" className="btn btn-quiet" onClick={onDone}>
           {m.manage.done}
         </button>
       </div>
@@ -364,37 +472,85 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
   }
 }
 
-/** The person's own words, and the two controls that act on them. */
-function Entry({ area, step, onEdit }: { area: AreaId; step: Step; onEdit: () => void }) {
+/**
+ * The person's own words and the three things that can be done to them.
+ *
+ * Pin, edit, remove — one shape for all three, so a row reads as hit areas rather than as
+ * a mark and two words. Editing opens **here**; removing takes effect immediately and asks
+ * nothing, which is safe rather than careless: append-only has no delete, so this records
+ * that the entry is no longer current and `/data/stored/` still shows it. A mis-tap costs
+ * a re-add.
+ */
+function Entry({
+  area,
+  step,
+  editing,
+  onEdit,
+  onDone,
+}: {
+  area: AreaId
+  step: Step
+  editing: boolean
+  onEdit: () => void
+  onDone: () => void
+}) {
   const { m, t } = useI18n()
+
+  if (editing) {
+    return (
+      <TextAnswer
+        placeholder={m.goals.stepsPlaceholder}
+        submitLabel={m.manage.editSubmit}
+        skipLabel={m.goals.stepsEditCancel}
+        initialValue={step.text}
+        onSubmit={(value) => {
+          editStep(area, step.id, value)
+          onDone()
+        }}
+        onSkip={onDone}
+      />
+    )
+  }
+
   return (
     <div className="flex items-start gap-x-2.5">
-      {/* The same pin as the start page, so the two screens say it the same way. */}
+      {/* Plain text, not a control. Tapping someone's own words used to complete the
+          thing they described, with no confirmation and nothing saying it would. */}
+      <p className="min-w-0 flex-1 leading-relaxed text-ink">{step.text}</p>
+      {/* All three controls together, to the right of the words.
+          
+          The pin used to sit *before* the entry, which read as a marker on it — but it
+          put one hit area on one side of the row and two on the other, so the row had no
+          single place where things could be done to it. Grouped, the words are the row
+          and the controls are a cluster beside them. The pin is still first within the
+          group: it is the one that changes what the entry *is* rather than its text. */}
       <button
         type="button"
-        className={`pin-toggle ${step.pinned ? 'pin-toggle-on' : ''}`}
+        className={`pin-toggle shrink-0 ${step.pinned ? 'pin-toggle-on' : ''}`}
         aria-label={t(step.pinned ? m.manage.unpinOn : m.manage.pinOn, { text: step.text })}
         onClick={() => (step.pinned ? unpinStep(area, step.id) : pinStep(area, step.id))}
       >
         <Pin filled={step.pinned} />
       </button>
-      {/* Plain text, not a control. Tapping someone's own words used to complete the
-          thing they described, with no confirmation and nothing saying it would. */}
-      <p className="min-w-0 flex-1 leading-relaxed text-ink">{step.text}</p>
+      {/* The same circle as the pin beside it, and named after the entry's own words —
+          three buttons reading "Edit" are three identical controls out loud. */}
       <button
         type="button"
-        className="btn btn-sm btn-quiet shrink-0"
+        className="pin-toggle shrink-0"
         aria-label={t(m.goals.stepsEdit, { text: step.text })}
         onClick={onEdit}
       >
-        {m.manage.reviewEdit}
+        <Pencil />
+      </button>
+      <button
+        type="button"
+        className="pin-toggle shrink-0"
+        aria-label={t(m.manage.deleteOn, { text: step.text })}
+        onClick={() => retireStep(area, step.id)}
+      >
+        <Cross />
       </button>
     </div>
   )
 }
 
-/** A queue can only go stale through a hand-edited store; skipping degrades rather than throws. */
-function Fallback({ onDone }: { onDone: () => void }) {
-  const { m } = useI18n()
-  return <Choice options={[{ label: m.manage.done, onSelect: onDone }]} />
-}

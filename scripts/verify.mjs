@@ -707,14 +707,17 @@ const EN = {
   navAreas: 'Life areas',
   picker: 'Your life areas',
   addStep: 'Add something',
-  manageDone: 'Done',
+  addEntry: '+ Add an entry',
+  manageDone: 'Back',
   goalAdd: '+ Add another goal',
   goalNewQuestion: 'What else do you want here?',
   goalChange: 'Edit',
   goalReword: 'Change the wording',
   goalTop: 'Move this to the top',
   goalReached: 'I have reached this',
-  goalDrop: 'Remove from your current goals',
+  confirmDelete: 'Are you sure?',
+  confirmYes: 'Yes',
+  confirmNo: 'No',
   goalCloseNote: 'What you were trying for it is set aside with it. Nothing is deleted.',
   goalNumber: 'Goal #1:',
   goalOnly: 'Goal:',
@@ -1337,16 +1340,16 @@ check('24m. Life areas lists every one with its state', (await text()).includes(
 // it: inserting an area anywhere before it silently moves which one this is.
 await clickOption(AREAS[2].label)
 // Navigation, not a selection: wait for the destination rather than for a fixed delay.
-await waitForText(EN.addStep)
-await click(EN.addStep)
+await waitForText(EN.addEntry)
+await click(EN.addEntry)
 await type('Ask Sam for feedback')
 await click(EN.save)
-await click(EN.addStep)
+await click(EN.addEntry)
 await type('Pick the three best pieces')
 await click(EN.save)
 check(
   '24n. at three open entries there is no way to add a fourth',
-  !(await visible(EN.addStep)),
+  !(await visible(EN.addEntry)),
   (await text()).replace(/\n/g, ' / ').slice(0, 140),
 )
 
@@ -1424,8 +1427,19 @@ check(
 // through steps. The case that *does* have one is §41, on a store built for it —
 // closing a goal here would take the only active entry in the run with it.
 const beforeDrop = JSON.parse(await raw()).facts.length
-await clickAria('Change this goal: Get hired somewhere I like')
-await click(EN.goalDrop)
+// Removing is its own control now — a cross beside the goal, not an option inside the
+// edit screen — and it asks once, in place. "One tap" in the name below always meant one
+// *write*, which is still true: the confirmation writes nothing.
+await clickAria('Remove goal: Get hired somewhere I like')
+screen = await text()
+check(
+  '7e0. removing a goal asks once, in place, and has written nothing yet',
+  screen.includes(EN.confirmDelete) &&
+    JSON.parse(await raw()).facts.length === beforeDrop &&
+    (await visible(EN.confirmNo)),
+  screen.replace(NL, ' / ').slice(0, 120),
+)
+await click(EN.confirmYes)
 screen = await text()
 check(
   '7e. setting aside a goal nothing was being tried for takes one tap and one fact',
@@ -1970,9 +1984,9 @@ await waitForText('Draw something every week')
 screen = await text()
 check(
   '25d. its goal survived, and finishing the setup is one action away',
-  screen.includes('Draw something every week') && (await visible(EN.addStep)),
+  screen.includes('Draw something every week') && (await visible(EN.addEntry)),
 )
-await click(EN.addStep)
+await click(EN.addEntry)
 await type('Sketch on Sunday morning')
 await click(EN.save)
 // "Done" now returns to the areas list rather than to home, because the area is its
@@ -2120,11 +2134,11 @@ check(
 
 // Opening it must offer adding something without re-asking for the goal.
 await clickOption(AREAS[0].label)
-await waitForText(EN.addStep)
+await waitForText(EN.addEntry)
 screen = await text()
 check(
   '38h. opening the area offers adding something, with the goal intact',
-  screen.includes('Sleep better') && (await visible(EN.addStep)),
+  screen.includes('Sleep better') && (await visible(EN.addEntry)),
   screen.replace(/\n/g, ' / ').slice(0, 140),
 )
 
@@ -3475,17 +3489,31 @@ check(
 // the walked store has only one active entry left by this point.
 await seedGoals()
 await goto(`/areas/${AREAS[3].id}/`)
-await clickAria('Change this goal: Finish the portfolio')
-await click(EN.goalReached)
+/**
+ * Closing a goal that *does* have things being tried for it.
+ *
+ * The two ways of closing one now sit in different places, and this asserts the one that
+ * looks destructive: **removing** asks first, in place, and writes nothing until answered.
+ * The old flow put a sentence about what would go with it on a screen of its own; that
+ * screen is gone, and what replaced the sentence is that nothing happens until you say so
+ * — which 41h then measures for real.
+ *
+ * "I have reached this" stays immediate, inside inline editing. It is not the same act:
+ * the record keeps `done` apart from `retired`, and nothing is destroyed either way —
+ * entries leave the *open* set by derivation, not by a cascade.
+ */
+await clickAria('Remove goal: Finish the portfolio')
 screen = await text()
+const beforeClose = JSON.parse(await raw())
 check(
-  '41g. closing a goal states what it takes with it, before it happens',
-  screen.includes(EN.goalCloseNote) && screen.includes(EN.goalReached),
-  screen.replace(/\n/g, ' / ').slice(0, 200),
+  '41g. removing a goal with things being tried asks first, and writes nothing yet',
+  screen.includes(EN.confirmDelete) &&
+    (await visible(EN.confirmNo)) &&
+    beforeClose.facts.length === JSON.parse(await raw()).facts.length,
+  screen.replace(NL, ' / ').slice(0, 160),
 )
 
-const beforeClose = JSON.parse(await raw())
-await click(EN.goalReached)
+await click(EN.confirmYes)
 screen = await text()
 const afterClose = JSON.parse(await raw())
 const retiredEntries = (store) =>
@@ -3542,11 +3570,16 @@ await goto(`/areas/${AREAS[3].id}/`)
 await clickAria('Change this goal: Finish the portfolio')
 screen = await text()
 const whyFacts = JSON.parse(await raw()).facts.filter((f) => whyIn(f, AREAS[3].id)).length
+// Inline editing puts the goal's words in a form control, and `innerText` cannot see a
+// value — so the goal is read from the field rather than from the page.
+const editingValue = await evaluate(
+  `(() => { const f = document.querySelector('main input, main textarea'); return f ? f.value : null })()`,
+)
 check(
   '41k. and editing it offers no way to write one — the field is the screen now',
   !screen.includes('why this matters') &&
     !screen.includes('What would you like to change?') &&
-    screen.includes('Finish the portfolio') &&
+    editingValue === 'Finish the portfolio' &&
     // Nothing was written by looking, which is the point of a read path.
     whyFacts === 1,
   `${screen.replace(NL, ' / ').slice(0, 110)} — ${whyFacts} why fact(s)`,
@@ -4306,7 +4339,11 @@ const shape48 = await evaluate(`(() => {
     // Searched across every line rather than the first few: a goal carrying a reason
     // pushes the question further down, which is correct. What matters is that it is
     // under the goal, not that it sits at a fixed offset from it.
-    hasQuestion: lines.some((l) => l.startsWith('How do you want to reach this goal?')),
+    // Either form: a question when the list is empty, a statement introducing it when
+    // not. Both occupy the same slot, and which one shows is the assertion in 48d2.
+    hasQuestion: lines.some(
+      (l) => l.startsWith('How do you want to reach this goal?') || l.startsWith('How you want to reach it:'),
+    ),
     quoted: /^[\u201e\u201c]/.test(lines[1] ?? ''),
     goalIsHeading: (li.querySelector('h2')?.innerText ?? '').includes('Finish the portfolio'),
   };
@@ -4325,36 +4362,63 @@ check(
 const editPlacement = await evaluate(`(() => {
   const li = document.querySelector('main ol li');
   const heading = li.querySelector('h2');
-  const edit = [...li.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Edit');
-  const add = [...li.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Add something');
-  if (!heading || !edit || !add) return null;
+  // Icon-only now, so found by accessible name — which is also the only thing a screen
+  // reader has to tell three "Edit" buttons apart.
+  const edit = [...li.querySelectorAll('button')]
+    .find((b) => (b.getAttribute('aria-label') || '').startsWith('Change this goal:'));
+  const remove = [...li.querySelectorAll('button')]
+    .find((b) => (b.getAttribute('aria-label') || '').startsWith('Remove goal:'));
+  const add = [...li.querySelectorAll('button')].find((b) => b.innerText.trim() === '+ Add an entry');
+  if (!heading || !edit || !remove || !add) return null;
   return {
     editBesideGoal: edit.parentElement === heading.parentElement,
+    removeBesideGoal: remove.parentElement === heading.parentElement,
     editSharesRowWithAdd: edit.parentElement === add.parentElement,
+    // Named after the goal, not just "Edit": three of these on one page otherwise say
+    // the same word three times to anyone listening.
+    named: (edit.getAttribute('aria-label') || '').includes('Finish the portfolio'),
   };
 })()`)
 check(
-  '48e. and its Edit sits beside the goal rather than next to “Add something”',
-  editPlacement?.editBesideGoal === true && editPlacement?.editSharesRowWithAdd === false,
+  '48e. and its edit and remove sit with the goal, not among the entry controls',
+  editPlacement?.editBesideGoal === true &&
+    editPlacement?.removeBesideGoal === true &&
+    editPlacement?.editSharesRowWithAdd === false &&
+    editPlacement?.named === true,
   JSON.stringify(editPlacement),
 )
 
 /**
- * Asking for an action outside the introduction has to look like asking for one inside
- * it, or the two screens teach different vocabularies for the same act.
+ * Asking for an action outside the introduction no longer needs to *say* which goal.
  *
- * Same goal line, same question, same "Save" — one label for saving an action across the
- * introduction, this page, and the start page. It used to read `home.newStepSubmit` here,
- * which said the right word from the wrong namespace.
+ * It used to open a screen of its own, which had to repeat the goal — "Goal: …" — because
+ * the goal was no longer on the page. The field opens inside the goal's own list item
+ * now, so the heading two lines above it *is* the context, and repeating it would be the
+ * third thing on screen saying the same thing.
+ *
+ * What still has to match the introduction is the word on the button: saving an action
+ * says "Save" everywhere. So this asserts position and label, which is what survived the
+ * screen going away.
  */
-await click('Add something')
-const askedHere = await text()
+await click('+ Add an entry')
+const askedHere = await evaluate(`(() => {
+  const li = document.querySelector('main ol li');
+  const field = li ? li.querySelector('input, textarea') : null;
+  const heading = li ? li.querySelector('h2') : null;
+  return {
+    fieldInsideGoal: Boolean(field),
+    goalStillOnScreen: (heading?.innerText ?? '').includes('Finish the portfolio'),
+    // No repeated context line: the heading already is it.
+    repeatsGoalLine: document.querySelector('main').innerText.includes('Goal: “Finish'),
+  };
+})()`)
 check(
-  '48g. and adding an action here says it the way the introduction does',
-  askedHere.includes('Goal: “Finish the portfolio”') &&
-    askedHere.includes(EN.steps) &&
+  '48g. and adding an action opens in place, under the goal it belongs to',
+  askedHere.fieldInsideGoal === true &&
+    askedHere.goalStillOnScreen === true &&
+    askedHere.repeatsGoalLine === false &&
     (await visible(EN.save)),
-  askedHere.replace(NL, ' / ').slice(0, 140),
+  JSON.stringify(askedHere),
 )
 await goto(`/areas/${AREAS[3].id}/`)
 

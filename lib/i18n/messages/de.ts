@@ -180,6 +180,14 @@ export const de: Messages = {
     // oben. Deshalb steht die Zeichensetzung im Katalog und nicht im Bauteil.
     goalQuoted: '„{text}“',
     goalHow: 'Wie willst du dieses Ziel erreichen?',
+    goalHowDone: 'So willst du dein Ziel erreichen:',
+    addEntry: '+ Eintrag hinzufügen',
+    editOn: 'Ändern: {text}',
+    deleteOn: 'Entfernen: {text}',
+    deleteGoalOn: 'Ziel entfernen: {goal}',
+    confirmDelete: 'Bist du sicher?',
+    confirmYes: 'Ja',
+    confirmNo: 'Nein',
     pin: 'Anpinnen',
     unpin: 'Loslösen',
     pinOn: 'Anpinnen: {text}',
@@ -189,7 +197,7 @@ export const de: Messages = {
     goalAdd: '+ Weiteres Ziel hinzufügen',
     goalChange: 'Ändern',
     goalChangeOn: 'Dieses Ziel ändern: {goal}',
-    done: 'Fertig',
+    done: 'Zurück',
 
     goalNewQuestion: 'Was willst du hier außerdem?',
 

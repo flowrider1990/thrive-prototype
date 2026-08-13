@@ -22,7 +22,7 @@ import {
   unpinGoal,
   unpinStep,
 } from '@/lib/person/goals'
-import { usePerson } from '@/lib/person/store'
+import { setHomeView, usePerson } from '@/lib/person/store'
 
 /** One entry, with the context needed to show and act on it. */
 type Row = { step: Step; state: AreaState; goal: Goal | undefined }
@@ -63,17 +63,18 @@ export function NextSteps() {
   const person = usePerson()
   const [busy, setBusy] = useState<Busy | null>(null)
   /**
-   * Which of the two questions this page is answering.
+   * Which of the two questions this page is answering — **remembered**.
    *
    * Steps by default, because the page exists to lead to action. Goals are the longer view,
-   * and seeing them plainly is what makes it obvious when one has nothing under it — the
-   * same thing the hint says in words.
+   * and seeing them plainly is what makes it obvious when one has nothing under it.
    *
-   * Component state, not a stored fact: it is a way of looking at the page, not something
-   * true about the person. It resets on reload, which is right — the default is the useful
-   * one to come back to.
+   * It lives in the person store rather than in component state, so it survives a reload:
+   * someone who prefers the goals view should not have to say so on every visit. That also
+   * means it is consent-gated for free — `commit()` writes nothing in memory mode, so
+   * declining still leaves `localStorage` completely empty, and only `'goals'` is ever
+   * stored, so the default leaves no trace at all.
    */
-  const [showing, setShowing] = useState<'steps' | 'goals'>('steps')
+  const showing = person.homeView
 
   const states = areas.map((area) => readArea(person, area))
 
@@ -126,16 +127,34 @@ export function NextSteps() {
           panel with its own URL. */}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <h1 className="heading">{showing === 'steps' ? m.home.title : m.home.goalsTitle}</h1>
-        <div role="group" aria-label={m.home.viewLabel} className="flex items-center gap-x-2">
+        {/**
+         * One bordered track with the selected half filled — a toggle, rather than two
+         * buttons that happen to sit together.
+         *
+         * The halves are plain buttons instead of `.btn`, because two `.btn` borders inside
+         * a third would be an edge around an edge around an edge. The track carries the
+         * one edge; the fill says which half is current.
+         *
+         * State is not carried by that fill alone: `aria-pressed` says which is current out
+         * loud, and each half is labelled with the view's own name, so the words are
+         * readable whether or not the fill is.
+         */}
+        <div
+          role="group"
+          aria-label={m.home.viewLabel}
+          className="inline-flex shrink-0 items-center gap-x-1 rounded-full border border-line-strong p-1"
+        >
           {(['steps', 'goals'] as const).map((option) => (
             <button
               key={option}
               type="button"
-              // Pressed rather than a colour alone: the label is the state's name, and
-              // `aria-pressed` is what says which one is current out loud.
               aria-pressed={showing === option}
-              className={`btn btn-sm ${showing === option ? 'btn-primary' : 'btn-quiet'}`}
-              onClick={() => setShowing(option)}
+              className={`rounded-full px-3 py-1 text-sm transition-colors ${
+                showing === option
+                  ? 'bg-ink font-medium text-ground'
+                  : 'text-muted hover:text-ink'
+              }`}
+              onClick={() => setHomeView(option)}
             >
               {option === 'steps' ? m.home.viewSteps : m.home.viewGoals}
             </button>
@@ -156,6 +175,8 @@ export function NextSteps() {
                 <span aria-hidden="true" className="mt-1 shrink-0 text-lg leading-none text-muted">
                   &bull;
                 </span>
+                {/* The same mark a goal carries everywhere else it is named. */}
+                <GoalIcon className="mt-0.5" />
                 <p
                   className={`min-w-0 flex-1 leading-relaxed text-ink ${
                     goal.pinned ? 'font-semibold' : ''

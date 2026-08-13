@@ -14,6 +14,7 @@ type PersonStore = {
   consentAt: string       // only ever written when consent was given
   locale?: 'de' | 'en'     // absent = follow the browser
   theme?: 'light' | 'dark' // absent = follow the operating system
+  homeView?: 'goals'       // absent = the start page opens on next steps
   facts: PersonFact[]
 }
 ```
@@ -29,7 +30,14 @@ module in the app that *touches* storage.
 when consent was given, session-only when it was not. A theme choice is still
 something written to someone's device.
 
-**Both are optional rather than a `version: 2`**, and absent means *follow the
+`homeView` is the third of these and the simplest: only `'goals'` is ever written, so the
+default leaves no trace and someone who never keeps that view has nothing stored about it.
+Like the others it goes through `commit()`, which is what makes it consent-gated without
+anything at the call site knowing — declining still leaves `localStorage` completely empty.
+It is **not** a fact: a way of reading a page is not something the person said, which §49d
+asserts by counting the log across a reload.
+
+**All three are optional rather than a `version: 2`**, and absent means *follow the
 environment* — the operating system for `theme`, the browser for `locale`. A store
 written before either field existed keeps loading. Bumping the version would have made
 `parse()` reject every existing store and silently discard real answers; the version

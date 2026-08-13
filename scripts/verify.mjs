@@ -4612,14 +4612,35 @@ check(
   `${JSON.stringify(goalOrderNow.slice(0, 2))} | ${starred.facts.length} vs ${beforeStar}`,
 )
 
-// And back, without the toggle having written anything of its own: which view you are
-// looking at is a way of reading the page, not a fact about the person.
-await click(EN.viewSteps)
+/**
+ * The choice is remembered across a reload — and it is **not** a fact.
+ *
+ * This asserted that the toggle "stores nothing", which passed for the wrong reason the
+ * moment it began being saved: it counted `facts`, and the view is a store field like
+ * `theme`. It now asserts both halves of what is actually true — the preference survives a
+ * reload, and it adds no entry to the append-only log, because a way of reading the page is
+ * not something the person said.
+ */
+const beforeReload = JSON.parse(await raw())
+await goto('/')
+screen = await text()
 check(
-  '49d. and the toggle itself stores nothing — it is a view, not an answer',
-  (await text()).includes(EN.home) &&
-    JSON.parse(await raw()).facts.length === starred.facts.length,
-  `${JSON.parse(await raw()).facts.length} facts`,
+  '49d. the chosen view survives a reload, without becoming a fact',
+  screen.includes(EN.goalsTitle) &&
+    !screen.includes(EN.home) &&
+    JSON.parse(await raw()).facts.length === beforeReload.facts.length &&
+    JSON.parse(await raw()).homeView === 'goals',
+  `${JSON.parse(await raw()).facts.length} facts, homeView ${JSON.parse(await raw()).homeView}`,
+)
+
+// Back to the default, which is the one value never written: choosing it drops the field
+// rather than storing 'steps', so anyone who does not keep the goals view leaves no trace.
+await click(EN.viewSteps)
+await sleep(250)
+check(
+  '49e. and choosing the default again leaves nothing stored about it',
+  (await text()).includes(EN.home) && JSON.parse(await raw()).homeView === undefined,
+  `homeView ${JSON.stringify(JSON.parse(await raw()).homeView)}`,
 )
 
 check(

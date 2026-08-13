@@ -4,12 +4,7 @@ import { AreaIcon } from '@/components/area-icon'
 import { Chevron } from '@/components/menu'
 import { areas } from '@/lib/areas'
 import { formatWhen, useI18n } from '@/lib/i18n'
-import {
-  readAreaDetail,
-  type AreaDetail,
-  type GoalDetail,
-  type StepDetail,
-} from '@/lib/person/goals'
+import { readAreaDetail, type GoalDetail, type StepDetail } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
 /**
@@ -52,8 +47,12 @@ export function StoredAreas() {
    * date of its own — saying "working on this" without one is honest, where reusing
    * the creation date would quietly invent a timestamp.
    */
-  function became(detail: AreaDetail, step: StepDetail): string | null {
-    if (step.id === detail.activeId) return m.stored.areas.active
+  function became(step: StepDetail): string | null {
+    // Pinned is not an outcome, so it is said alongside rather than instead — and it
+    // carries no date, because a pin is a preference rather than a thing that
+    // happened. A legacy `step_active` pointer reads as a pin, which is what keeps
+    // it visible on the one page that promises to show everything.
+    if (step.pinned) return m.stored.areas.pinned
     const word =
       step.state === 'done'
         ? m.stored.areas.done
@@ -180,7 +179,7 @@ export function StoredAreas() {
                   <div className="space-y-2 border-s-2 border-line ps-5">
                     <dt className="text-sm text-muted">{m.stored.areas.steps}</dt>
                     {detail.steps.map((step) => {
-                      const outcome = became(detail, step)
+                      const outcome = became(step)
                       return (
                         <dd key={step.id} className="space-y-1">
                           <p className="whitespace-pre-line leading-relaxed text-ink">

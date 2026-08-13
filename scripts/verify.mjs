@@ -684,8 +684,6 @@ const EN = {
   outcomeAside: 'This does not fit me anymore',
   cancel: 'Cancel',
   noted: 'Noted.',
-  chooseNext: 'Choose something',
-  later: 'Later',
   save: 'Save',
   navHome: 'Start',
   navAreas: 'Life areas',
@@ -711,6 +709,13 @@ const EN = {
   delKeep: 'Keep it',
   delConfirm: 'Yes, delete everything',
   delDone: 'Deleted. Nothing is left.',
+  pinnedLabel: 'Pinned',
+  tryingOne: 'One thing to try',
+  restLabel: 'Everything else',
+  goalSkip: 'Not sure yet',
+  reconsiderQuestion: 'Would you like to change or explore something here now?',
+  pin: 'Pin',
+  unpin: 'Unpin',
   storageChange: 'Change storage settings',
   storageLocal: 'Currently: saved on this device',
   storageMemory: 'Currently: this tab only',
@@ -747,6 +752,9 @@ const LAST_AREA = AREAS[AREAS.length - 1]
 
 /** The collapsed-nav trigger, which is icon-only and so has to be found by name. */
 const MENU = 'button[aria-label="Menu"], button[aria-label="Menü"]'
+
+/** Newlines, for the one-line detail strings the checks print. */
+const NL = new RegExp(String.fromCharCode(10), 'g')
 
 /** Any internal id leaking into rendered copy would look like this. */
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
@@ -860,19 +868,18 @@ async function seedLegacyOnboarded() {
 }
 
 /**
- * Walks one life area: yes, a goal, some next steps, and the one to start with.
+ * Walks one life area: yes, a goal, and some things to try.
  *
- * The last click differs by count on purpose, and that difference is itself part
- * of the design: one step is made active without asking, and at three the field
- * gives way to a plain Continue.
+ * The last click differs by count on purpose: at three the field gives way to a
+ * plain Continue. There used to be a fourth step choosing which entry to start
+ * with — the introduction no longer asks, so nothing is prioritised here either.
  */
-async function runArea(goal, steps, focusOn) {
+async function runArea(goal, steps) {
   await click(EN.reviewYes)
   await type(goal)
   await click(EN.cont)
   await enterEntries(steps)
   await click(steps.length >= 3 ? EN.cont : EN.enough)
-  if (steps.length > 1) await click(focusOn ?? steps[0])
 }
 
 /**
@@ -885,6 +892,7 @@ async function runArea(goal, steps, focusOn) {
  */
 async function enterEntries(steps) {
   for (const [index, step] of steps.entries()) {
+    console.log('DEBUG enterEntries', index, '|', (await text()).split('\n').join(' / ').slice(0, 300))
     await type(step)
     await click(index === 0 ? EN.add : EN.addMore)
   }
@@ -973,7 +981,7 @@ check(
   `current=${marks.marks[0].paint} upcoming=${marks.marks[1].paint}`,
 )
 
-await runArea('Sleep better', ['Walk for 20 minutes', 'Read before bed'], 'Walk for 20 minutes')
+await runArea('Sleep better', ['Walk for 20 minutes', 'Read before bed'])
 marks = await progress()
 check(
   '4f. answering an area fills its mark and moves to the next',
@@ -1013,13 +1021,19 @@ check(
 await click(EN.toHome)
 screen = await text()
 check(
-  '4i. home surfaces one active step per area that has one, and nothing else',
+  '4i. home lists everything open across areas, each with the goal it serves',
   screen.includes(EN.home) &&
     screen.includes('Walk for 20 minutes') &&
     screen.includes('Finish the case study') &&
-    // prepared but not the one being worked on
-    !screen.includes('Read before bed') &&
-    // reviewed with "not right now" — present, but not shown as a gap
+    // Prepared but not first — it used to be absent, because home showed only the
+    // one being worked on. Listing it is the point of the rewrite.
+    screen.includes('Read before bed') &&
+    // Its goal, beside it, which is only knowable because entries belong to one.
+    screen.includes('Sleep better') &&
+    // Nothing is pinned, so there is no distinction to label.
+    !screen.includes(EN.pinnedLabel) &&
+    // Reviewed with "not right now" — present in the store, and still not shown as
+    // a gap to fill. An area nobody is working on is not a failure to display.
     !screen.includes(AREAS[3].label),
   screen.replace(/\n/g, ' / ').slice(0, 120),
 )
@@ -1027,7 +1041,7 @@ check(
 const stored = JSON.parse(await raw())
 const factsFor = (store, suffix) => store.facts.filter((f) => f.key.endsWith(suffix))
 check(
-  '4j. the store holds the answers verbatim, one goal and one pointer per area',
+  '4j. the store holds the answers verbatim, and nothing was prioritised',
   stored.version === 1 &&
     typeof stored.consentAt === 'string' &&
     factsFor(stored, '.review').length === AREAS.length &&
@@ -1043,7 +1057,10 @@ check(
     ) &&
     stored.facts.filter((f) => /\.step\.[^.]+\.text$/.test(f.key)).length === 3 &&
     stored.facts.filter((f) => /\.goal\.[^.]+\.text$/.test(f.key)).length === 2 &&
-    factsFor(stored, '.step_active').length === 2,
+    // Nothing prioritised, nothing pinned. The introduction stopped asking which
+    // entry to start with, and pinning is never one of its questions.
+    factsFor(stored, '.step_active').length === 0 &&
+    stored.facts.every((f) => !f.key.endsWith('.pinned')),
   `${stored.facts.length} facts`,
 )
 // Recorded rather than re-derived. The count of answered areas used to be the whole
@@ -1181,12 +1198,19 @@ check(
   `${JSON.parse(await raw()).facts.length} facts vs ${beforeIdle}`,
 )
 
+// With something else still open in that area, finishing one asks nothing: whatever
+// is left is already on this page, so there is nothing to choose between. The offer
+// only appears when the area runs out, which 24g reaches.
 await clickAria(`How is it going with: Walk for 20 minutes`)
 await clickOption(EN.outcomeDone)
 screen = await text()
 check(
-  '24d. "I have done this" offers something next rather than creating one',
-  screen.includes(EN.noted) && screen.includes(EN.chooseNext) && screen.includes(EN.later),
+  '24d. finishing one with others still open asks nothing further',
+  !screen.includes(EN.steps) &&
+    !screen.includes('Walk for 20 minutes') &&
+    // The rest of the area is untouched and still listed.
+    screen.includes('Read before bed'),
+  screen.replace(NL, ' / ').slice(0, 200),
 )
 
 let store = JSON.parse(await raw())
@@ -1200,16 +1224,15 @@ check(
   `${doneFacts.length} done`,
 )
 
-// "Later" is a real answer and costs nothing: the area already has nothing active,
-// so there is nothing left to record.
-const beforeLater = JSON.parse(await raw()).facts.length
-await click(EN.later)
-screen = await text()
+// Closing one entry costs exactly one fact. Nothing is written on behalf of the
+// others, and nothing is written to record that the area moved on — there is no
+// "choose what is next" step left to answer.
 store = JSON.parse(await raw())
 check(
-  '24f. "Later" writes nothing and leaves the area with nothing active',
-  store.facts.length === beforeLater && !screen.includes('Walk for 20 minutes'),
-  `${store.facts.length} facts vs ${beforeLater}`,
+  '24f. and nothing was written for the entries left alone',
+  store.facts.filter((f) => f.key.endsWith('.state')).length === 1 &&
+    store.facts.every((f) => !f.key.endsWith('.pinned')),
+  store.facts.filter((f) => f.key.endsWith('.state')).map((f) => f.value).join(', '),
 )
 
 // The fourth outcome. It is the second path from this screen that writes to the
@@ -1227,21 +1250,23 @@ check(
   `${store.facts.length} facts vs ${beforeAside}, ${retired.length} retired`,
 )
 
-await click(EN.chooseNext)
+// That was the only entry in its area, so this is where the offer belongs: nothing
+// is left to choose between, so it asks straight out rather than offering a choice
+// of one.
 screen = await text()
 check(
-  '24h. with nothing else prepared, a new one is asked for instead of invented',
-  screen.includes(EN.steps),
+  '24h. emptying an area asks what could help, instead of inventing something',
+  screen.includes(EN.steps) && screen.includes(EN.noted),
+  screen.replace(NL, ' / ').slice(0, 200),
 )
 await type('Write the intro')
 await click(EN.save)
-check('24i. and the new one becomes what is being worked on', (await text()).includes('Write the intro'))
+check('24i. and the new one is listed straight away', (await text()).includes('Write the intro'))
 
 // The same words at two points in time are two different things. Doing something
 // useful again later is a new thing to do, not a repeat of the old one.
 await clickAria(`How is it going with: Write the intro`)
 await clickOption(EN.outcomeDone)
-await click(EN.chooseNext)
 await type('Write the intro')
 await click(EN.save)
 store = JSON.parse(await raw())
@@ -1404,11 +1429,10 @@ check(
 // that never happened. Append-only has no delete.
 check(
   '7g. and it says what became of each step, without claiming any of it was removed',
-  screen.includes('working on this') &&
-    screen.includes('done') &&
+  screen.includes('done') &&
     screen.includes('set aside') &&
     !/removed from/.test(screen),
-  ['working on this', 'done', 'set aside']
+  ['done', 'set aside']
     .filter((word) => !screen.includes(word))
     .map((word) => `missing "${word}"`)
     .concat(/removed from/.test(screen) ? ['still claims removal'] : [])
@@ -1570,12 +1594,12 @@ check('5d. and it says nothing is being saved', screen.includes('Nothing is bein
 // `remember()` so it must be gated" is an argument, not a check.
 await clickAria(`How is it going with: Walk after lunch`)
 await clickOption(EN.outcomeDone)
-await click(EN.chooseNext)
 await type('Ring Ada')
 await click(EN.save)
 await clickAria(`How is it going with: Ring Ada`)
 await clickOption(EN.outcomeAside)
-await click(EN.later)
+// The area is empty again, so it asks again — and declining writes nothing either.
+await click(EN.cancel)
 const keysAfterDecline = await keys()
 check(
   '5e. localStorage is COMPLETELY empty — no key at all, not even consent or locale',
@@ -1843,8 +1867,11 @@ await click(EN.manageDone)
 await sleep(400)
 screen = await text()
 check(
-  '25e. adding the missing entry makes it the active one, with nothing else asked',
-  screen.includes('Sketch on Sunday morning') && screen.includes(EN.picker),
+  '25e. adding the missing entry lists it, with nothing else asked',
+  // The areas list counts what is there rather than naming one of them: with nothing
+  // pinned, no entry is first, and picking one to show would be arbitrary. Home is
+  // where the words themselves live, which 25e2 checks.
+  screen.includes(EN.tryingOne) && screen.includes(EN.picker),
   screen.replace(/\n/g, ' / ').slice(0, 120),
 )
 
@@ -1859,11 +1886,11 @@ check(
 // The guard: an area with nothing active must never be read as "not onboarded".
 await clickAria(`How is it going with: Sketch on Sunday morning`)
 await clickOption(EN.outcomeDone)
-await click(EN.later)
+await click(EN.cancel)
 await goto('/')
 screen = await text()
 check(
-  '25f. after finishing something and choosing "Later", a reload still lands on home',
+  '25f. after finishing the last thing in an area, a reload still lands on home',
   screen.includes(EN.home) && !screen.includes(EN.review) && !screen.includes(EN.intro),
   screen.replace(/\n/g, ' / ').slice(0, 100),
 )
@@ -3296,6 +3323,164 @@ check(
     .filter((f) => whyIn(f, AREAS[0].id))
     .map((f) => JSON.stringify(f.value))
     .join(' '),
+)
+
+// --- 42. pinning, the skippable goal, and the pointer that became a pin ---------
+//
+// Pinning replaced a single "the one being worked on" pointer per area. Several
+// entries can be pinned, it is never asked for, and it orders the start page without
+// ranking anything. An existing pointer is read as a pin, which is what keeps a store
+// written before any of this from losing what it said.
+
+const PIN_STEP = 'cafe0001-1111-4111-8111-cafe00011111'
+const PIN_OTHER = 'cafe0002-2222-4222-8222-cafe00022222'
+
+/** A store with two open entries and, optionally, the retired pointer at one of them. */
+async function seedPins({ legacyPointer = false } = {}) {
+  const at = '2026-03-01T00:00:00.000Z'
+  const fact = (id, key, value) => ({ id, key, value, source: 'goals', learnedAt: at })
+  const facts = [
+    ...AREAS.map(({ id }, i) => fact(`p-review-${i}`, `area.${id}.review`, 'yes')),
+    fact('p-intro', 'introduction_done', 'yes'),
+    fact('p-goal', `area.${AREAS[0].id}.goal`, 'Sleep better'),
+    fact('p-t1', `area.${AREAS[0].id}.step.${PIN_STEP}.text`, 'Walk after dinner'),
+    fact('p-t2', `area.${AREAS[0].id}.step.${PIN_OTHER}.text`, 'Read before bed'),
+    ...(legacyPointer
+      ? [fact('p-legacy', `area.${AREAS[0].id}.step_active`, PIN_STEP)]
+      : []),
+  ]
+  const store = { version: 1, consentAt: at, locale: 'en', facts }
+  await goto('/')
+  await evaluate(
+    `localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, ${JSON.stringify(JSON.stringify(store))})`,
+  )
+  await goto('/')
+}
+
+await seedPins()
+screen = await text()
+check(
+  '42a. with nothing pinned there is one plain list and no labels over it',
+  screen.includes('Walk after dinner') &&
+    screen.includes('Read before bed') &&
+    !screen.includes(EN.pinnedLabel),
+  screen.replace(NL, ' / ').slice(0, 160),
+)
+
+// Pinning is one fact, and it is the *entry* that carries it — not a pointer the area
+// holds, which is what could only ever name one thing.
+const beforePin = JSON.parse(await raw()).facts.length
+await clickAria('Pin: Read before bed')
+screen = await text()
+const afterPin = JSON.parse(await raw())
+const order = await evaluate(
+  `[...document.querySelectorAll('main li')].map((li) => li.textContent.trim().slice(0, 30))`,
+)
+check(
+  '42b. pinning one moves it to the top, labels both groups, and writes one fact',
+  order[0].startsWith('Read before bed') &&
+    screen.includes(EN.pinnedLabel) &&
+    afterPin.facts.length === beforePin + 1 &&
+    afterPin.facts.some((f) => f.key.endsWith('.pinned') && f.value === 'yes'),
+  `${JSON.stringify(order)} | ${afterPin.facts.length} vs ${beforePin}`,
+)
+
+// Several at once. This is the thing a pointer could not express, so it is the check
+// that says pinning is not a rank in disguise.
+await clickAria('Pin: Walk after dinner')
+screen = await text()
+check(
+  '42c. more than one can be pinned, and then there is nothing left to label',
+  JSON.parse(await raw()).facts.filter((f) => f.key.endsWith('.pinned')).length === 2 &&
+    !screen.includes(EN.pinnedLabel) &&
+    !screen.includes(EN.restLabel),
+  screen.replace(NL, ' / ').slice(0, 160),
+)
+
+await clickAria('Unpin: Walk after dinner')
+check(
+  '42d. unpinning is one more fact, and never a deletion',
+  JSON.parse(await raw()).facts.filter((f) => f.key.endsWith('.pinned')).length === 3 &&
+    (await text()).includes(EN.pinnedLabel),
+  JSON.parse(await raw())
+    .facts.filter((f) => f.key.endsWith('.pinned'))
+    .map((f) => f.value)
+    .join(', '),
+)
+
+// The migration read. A store from before pinning existed says what it meant through
+// the old pointer, and taking that back needs no special case.
+await seedPins({ legacyPointer: true })
+const legacyOrder = await evaluate(
+  `[...document.querySelectorAll('main li')].map((li) => li.textContent.trim().slice(0, 30))`,
+)
+check(
+  '42e. a retired pointer reads as a pin, with nothing written to convert it',
+  legacyOrder[0].startsWith('Walk after dinner') &&
+    (await text()).includes(EN.pinnedLabel) &&
+    JSON.parse(await raw()).facts.every((f) => !f.key.endsWith('.pinned')),
+  JSON.stringify(legacyOrder),
+)
+await clickAria('Unpin: Walk after dinner')
+check(
+  '42f. and it can be unpinned — the explicit fact wins over the old pointer',
+  !(await text()).includes(EN.pinnedLabel) &&
+    JSON.parse(await raw()).facts.some(
+      (f) => f.key.endsWith('.pinned') && f.value === 'no',
+    ),
+  (await text()).replace(NL, ' / ').slice(0, 140),
+)
+
+// The live region has to exist before it has anything to say: one inserted together
+// with its text announces nothing. Nothing asserted this in any of the three places
+// that depend on it, and a list of rows is what would break it silently.
+const regionAtRest = await evaluate(
+  `(() => {
+     const region = document.querySelector('main [role="status"]');
+     return region ? { there: true, quiet: region.textContent.trim() === '' } : null;
+   })()`,
+)
+check(
+  '42g. the announcement region is mounted and empty before anything happens',
+  regionAtRest?.there === true && regionAtRest.quiet === true,
+  JSON.stringify(regionAtRest),
+)
+
+// The goal is skippable, and skipping writes nothing at all.
+await clearStorage()
+await goto('/')
+await click(EN.yes)
+await click(EN.introOk)
+await click(EN.reviewYes)
+const beforeSkip = JSON.parse(await raw()).facts.length
+await click(EN.goalSkip)
+screen = await text()
+const afterSkip = JSON.parse(await raw())
+check(
+  '42h. the goal can be skipped, and skipping writes nothing at all',
+  // Moved on to the next area rather than staying put or dead-ending.
+  screen.includes(AREAS[1].label) &&
+    screen.includes(EN.review) &&
+    afterSkip.facts.length === beforeSkip &&
+    !afterSkip.facts.some((f) => /\.goal/.test(f.key)),
+  `${afterSkip.facts.length} facts vs ${beforeSkip}`,
+)
+
+// And it is never nagged about: no goal means nothing for the start page to point at,
+// and a reload resumes at the next unanswered area rather than back at the question.
+await declineRest()
+await click(EN.toHome)
+screen = await text()
+check(
+  '42i. a skipped area is not reported as unfinished setup',
+  !screen.includes('has a goal, but you have not') && screen.includes(EN.home),
+  screen.replace(NL, ' / ').slice(0, 140),
+)
+await goto(`/areas/${AREAS[0].id}/`)
+check(
+  '42j. and it stays completable from its own page',
+  (await text()).includes(EN.reconsiderQuestion),
+  (await text()).replace(NL, ' / ').slice(0, 140),
 )
 
 // --- 9. nothing leaves the browser ---------------------------------------

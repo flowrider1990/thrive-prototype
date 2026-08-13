@@ -12,12 +12,14 @@ import { useI18n } from '@/lib/i18n'
 import {
   addGoal,
   addStep,
-  chooseStep,
   editStep,
   MAX_GOALS,
   MAX_OPEN_STEPS,
+  pinStep,
   readArea,
   setReview,
+  unpinStep,
+  type Step,
 } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
@@ -128,10 +130,10 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
           placeholder={m.goals.stepsPlaceholder}
           submitLabel={m.home.newStepSubmit}
           onSubmit={(value) => {
-            const id = addStep(area, value, goal.id)
-            // Nothing is being worked on, so the new one becomes it — no point
-            // asking a question whose answer is the only option.
-            if (!state.active) chooseStep(area, id)
+            // Not pinned. Nothing here decides what to keep in view — adding
+            // something and choosing to look at it are two different intentions,
+            // and the second one has its own control.
+            addStep(area, value, goal.id)
             back()
           }}
         />
@@ -178,10 +180,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
 
         <ol className="space-y-8">
           {goals.map((goal, index) => {
-            const active = state.active?.goalId === goal.id ? state.active : undefined
-            const prepared = state.open.filter(
-              (step) => step.goalId === goal.id && step.id !== active?.id,
-            )
+            const trying = state.open.filter((step) => step.goalId === goal.id)
 
             return (
               <li key={goal.id} className="flex items-start gap-x-3">
@@ -207,30 +206,26 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                   {/* The rule is what says "these belong to the goal above". It stays
                       on `line` because it is decorative rather than a control edge. */}
                   <div className="space-y-4 border-s-2 border-line ps-5">
-                    {active && (
+                    {/* One list, no split. There used to be "Focusing on" above
+                        "Also prepared", which claimed a distinction the model no
+                        longer draws: entries are peers, and what you want kept in
+                        view is a pin rather than a rank. */}
+                    {trying.length > 0 ? (
                       <div className="space-y-1">
-                        <p className="text-sm text-muted">{m.manage.activeLabel}</p>
-                        <Entry text={active.text} onEdit={() => setView({ at: 'editStep', stepId: active.id })} />
-                      </div>
-                    )}
-
-                    {prepared.length > 0 && (
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted">{m.manage.preparedLabel}</p>
+                        <p className="text-sm text-muted">{m.goals.entriesLabel}</p>
                         <ul className="space-y-1">
-                          {prepared.map((step) => (
+                          {trying.map((step) => (
                             <li key={step.id}>
                               <Entry
-                                text={step.text}
+                                area={area}
+                                step={step}
                                 onEdit={() => setView({ at: 'editStep', stepId: step.id })}
                               />
                             </li>
                           ))}
                         </ul>
                       </div>
-                    )}
-
-                    {!active && prepared.length === 0 && (
+                    ) : (
                       <p className="text-sm text-muted">{m.manage.noStep}</p>
                     )}
 
@@ -275,7 +270,8 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
               {loose.map((step) => (
                 <li key={step.id}>
                   <Entry
-                    text={step.text}
+                    area={area}
+                    step={step}
                     onEdit={() => setView({ at: 'editStep', stepId: step.id })}
                   />
                 </li>
@@ -309,22 +305,32 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
   }
 }
 
-/** The person's own words, and the one control that changes them. */
-function Entry({ text, onEdit }: { text: string; onEdit: () => void }) {
+/** The person's own words, and the two controls that act on them. */
+function Entry({ area, step, onEdit }: { area: AreaId; step: Step; onEdit: () => void }) {
   const { m, t } = useI18n()
   return (
     <div className="flex items-start gap-x-3">
       {/* Plain text, not a control. Tapping someone's own words used to complete the
           thing they described, with no confirmation and nothing saying it would. */}
-      <p className="min-w-0 flex-1 leading-relaxed text-ink">{text}</p>
-      <button
-        type="button"
-        className="btn btn-sm btn-quiet mt-0.5 shrink-0"
-        aria-label={t(m.goals.stepsEdit, { text })}
-        onClick={onEdit}
-      >
-        {m.manage.reviewEdit}
-      </button>
+      <p className="min-w-0 flex-1 leading-relaxed text-ink">{step.text}</p>
+      <span className="mt-0.5 flex shrink-0 items-center gap-x-2">
+        <button
+          type="button"
+          className="btn btn-sm btn-quiet"
+          aria-label={t(step.pinned ? m.manage.unpinOn : m.manage.pinOn, { text: step.text })}
+          onClick={() => (step.pinned ? unpinStep(area, step.id) : pinStep(area, step.id))}
+        >
+          {step.pinned ? m.manage.unpin : m.manage.pin}
+        </button>
+        <button
+          type="button"
+          className="btn btn-sm btn-quiet"
+          aria-label={t(m.goals.stepsEdit, { text: step.text })}
+          onClick={onEdit}
+        >
+          {m.manage.reviewEdit}
+        </button>
+      </span>
     </div>
   )
 }

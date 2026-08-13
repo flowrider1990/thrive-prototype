@@ -133,6 +133,19 @@ export const en = {
     goalQuestion: 'What is your goal?',
     goalPlaceholder: 'In your own words',
     goalSubmit: 'Continue',
+    /**
+     * The way past without inventing something, and the goal-screen counterpart to
+     * `stepsUnknown` below.
+     *
+     * Worded differently on purpose: they answer different questions. This one is
+     * about not having settled on what you want here; that one is about having a goal
+     * and not yet knowing what would help.
+     *
+     * Taking it writes nothing at all — no empty goal, no placeholder — so the area
+     * keeps its review answer, stays completable from its own page, and is never
+     * pointed at from the start page.
+     */
+    goalSkip: 'Not sure yet',
 
     /**
      * Deliberately no noun for the thing being asked for.
@@ -182,7 +195,6 @@ export const en = {
     stepsEditSubmit: 'Save',
     stepsEditCancel: 'Cancel',
 
-    focusQuestion: 'Which one would you like to focus on first?',
   },
 
   complete: {
@@ -240,9 +252,12 @@ export const en = {
     outcomeAside: 'This does not fit me anymore',
     cancel: 'Cancel',
     done: 'Noted.',
-    chooseNextQuestion: 'Would you like to choose what to try next?',
-    chooseNext: 'Choose something',
-    later: 'Later',
+    /**
+     * Only rendered when both groups exist. With everything pinned, or nothing, one
+     * unlabelled list says more than two headings over an obvious split.
+     */
+    pinnedLabel: 'Pinned',
+    restLabel: 'Everything else',
     newStepQuestion: 'What could help you move toward this goal?',
     newStepPlaceholder: 'Something small and concrete',
     newStepSubmit: 'Save',
@@ -294,6 +309,9 @@ export const en = {
      * question uses, so the empty state and the question agree.
      */
     noStep: 'You have not decided yet what could help.',
+    /** A count rather than one arbitrary entry: with nothing pinned, none is first. */
+    tryingOne: 'One thing to try',
+    trying: '{count} things to try',
 
     reconsiderQuestion: 'Would you like to change or explore something here now?',
     reconsiderYes: 'Yes',
@@ -306,8 +324,15 @@ export const en = {
      * hierarchy in the same words.
      */
     goalsLabel: 'What you want',
-    activeLabel: 'Focusing on',
-    preparedLabel: 'Also prepared',
+    /**
+     * Kept in view on the start page. Deliberately not "focus": several entries can
+     * be pinned, so a word implying one would be a promise the model does not make.
+     * Separate from goal priority, which orders goals rather than entries.
+     */
+    pin: 'Pin',
+    unpin: 'Unpin',
+    pinOn: 'Pin: {text}',
+    unpinOn: 'Unpin: {text}',
     addStep: 'Add something to try',
     /** Three visible "Add" buttons are three identical controls out loud. */
     addStepFor: 'Add something to try for: {goal}',
@@ -430,7 +455,8 @@ export const en = {
       steps: 'What you wanted to try',
       /** When it was first written down, which is separate from what became of it. */
       added: 'added {when}',
-      active: 'working on this',
+      /** A pin, not an outcome — so it reads as a preference and carries no date. */
+      pinned: 'kept in view',
       open: 'prepared',
       done: 'done',
       /**

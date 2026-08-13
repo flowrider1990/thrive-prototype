@@ -26,7 +26,7 @@ import { usePerson } from '@/lib/person/store'
  * `CLAUDE.md` §9 rules out. An unfinished area simply says so.
  */
 export default function AreasPage() {
-  const { m, status } = useI18n()
+  const { m, t, status } = useI18n()
   const person = usePerson()
 
   if (status !== 'ready') return <PageShell>{null}</PageShell>
@@ -77,7 +77,11 @@ export default function AreasPage() {
                     the same absence. */}
                 {top && (
                   <span className="block text-sm leading-relaxed text-muted">
-                    {state.active ? state.active.text : m.manage.noStep}
+                    {state.open.length === 0
+                      ? m.manage.noStep
+                      : state.open.length === 1
+                        ? m.manage.tryingOne
+                        : t(m.manage.trying, { count: String(state.open.length) })}
                   </span>
                 )}
               </Link>

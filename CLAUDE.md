@@ -133,7 +133,8 @@ Built (approved and implemented — §4):
 - a small set of life areas,
 - up to three goals per area, with one of them put first,
 - an optional note on a goal saying why it matters,
-- up to three things to try across an area, each belonging to one goal,
+- up to three things to try across an area, each belonging to one goal, any number of
+  which can be pinned to the start page,
 - complete a step,
 - mobile-first responsive UI,
 - light and dark monochrome themes.

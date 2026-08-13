@@ -1,7 +1,7 @@
 # Life areas, goals, and what to try
 
-Six fixed life areas. In each, up to three current goals, at most three prepared
-things to try **across the area**, and at most one being worked on. That is the
+Six fixed life areas. In each, up to three current goals and at most three prepared
+things to try **across the area**, any number of which can be pinned. That is the
 whole feature.
 
 This file holds the parts that are not self-evident from the code: why the keys
@@ -107,7 +107,8 @@ area.<a>.goal_priority       <gid>
 area.<a>.step.<sid>.text     the entry, verbatim  — newest wins, history = rewordings
 area.<a>.step.<sid>.state    'done' | 'retired'   — absent means open
 area.<a>.step.<sid>.goal     <gid>                — absent means "attribute it"
-area.<a>.step_active         <sid>
+area.<a>.step.<sid>.pinned   'yes' | 'no'         — absent means not pinned
+area.<a>.step_active         <sid>                — LEGACY, read as a pin
 ```
 
 `GOAL_KEY` cannot match the legacy `area.<a>.goal` (too few segments) or
@@ -146,6 +147,50 @@ through its generic group-by-key list, so every reference resolves back to the
 words it points at. `scripts/verify.mjs` check 7f asserts the rendered page
 contains no UUID at all.
 
+## Pinning replaced "the one being worked on"
+
+There used to be one `area.<a>.step_active` pointer per area, meaning *the* thing
+being worked on. Two changes removed its reason to exist: the introduction stopped
+asking which entry to start with, and the start page started listing every open entry
+rather than one per area. A pointer that nothing set and nothing showed would have
+been a state the app could display and nobody could produce.
+
+Pinning is what it became. **Any number of entries can be pinned**, it is never asked
+for, and it orders the start page — pinned first, then the rest, each group in the
+order the model already derives. It is not a ranking, and it is not the same thing as
+`goal_priority`: that orders *goals*, this decides what you want to see.
+
+**The old pointer is read as a pin, and nothing was rewritten.** An explicit
+`step.<sid>.pinned` fact wins in either direction, so unpinning a legacy-pointed entry
+needs no special case; only when nothing was ever said about an entry does the pointer
+speak for it. Same technique as `LEGACY_GID` — reads never write, no `version` bump —
+and it means a store from before pinning keeps saying what it said. `/data/stored/`
+renders it as "kept in view", which is a concept the product still has.
+
+`isSettled()` was **removed** along with it. It required an area to hold a goal *and*
+something active, and both are now optional — the goal is skippable and nothing is
+prioritised — so it would have sent people back to questions they deliberately passed
+on. Where an interrupted pass resumes is now the first area holding **no review
+answer at all**: the first thing every pass writes, never taken away, and therefore
+the only predicate that cannot nag. `app/page.tsx` latches the walked area on entry,
+because a predicate that moves as answers arrive would otherwise advance the walk the
+instant a goal was saved and skip the rest of that area's questions.
+
+## Nothing has to be invented to continue
+
+Both questions inside an area can be passed on, and neither writes anything:
+
+| screen | the way out | what it means |
+| --- | --- | --- |
+| what is your goal | *Not sure yet* | you want something to change here and have not settled on what |
+| what could help | *I do not know yet* | you have a goal and do not yet know what would help |
+
+Worded differently because they are different admissions. Both leave the area
+completable from its own page, and **neither is pointed at from the start page** —
+`home.unfinished` needs a goal with no entries to fire, so a skipped goal produces
+silence rather than a nudge. That is the principle: invite reflection, never require
+someone to invent an answer to get past a screen.
+
 ## Deriving current state
 
 ```
@@ -155,7 +200,8 @@ activeGoals(a) = those whose newest state is neither 'done' nor 'retired',
 priority(a)    = the goal `goal_priority` points at, but only while it is active
 open(a)        = entries whose own newest state is neither 'done' nor 'retired'
                  AND whose goal is still active
-activeStep(a)  = the entry `step_active` points at, but only while it is open
+pinned(s)      = the newest `step.<s>.pinned` if there is one, otherwise
+                 `step_active` points at s
 ```
 
 **Goals are derived before entries**, and the order is not incidental: an entry's
@@ -180,7 +226,7 @@ mints a new `sid`.
 | three goals per area | `activeGoals` slices to `MAX_GOALS` after sorting, oldest kept, so a hand-edited store renders three rather than throwing |
 | zero or one priority goal | one pointer key, resolving only while its target is active |
 | three prepared entries **per area** | the UI refuses to add when `open(a).length >= 3` — the active one counts as one of the three. Deliberately on the area, not the goal: three goals holding three each would be nine open entries in one area, which is the task manager this is not |
-| zero or one active step | one pointer key, and it resolves only while its target is open |
+| any number pinned | a fact per entry, so several can be pinned at once — which is exactly what the single pointer it replaced could not say |
 | zero steps against a goal | no step facts exist — nothing has to be written to mean it |
 
 None of these is a stored constraint. They fall out of the derivation, which is
@@ -214,13 +260,11 @@ Downstream this state was already handled, and the copy already existed:
 `home.unfinished` on the start page say the same thing in the same words. Neither treats
 it as invalid or incomplete data. §38f–§38h assert all three surfaces.
 
-One rough edge, recorded rather than fixed: `isSettled()` still requires an active step,
-so a **reload in the middle of the introduction** resumes at the steps question of an
-area that was skipped this way, re-offering a question already answered. It is not a
-trap — the same answer works again and nothing fake is written — and `isSettled` is used
-for nothing but choosing where to resume. Making the skip stick across a reload means
-letting a goal alone count as settled, which changes that derivation and was left out of
-a UI-only change.
+**The rough edge this used to have is gone.** It read: `isSettled()` requires an active
+step, so a reload mid-introduction resumed at the steps question of an area that had
+been passed on, re-asking something already answered. `isSettled` no longer exists, and
+the resume position is the first area with no review answer — so a passed-on area is
+never returned to.
 
 ### Up to three goals per area
 
@@ -387,9 +431,10 @@ Two derivations that are easy to confuse:
 - **whether the introduction is over** — `introductionFinished()`: the
   `introduction_done` fact, or, for a store written before that fact existed, a
   `review` fact for every area in `LEGACY_AREAS`.
-- **where an interrupted pass resumes** — `isSettled()`, which is *not* monotonic.
-  Completing something and choosing "Later" makes an area unsettled again, which is
-  a perfectly good state to be in.
+- **where an interrupted pass resumes** — the first area holding no `review` fact.
+  Monotonic too, and deliberately the *only* thing it looks at: a goal can be skipped
+  and nothing is prioritised, so any richer predicate would send someone back to a
+  question they passed on.
 
 ### Why the first one is a fact and not only a derivation
 
@@ -405,8 +450,9 @@ because nothing about the old line looked dangerous:
 - `components/page-shell.tsx` withdraws the navigation from **every** page —
   including `/data/`, which is where the app explains what it holds and offers to
   delete it. For a product whose privacy story is a feature, that is the real damage;
-- `resumeArea` is `states.find(s => !isSettled(s))`, *not* the first unreviewed one,
-  so anyone who had chosen "Later" was re-asked about an area they had answered;
+- `resumeArea` was `states.find(s => !isSettled(s))` rather than the first unreviewed
+  area, so anyone who had chosen "Later" was re-asked about an area they had answered.
+  It is now the first unreviewed one, and the walked area is latched on entry;
 - it self-heals after one answer, so it would have read as a cosmetic glitch.
 
 So completion is recorded: one token fact, written once, at the single transition in
@@ -429,9 +475,10 @@ The value is a token, so `/data/stored/` renders it through `stored.tokens` as a
 sentence. The generic list on that page prints `fact.value` directly, which is right
 for an utterance and wrong for anything the app wrote itself.
 
-Using `isSettled` for the first would drop someone back into onboarding months
-later. Using the review count for the second would skip an area whose goal was
-answered but whose entries were not.
+The two must not be swapped. Using the resume position to decide whether the
+introduction is over would drop someone back into onboarding as soon as they opened an
+area they had passed on; using `introduction_done` to decide where to resume would say
+nothing at all until the whole pass had finished.
 
 `introductionFinished()` is a named export rather than a comparison written out at
 each call site because it now has **two** callers that have to agree: `app/page.tsx`

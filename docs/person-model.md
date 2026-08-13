@@ -99,7 +99,8 @@ see `docs/goals-and-areas.md`.
 | `area.<a>.step.<sid>.text` | the next-step question | the step's words; re-appended when reworded |
 | `area.<a>.step.<sid>.state` | done, or removed from current steps | `'done'` / `'retired'`; absent means open |
 | `area.<a>.step.<sid>.goal` | which goal an entry serves | holds a goal id; absent means "attribute it" |
-| `area.<a>.step_active` | choosing what to work on | holds a step id, so it is never rendered raw |
+| `area.<a>.step.<sid>.pinned` | keeping an entry in view | `'yes'` / `'no'`; absent means not pinned. Any number may be |
+| `area.<a>.step_active` | *legacy* — one entry per area was "the one being worked on" | **read as a pin**, never written. Holds a step id, so it is never rendered raw |
 | `introduction_done` | reaching the end of the introduction | `'yes'`. A token: rendered through `stored.tokens`, never as itself |
 | `consent_concern` | the question after declining | **memory mode only** — never written to the device |
 | `preferred_name` | *parked* — the name question was removed | still shown on `/data/stored/` if it is there |

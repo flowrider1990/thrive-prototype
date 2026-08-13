@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 199/199** (25 at the
+the two the plan singles out. **The current count is 209/209** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework, 181 after the Supabase foundation); the script itself is the only
 authority on that number, so treat any count written in prose as a snapshot.
@@ -1145,6 +1145,59 @@ Two things found by building rather than planning:
   depends on it, and §7 now covers the case that costs nothing instead.
 
 `AreaState.goal` is gone, as its deprecation note said it would be when this landed.
+
+## Iteration: less friction (branch `feature/verify-area-agnostic`)
+
+Using the six-area, three-goal loop surfaced friction rather than missing features, so
+this iteration removes and clarifies more than it adds. 209/209.
+
+### Step 1 — pinning, a shorter introduction, and one list of what you are working on
+
+Three changes in one commit, and they could not be split: removing the prioritisation
+screen means nothing is ever active, so a start page that filtered on `active` renders
+empty — and §24 then **aborts at check 16 of ~190**, discarding the rest including the
+network and console sweeps. The new start page is what keeps those checks meaningful.
+
+**`step_active` became pinning.** One pointer per area meant *the* thing being worked
+on; several entries can now be pinned, it is never asked for, and it orders the start
+page without ranking anything. No migration: an explicit `step.<sid>.pinned` fact wins
+in either direction, so only when nothing was ever said about an entry does the old
+pointer speak for it — which means unpinning a legacy-pointed entry needs no special
+case, and a store from before pinning keeps saying what it said. Same technique as
+`LEGACY_GID`; reads never write.
+
+**`isSettled()` is gone.** It required a goal *and* something active. Both are optional
+now — the goal is skippable and nothing is prioritised — so it would have sent people
+back to questions they deliberately passed on. Where an interrupted pass resumes is the
+first area with **no review answer**: the first thing every pass writes, never taken
+away, and therefore the only predicate that cannot nag.
+
+**Both questions in an area can now be passed on**, and neither writes anything: *Not
+sure yet* on the goal, *I do not know yet* on what could help. Worded differently
+because they are different admissions. A skipped goal is never pointed at from the
+start page, because `home.unfinished` needs a goal with no entries to fire.
+
+Three things found by building rather than planning:
+
+- **Relaxing the resume predicate silently skipped a screen.** An area counts as
+  settled once it holds a goal, and `app/page.tsx` recomputed the walked area every
+  render — so writing a goal advanced the walk instantly and the "what could help"
+  question never appeared. The walked area is now fixed at the one transition that
+  starts the walk. Found by the suite aborting on a screen it did not expect, which is
+  the abort behaviour earning its keep.
+- **The project's lint forbids `setState` inside an effect**, which rejected the first
+  fix and pushed toward the better one — latching at the transition rather than
+  reacting to a derived value.
+- **A completed entry's row unmounted before its follow-up could render.** Once an
+  entry leaves the open set its row disappears, so the "what could help" question had
+  nowhere to appear. The old code kept the busy *area* mounted for exactly this reason;
+  the new one keeps the busy *entry* in place.
+
+Ten new checks (§42) cover pinning, several pinned at once, the legacy pointer read and
+its unpinning, the skippable goal, and — for the first time — that the `role="status"`
+region is mounted **before** it has anything to say. Nothing asserted that in any of the
+three places that depend on it, and a list of rows is exactly what would have broken it
+silently.
 
 ## The repository
 

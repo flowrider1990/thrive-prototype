@@ -102,6 +102,7 @@ export const de: Messages = {
     goalQuestion: 'Was ist dein Ziel?',
     goalPlaceholder: 'In deinen eigenen Worten',
     goalSubmit: 'Weiter',
+    goalSkip: 'Bin noch nicht sicher',
 
     stepsQuestion: 'Was könnte dir helfen, diesem Ziel näherzukommen?',
     stepsNote: 'Eines reicht. Du kannst bis zu drei hinzufügen.',
@@ -118,7 +119,6 @@ export const de: Messages = {
     stepsEditSubmit: 'Speichern',
     stepsEditCancel: 'Abbrechen',
 
-    focusQuestion: 'Womit möchtest du zuerst anfangen?',
   },
 
   complete: {
@@ -139,9 +139,8 @@ export const de: Messages = {
     outcomeAside: 'Das passt für mich nicht mehr',
     cancel: 'Abbrechen',
     done: 'Notiert.',
-    chooseNextQuestion: 'Möchtest du wählen, was du als Nächstes ausprobierst?',
-    chooseNext: 'Etwas wählen',
-    later: 'Später',
+    pinnedLabel: 'Angepinnt',
+    restLabel: 'Alles andere',
     newStepQuestion: 'Was könnte dir helfen, diesem Ziel näherzukommen?',
     newStepPlaceholder: 'Etwas Kleines und Konkretes',
     newStepSubmit: 'Speichern',
@@ -161,14 +160,18 @@ export const de: Messages = {
     noGoal: 'Noch kein Ziel',
     notNow: 'Gerade nicht',
     noStep: 'Du hast noch nicht festgelegt, was dir dabei helfen könnte.',
+    tryingOne: 'Eine Sache zum Ausprobieren',
+    trying: '{count} Sachen zum Ausprobieren',
 
     reconsiderQuestion: 'Möchtest du hier jetzt etwas verändern oder ausprobieren?',
     reconsiderYes: 'Ja',
     reconsiderNo: 'Erst einmal so lassen',
 
     goalsLabel: 'Was du willst',
-    activeLabel: 'Daran arbeitest du gerade',
-    preparedLabel: 'Außerdem notiert',
+    pin: 'Anpinnen',
+    unpin: 'Loslösen',
+    pinOn: 'Anpinnen: {text}',
+    unpinOn: 'Loslösen: {text}',
     addStep: 'Etwas zum Ausprobieren hinzufügen',
     addStepFor: 'Etwas zum Ausprobieren hinzufügen für: {goal}',
     goalAdd: 'Ziel hinzufügen',
@@ -234,7 +237,7 @@ export const de: Messages = {
       earlier: 'geändert von: {goal}',
       steps: 'Was du ausprobieren wolltest',
       added: 'hinzugefügt {when}',
-      active: 'daran arbeitest du',
+      pinned: 'im Blick behalten',
       open: 'notiert',
       done: 'erledigt',
       retired: 'beiseitegelegt',

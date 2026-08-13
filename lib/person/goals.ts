@@ -16,7 +16,9 @@ import { newId, remember, type Person } from './store'
  * area.<a>.goal                the goal, verbatim
  * area.<a>.step.<sid>.text     the step, verbatim   — newest wins, history = edits
  * area.<a>.step.<sid>.state    'done' | 'retired'   — absent means open
- * area.<a>.step_active         <sid>
+ * area.<a>.step.<sid>.goal     <gid>
+ * area.<a>.step.<sid>.pinned   'yes' | 'no'         — absent means not pinned
+ * area.<a>.step_active         <sid>                — LEGACY, read as a pin
  * ```
  *
  * **The step id lives in the key, not in a value.** A fact carries one string, so
@@ -84,6 +86,11 @@ export type Step = {
   goalId: string | undefined
   /** Whether that link was stored, or inferred from the area having one goal. */
   linked: boolean
+  /**
+   * Kept in view on the start page. Optional, never asked for, and **not a
+   * ranking** — any number of entries can be pinned at once.
+   */
+  pinned: boolean
 }
 
 export type AreaState = {
@@ -100,8 +107,6 @@ export type AreaState = {
   steps: Step[]
   /** Those still under consideration — at most `MAX_OPEN_STEPS`. */
   open: Step[]
-  /** The one being worked on, if there is one. */
-  active: Step | undefined
 }
 
 /**
@@ -119,7 +124,18 @@ export type AreaState = {
 export const LEGACY_GID = 'legacy'
 
 const reviewKey = (area: AreaId) => `area.${area}.review`
-const activeKey = (area: AreaId) => `area.${area}.step_active`
+const pinnedKey = (area: AreaId, step: string) => `area.${area}.step.${step}.pinned`
+
+/**
+ * **Legacy, read-only.** The single pointer that used to mean "the one being worked
+ * on" in this area.
+ *
+ * Pinning replaced it: several entries can be kept in view, which one pointer cannot
+ * express. An existing pointer is read as a pin, because that is what it meant — see
+ * `readArea`. Nothing writes this key any more, and it is never sliced out of a store
+ * either, so `/data/stored/` keeps showing what is there.
+ */
+const legacyActiveKey = (area: AreaId) => `area.${area}.step_active`
 const priorityKey = (area: AreaId) => `area.${area}.goal_priority`
 const textKey = (area: AreaId, step: string) => `area.${area}.step.${step}.text`
 const stateKey = (area: AreaId, step: string) => `area.${area}.step.${step}.state`
@@ -132,7 +148,7 @@ const goalTextKey = (area: AreaId, goal: string) =>
   goal === LEGACY_GID ? `area.${area}.goal` : `area.${area}.goal.${goal}.text`
 
 /** `area.<a>.step.<sid>.<field>` — ids are UUIDs, so they contain no dots. */
-const STEP_KEY = /^area\.([^.]+)\.step\.([^.]+)\.(text|state|goal)$/
+const STEP_KEY = /^area\.([^.]+)\.step\.([^.]+)\.(text|state|goal|pinned)$/
 
 /**
  * `area.<a>.goal.<gid>.<field>`.
@@ -221,6 +237,9 @@ export function readArea(person: Person, area: AreaId): AreaState {
   const priority = activeGoals.find((goal) => goal.id === priorityId)
 
   const hasLegacy = byId.get(LEGACY_GID) !== undefined
+  // What the retired pointer named, if this store still has one. Read once rather
+  // than per entry, and never written.
+  const legacyPinned = person.current(legacyActiveKey(area))?.value
 
   // The ids come out of the keys, since that is where they live.
   const ids: string[] = []
@@ -247,6 +266,10 @@ export function readArea(person: Person, area: AreaId): AreaState {
     // and so does a link naming a goal that is not there.
     const stored = person.current(stepGoalKey(area, id))?.value
     const linked = Boolean(stored && byId.has(stored))
+    // An explicit pin wins, in either direction — which is what lets a legacy
+    // pointer be unpinned without a special case. Only when nothing was ever said
+    // about this entry does the old pointer speak for it.
+    const said = person.current(pinnedKey(area, id))?.value
     steps.push({
       id,
       text: text.value,
@@ -254,6 +277,7 @@ export function readArea(person: Person, area: AreaId): AreaState {
       createdAt: written.learnedAt,
       goalId: linked ? stored : hasLegacy ? LEGACY_GID : undefined,
       linked,
+      pinned: said ? said === 'yes' : legacyPinned === id,
     })
   }
   steps.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
@@ -268,12 +292,6 @@ export function readArea(person: Person, area: AreaId): AreaState {
       (step.goalId === undefined || byId.get(step.goalId)?.state === 'active'),
   )
 
-  // The pointer resolves only while its target is still open, which is what
-  // makes completing a step clear the active slot without a second write — and
-  // what lets "Later" write nothing at all.
-  const activeId = person.current(activeKey(area))?.value
-  const active = open.find((step) => step.id === activeId)
-
   return {
     area,
     review: toReview(person.current(reviewKey(area))?.value),
@@ -282,7 +300,6 @@ export function readArea(person: Person, area: AreaId): AreaState {
     priority,
     steps,
     open,
-    active,
   }
 }
 
@@ -309,7 +326,6 @@ export type AreaDetail = {
   /** Newest first, so the current goal comes before the ones it replaced. */
   goals: GoalDetail[]
   steps: StepDetail[]
-  activeId: string | undefined
   /** Whether this area holds anything at all. */
   any: boolean
 }
@@ -357,24 +373,8 @@ export function readAreaDetail(person: Person, area: AreaId): AreaDetail {
     reviews,
     goals,
     steps,
-    activeId: state.active?.id,
     any: reviews.length > 0 || goals.length > 0 || steps.length > 0,
   }
-}
-
-/**
- * Has this area been carried through to a resting point?
- *
- * Used to resume the introduction in the right place after a reload. Note that it
- * is **not** monotonic — completing a step and choosing "Later" makes an area
- * unsettled again, which is a perfectly good state to be in — so it must never be
- * what decides whether the introduction is over. The count of areas with a review
- * fact does that, because a review fact is never taken away.
- */
-export function isSettled(state: AreaState): boolean {
-  if (!state.review) return false
-  if (state.review === 'not_now') return true
-  return state.activeGoals.length > 0 && Boolean(state.active)
 }
 
 /**
@@ -385,9 +385,9 @@ export function isSettled(state: AreaState): boolean {
  * whether the navigation exists yet. A nav appearing mid-introduction offers pages
  * that are empty until it is finished.
  *
- * `isSettled()` looks like it would do the job and must not be used for it:
- * completing something and choosing "Later" un-settles an area, which would drop a
- * person back into onboarding months later.
+ * Not to be confused with where an interrupted pass *resumes*, which is the first
+ * area holding no review answer at all — see `app/page.tsx`. That one moves forward
+ * as answers arrive; this one, once true, stays true.
  *
  * ### Why this is a fact and no longer only a derivation
  *
@@ -506,8 +506,23 @@ export function editStep(area: AreaId, step: string, text: string): void {
   remember(textKey(area, step), text, SOURCE)
 }
 
-export function chooseStep(area: AreaId, step: string): void {
-  remember(activeKey(area), step, SOURCE)
+/**
+  * Keep an entry in view on the start page.
+  *
+  * Optional, never asked for during the introduction, and **not a ranking** — any
+  * number of entries can be pinned. It is deliberately a per-entry fact rather than
+  * a pointer: a pointer can name one thing, which is the limitation it replaced.
+  *
+  * Separate from `goal_priority`, which orders *goals*. This is about what you want
+  * to see, not about what matters most.
+  */
+export function pinStep(area: AreaId, step: string): void {
+  remember(pinnedKey(area, step), 'yes', SOURCE)
+}
+
+/** Explicitly not pinned — which is also how a legacy pointer is taken back. */
+export function unpinStep(area: AreaId, step: string): void {
+  remember(pinnedKey(area, step), 'no', SOURCE)
 }
 
 export function completeStep(area: AreaId, step: string): void {

@@ -555,7 +555,7 @@ export const en = {
      * Hedged with "seems", as on `/areas/`: the app is reporting an absence, not making a
      * claim about someone's life.
      */
-    emptyNote: 'Everything seems fine here.',
+    emptyNote: 'There is nothing to see here yet.',
     goalCreate: 'Create a goal',
     /**
      * The visible word shortens to "Edit" because it now sits beside the goal it acts

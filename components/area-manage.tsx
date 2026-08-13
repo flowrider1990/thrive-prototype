@@ -601,7 +601,10 @@ function Entry({
       <span aria-hidden="true" className="mt-1 shrink-0 text-lg leading-none text-muted">
         &bull;
       </span>
-      <p className="min-w-0 flex-1 leading-relaxed text-ink">{step.text}</p>
+      {/* Bold when starred, the same as the start page. */}
+      <p className={`min-w-0 flex-1 leading-relaxed text-ink ${step.pinned ? 'font-semibold' : ''}`}>
+        {step.text}
+      </p>
       {/* All three controls together, to the right of the words.
           
           The pin used to sit *before* the entry, which read as a marker on it — but it

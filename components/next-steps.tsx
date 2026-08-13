@@ -180,7 +180,7 @@ function UnfinishedNote({ show }: { show: boolean }) {
 
           It no longer names the area. Naming one was precise, but it left the reader to
           work out what to do about it; the control below says that instead. */}
-      <p className="max-w-prose text-sm italic leading-relaxed text-note">{m.home.unfinished}</p>
+      <p className="max-w-prose text-sm font-semibold italic leading-relaxed text-note">{m.home.unfinished}</p>
       {/* Primary, and a link because it navigates. Emphasis is safe here in a way it
           would not have been above the list: with the steps already read, this is the one
           useful thing left on the page, and nothing else on it competes for the weight. */}
@@ -310,7 +310,12 @@ function EntryRow({
       <div className="min-w-0 flex-1 space-y-0.5">
         {/* Plain text, and a step above the metadata under it. Not a button, not an
             option, nothing that acts when touched. */}
-        <p className="max-w-prose leading-relaxed text-ink">{step.text}</p>
+        {/* Starred entries read in bold — weight, not colour: the star and its hue already
+            carry the state, and colouring the words would compete with the hint, which is
+            the only coloured text on this page. */}
+        <p className={`max-w-prose leading-relaxed text-ink ${step.pinned ? 'font-semibold' : ''}`}>
+          {step.text}
+        </p>
 
         {/* One line: what this is for, and where it lives. The area is a sibling of the
             controls and never wraps them — a link containing "How is it going?" would

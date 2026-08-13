@@ -740,7 +740,7 @@ const EN = {
   goalAnother: 'Add another goal',
   storedBack: 'Back to data protection',
   delRestart: 'Start again',
-  emptyNote: 'Everything seems fine here.',
+  emptyNote: 'There is nothing to see here yet.',
   goalCreate: 'Create a goal',
   pin: 'Pin',
   unpin: 'Unpin',
@@ -2250,7 +2250,11 @@ for (const scheme of ['light', 'dark']) {
     const field = document.querySelector('.field');
     if (!field) return null;
     const style = getComputedStyle(field);
-    return { border: style.borderTopColor, background: style.backgroundColor };
+    return {
+      border: style.borderTopColor,
+      background: style.backgroundColor,
+      width: style.borderTopWidth,
+    };
   })()`)
   const edgeRatio = await contrast(edge.border, edge.background)
   check(
@@ -3753,7 +3757,7 @@ check(
   '42d3. an active star is drawn in the hint colour and an inactive one is not',
   // The hint colour now, not a red of its own: red on a control meaning "keep this in
   // view" read as a warning about the thing it was marking.
-  pinColours !== null && pinColours.on !== pinColours.off && pinColours.on === 'rgb(180, 83, 9)',
+  pinColours !== null && pinColours.on !== pinColours.off && pinColours.on === 'rgb(194, 65, 12)',
   JSON.stringify(pinColours),
 )
 

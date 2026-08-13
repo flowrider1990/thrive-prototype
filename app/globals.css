@@ -69,7 +69,7 @@
    * 3:1 a border needs: this is body text at `text-sm`, and it has to be read rather than
    * merely seen. Asserted by §31f.
    */
-  --color-note: #b45309;
+  --color-note: #c2410c;
 
   --text-base: 1.0625rem;
 

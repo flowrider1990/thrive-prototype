@@ -191,7 +191,7 @@ export const de: Messages = {
     addStep: 'Etwas hinzufügen',
     addStepFor: 'Etwas hinzufügen für: {goal}',
     goalAdd: '+ Weiteres Ziel hinzufügen',
-    emptyNote: 'Hier scheint ja alles in Ordnung zu sein.',
+    emptyNote: 'Noch gibt es hier nichts zu sehen.',
     goalCreate: 'Ziel erstellen',
     goalChange: 'Ändern',
     goalChangeOn: 'Dieses Ziel ändern: {goal}',

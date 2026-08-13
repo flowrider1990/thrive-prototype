@@ -112,7 +112,7 @@ export default function AreasPage() {
                    */
                   <span
                     className={`block text-sm leading-relaxed ${
-                      state.open.length === 0 ? 'italic text-note' : 'text-muted'
+                      state.open.length === 0 ? 'font-semibold italic text-note' : 'text-muted'
                     }`}
                   >
                     {state.open.length === 0

@@ -49,13 +49,23 @@ thank people for objecting. The two replies now land the right way round.
 
 ## Which language a person sees
 
-- Initial locale from `navigator.language` (`de*` → German, otherwise English).
-  Reading it is not storing it, so this is allowed before consent — and it has to
-  be, since the consent question itself has to be in some language.
+- Locale from `navigator.languages` (`de*` → German, otherwise English), matched on
+  the prefix so regional variants count: `de-AT` and `de-CH` are German. Reading it is
+  not storing it, so this is allowed before consent — and it has to be, since the
+  consent question itself has to be in some language.
+- **Detection applies until someone actually chooses**, not until they consent. An
+  unchosen language is stored as nothing at all, so the browser keeps deciding; see
+  `docs/person-model.md` for why that needed a separate field.
+- An explicit choice wins permanently, on any browser, until "delete my data".
 - The switcher works on **every** screen, including consent: nobody should have to
   agree to something in a language they did not choose.
 - The chosen locale is data like anything else: persisted when consented,
   session-only when not.
+- §47 asserts all four directions — German browser, neither-language browser, a store
+  with no choice following the browser, and a choice overriding it — plus that using
+  the switch is the only thing that writes one. It runs last in the file: it is the
+  only section that overrides the browser language, and a leaked override would answer
+  the German assertions in earlier sections for them.
 - The language a person *answers* in is not detected and not recorded. Their words
   are stored verbatim, whatever language they are in.
 

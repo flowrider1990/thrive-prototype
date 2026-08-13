@@ -7,6 +7,19 @@ export function isLocale(value: unknown): value is Locale {
 }
 
 /**
+ * A chosen locale is 'de' or 'en'. **Unset is a third state** — follow the browser —
+ * and it is the state until someone opens the language switch. Deliberately the same
+ * shape as `ThemeChoice`, because it is the same idea: a preference the person has not
+ * expressed yet is not the same as one they expressed as the default.
+ *
+ * Before this existed the detected locale was persisted the moment anything was, so
+ * "German because your browser is German" became indistinguishable from "German
+ * because I chose it" — and a person who later switched their browser to English kept
+ * getting German with nothing having ever asked them.
+ */
+export type LocaleChoice = Locale | null
+
+/**
  * The locale to start in, from the browser's preference.
  *
  * Reading `navigator.language` is not storing it, so this is allowed before

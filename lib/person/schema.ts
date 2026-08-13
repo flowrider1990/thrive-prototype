@@ -51,7 +51,18 @@ export type PersonStore = {
   version: 1
   /** Only ever written when consent was given. */
   consentAt: string
-  locale: Locale
+  /**
+   * Absent means "follow the browser", which is the state until someone uses the
+   * language switch. Optional for exactly the reason `theme` is: a `version: 2` would
+   * make `parse()` reject every existing store and discard real answers.
+   *
+   * An existing store always has this field, so anyone already using Thrive keeps the
+   * language they have. That reads it as an explicit choice when it was really the
+   * detected one, and that is the deliberate direction: it changes nothing for someone
+   * mid-use, where the alternative could switch their language under them on an
+   * upgrade.
+   */
+  locale?: Locale
   /**
    * Absent means "follow the operating system", which is the state until someone
    * touches the theme button. Optional rather than a `version: 2` on purpose: a

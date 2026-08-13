@@ -638,6 +638,22 @@ async function setScheme(scheme) {
     features: [{ name: 'prefers-color-scheme', value: scheme }],
   })
 }
+/**
+ * Chrome is launched with `--lang=en-US`, so without this every check in the file
+ * runs as an English browser and nothing exercises detection at all. `null` puts the
+ * launch language back, which matters because these checks are not the last thing to
+ * run — leaving a German override in place would quietly re-answer later ones.
+ */
+async function setBrowserLanguage(locale) {
+  const userAgent = await evaluate('navigator.userAgent')
+  if (locale === null) {
+    await send('Emulation.setLocaleOverride', {})
+    await send('Network.setUserAgentOverride', { userAgent, acceptLanguage: 'en-US' })
+    return
+  }
+  await send('Emulation.setLocaleOverride', { locale })
+  await send('Network.setUserAgentOverride', { userAgent, acceptLanguage: locale })
+}
 const text = () => evaluate('document.body.innerText')
 const keys = () => evaluate('Object.keys(localStorage)')
 const raw = () => evaluate(`localStorage.getItem(${JSON.stringify(STORAGE_KEY)})`)
@@ -3803,6 +3819,156 @@ const requested = events
   .filter((e) => e.method === 'Network.requestWillBeSent')
   .map((e) => e.params.request.url)
 const external = requested.filter((url) => !url.startsWith(BASE) && !url.startsWith('data:'))
+// --- 47. browser and system defaults on a first visit ---------------------
+//
+// German needles have been inline literals everywhere else in this file, which is fine
+// for one. This section leans on several, so they get a name.
+const DE = {
+  consent: 'Ist das okay für dich?',
+  intro: 'Bereiche deines Lebens an, einen nach dem anderen',
+}
+//
+// Both preferences follow the same rule, and it is worth naming because it is easy to
+// get half right: an unset preference follows the environment, and only an explicit
+// choice overrides it. What made this worth a section is that "unset" and "chose the
+// default" used to be the same stored value for the language, so consenting froze
+// whatever the browser happened to say into a choice nobody had made.
+//
+// Placed at the end deliberately. These are the only checks that override the browser
+// language, and this file aborts rather than fails — an override that leaked into
+// earlier sections would answer their German assertions for them.
+
+await evaluate('localStorage.clear()')
+await setBrowserLanguage('de-DE')
+await goto('/')
+let firstVisit = await text()
+check(
+  '47a. a German browser is greeted in German, with nothing stored to say so',
+  firstVisit.includes(DE.consent) && !firstVisit.includes(EN.consent) && (await keys()).length === 0,
+  `navigator: ${JSON.stringify(await evaluate('[navigator.language, navigator.languages]'))} — ${firstVisit.replace(NL, ' / ').slice(0, 60)}`,
+)
+
+await setBrowserLanguage('fr-FR')
+await goto('/')
+firstVisit = await text()
+check(
+  '47b. and a browser in neither language falls back to English, not to nothing',
+  firstVisit.includes(EN.consent) && !firstVisit.includes(DE.consent),
+  firstVisit.replace(NL, ' / ').slice(0, 90),
+)
+
+// Regional variants are the point of matching on the prefix rather than the tag: a
+// person in Vienna or Zurich is reading German.
+await setBrowserLanguage('de-AT')
+await goto('/')
+check('47c. a regional variant counts as German', (await text()).includes(DE.consent))
+
+/**
+ * The half that used to be missing.
+ *
+ * A store written by someone who never touched the language switch holds no `locale`
+ * at all, so the browser still decides — which is what makes "never explicitly
+ * selected" a real state rather than a state that ends at consent.
+ */
+await setBrowserLanguage('de-DE')
+await evaluate(
+  `localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, ${JSON.stringify(
+    JSON.stringify({ version: 1, consentAt: '2026-01-01T00:00:00.000Z', facts: [] }),
+  )})`,
+)
+await goto('/')
+let onLoad = await text()
+check(
+  '47d. a store holding no language choice still follows the browser',
+  onLoad.includes(DE.intro) && !onLoad.includes(DE.consent),
+  onLoad.replace(NL, ' / ').slice(0, 90),
+)
+
+// And the override, which is the whole reason a choice is stored: same German browser,
+// an explicit English choice, English wins.
+await evaluate(
+  `localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, ${JSON.stringify(
+    JSON.stringify({ version: 1, consentAt: '2026-01-01T00:00:00.000Z', locale: 'en', facts: [] }),
+  )})`,
+)
+await goto('/')
+onLoad = await text()
+check(
+  '47e. an explicit English choice overrides a German browser',
+  onLoad.includes(EN.intro) && !onLoad.includes(DE.intro),
+  onLoad.replace(NL, ' / ').slice(0, 90),
+)
+
+// Choosing in the app has to produce exactly that store, or 47e is asserting a fixture
+// nothing writes. One field, and only after the switch is used.
+//
+// Back to the launch language first: this check drives the interface, and the German
+// one has German labels — so leaving the override on would abort here rather than
+// measure anything.
+await setBrowserLanguage(null)
+await evaluate('localStorage.clear()')
+await goto('/')
+await click(EN.yes)
+const beforeChoice = JSON.parse(await raw())
+await chooseIn('Language', 'Deutsch')
+const afterChoice = JSON.parse(await raw())
+check(
+  '47f. and using the switch is what writes it — nothing before that does',
+  beforeChoice.locale === undefined && afterChoice.locale === 'de',
+  `before: ${JSON.stringify(beforeChoice.locale)}, after: ${JSON.stringify(afterChoice.locale)}`,
+)
+// Left in German by the choice above, and the checks after this read English.
+await chooseIn('Sprache', 'English')
+
+/**
+ * The theme half. Nothing was changed for it — an unset theme already follows the OS
+ * through `prefers-color-scheme` in CSS, with no JavaScript involved — so these assert
+ * a guarantee that was real but unmeasured in this direction.
+ *
+ * Deliberately without a reload between the two schemes: that is what proves it
+ * *follows* the system rather than reading it once at startup, which is the live
+ * behaviour asked for and which comes free from it being a media query.
+ */
+await evaluate('localStorage.clear()')
+await setScheme('dark')
+await goto('/')
+const darkFirst = { theme: await dataTheme(), bg: await background() }
+await setScheme('light')
+const lightAfter = { theme: await dataTheme(), bg: await background() }
+check(
+  '47g. with no theme chosen, the system decides — and a change is followed live',
+  darkFirst.theme === null &&
+    lightAfter.theme === null &&
+    darkFirst.bg !== lightAfter.bg &&
+    darkFirst.bg === darkBackground &&
+    lightAfter.bg === lightBackground,
+  `${darkFirst.bg} then ${lightAfter.bg}, data-theme ${darkFirst.theme} / ${lightAfter.theme}`,
+)
+
+// The override direction, on a dark OS this time. Check 16 asserts stored dark on a
+// light OS; this is the mirror, and it is the one that catches a system preference
+// being allowed to win over a choice.
+await setScheme('dark')
+await evaluate(
+  `localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, ${JSON.stringify(
+    JSON.stringify({
+      version: 1,
+      consentAt: '2026-01-01T00:00:00.000Z',
+      locale: 'en',
+      theme: 'light',
+      facts: [],
+    }),
+  )})`,
+)
+await goto('/')
+check(
+  '47h. an explicit light choice overrides a dark system preference',
+  (await dataTheme()) === 'light' && (await background()) === lightBackground,
+  `data-theme ${await dataTheme()}, ${await background()}`,
+)
+await setScheme('light')
+await evaluate('localStorage.clear()')
+
 check(
   '9. no request went anywhere but the app’s own assets',
   external.length === 0,

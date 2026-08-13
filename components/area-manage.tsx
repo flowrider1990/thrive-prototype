@@ -181,14 +181,25 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
 
         <ol className="space-y-8">
           {goals.map((goal, index) => {
-            // Pinned first here too, so a pin means the same thing on both screens:
-            // the thing you want to see first. Within each half the model's own order
-            // holds, rather than a second one being invented for this list.
-            const forGoal = state.open.filter((step) => step.goalId === goal.id)
-            const trying = [
-              ...forGoal.filter((step) => step.pinned),
-              ...forGoal.filter((step) => !step.pinned),
-            ]
+            /**
+             * **Pinning deliberately does not reorder this list**, though it does reorder
+             * the start page.
+             *
+             * The two lists answer different questions. The start page is everything open
+             * across six areas with no inherent order, so putting pinned first is the only
+             * thing making it a useful order at all. This is one goal's own short list,
+             * where the order already means something — the sequence you wrote them in —
+             * and a pin is a marker on an item rather than a sort key over the list.
+             *
+             * Sorting here also made the control move the thing it acts on: tap the pin
+             * and the row jumps out from under your finger, with the row you were about
+             * to read now somewhere else. On a list this short that is pure disorientation
+             * and it buys no visibility, because you can already see all of it.
+             *
+             * §42d2 asserts the order holds, so this reads as the decision it is rather
+             * than as the start page's rule not having been carried over.
+             */
+            const trying = state.open.filter((step) => step.goalId === goal.id)
 
             return (
               <li key={goal.id} className="flex items-start gap-x-3">

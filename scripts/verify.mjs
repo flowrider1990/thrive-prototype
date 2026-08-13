@@ -3412,8 +3412,13 @@ check(
     .join(', '),
 )
 
-// The area page has to agree with the start page: a pin means "show me this first"
-// wherever a list of entries is drawn, or it means two different things on two screens.
+// The opposite of the start page's rule, on purpose.
+//
+// Pinned-first is what makes a cross-area list of everything open useful. Inside one
+// goal the order already carries meaning — the sequence they were written in — and
+// sorting on pin made the control move the row it acts on, out from under the finger
+// that tapped it. Asserted rather than left implicit, so a later reader finds a
+// decision here instead of an oversight worth "fixing".
 await goto(`/areas/${AREAS[0].id}/`)
 const goalOrder = await evaluate(
   `(() => {
@@ -3422,8 +3427,8 @@ const goalOrder = await evaluate(
    })()`,
 )
 check(
-  '42d2. and pinned comes first inside a goal, not only on the start page',
-  goalOrder?.length === 2 && goalOrder[0].startsWith('Read before bed'),
+  '42d2. but inside a goal, pinning leaves the order alone',
+  goalOrder?.length === 2 && goalOrder[0].startsWith('Walk after dinner'),
   JSON.stringify(goalOrder),
 )
 

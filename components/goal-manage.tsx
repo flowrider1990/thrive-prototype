@@ -66,7 +66,7 @@ export function GoalManage({
 
   if (view === 'reword') {
     return (
-      <QuestionCard area={heading} question={m.manage.editQuestion}>
+      <QuestionCard eyebrow={heading} question={m.manage.editQuestion}>
         <TextAnswer
           placeholder={m.goals.goalPlaceholder}
           submitLabel={m.goals.stepsEditSubmit}
@@ -84,7 +84,7 @@ export function GoalManage({
 
   if (view === 'why') {
     return (
-      <QuestionCard area={heading} question={m.manage.goalWhyQuestion} note={m.manage.goalWhyNote}>
+      <QuestionCard eyebrow={heading} question={m.manage.goalWhyQuestion} note={m.manage.goalWhyNote}>
         <TextAnswer
           multiline
           // Load-bearing: submitting empty is how a reason is taken back. An
@@ -107,7 +107,7 @@ export function GoalManage({
   if (view === 'closing') {
     return (
       <QuestionCard
-        area={heading}
+        eyebrow={heading}
         question={closing === 'reached' ? m.manage.goalReachedQuestion : m.manage.goalDropQuestion}
         note={m.manage.goalCloseNote}
       >
@@ -129,7 +129,7 @@ export function GoalManage({
   }
 
   return (
-    <QuestionCard area={heading} question={m.manage.goalMenuQuestion}>
+    <QuestionCard eyebrow={heading} question={m.manage.goalMenuQuestion}>
       <OptionList
         options={[
           { id: 'reword', label: m.manage.goalReword },

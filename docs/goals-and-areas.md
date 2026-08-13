@@ -23,7 +23,6 @@ questions do the work instead:
 
 > What could help you move toward this goal?
 > What you want to try
-> Which one would you like to focus on first?
 > How is it going?
 
 Picking one universal noun would have been wrong for the other kinds, and choosing
@@ -286,10 +285,25 @@ one area, which is the task manager this is not.
 tried across all of them — three goals holding three each would be nine open entries in
 one area, which is the task manager this is not.
 
-**Onboarding still asks for one goal per area**, and should keep doing so. Six areas is
-already up to twenty-four screens, and a second goal is something you discover you want
-rather than something to be asked for on first meeting. More are added from the area's
-own page, which is where they are discoverable without being demanded.
+**Onboarding offers up to three, and demands none.** The first goal is optional — "Not
+sure yet" writes nothing — and once a goal has its entries screen, a quiet "Add another
+goal" appears there and disappears at the cap. Nothing states that an area should have
+three; three is what is allowed, not what is expected.
+
+Two things that shape it:
+
+- **The entries screen has to know *which* goal it is filling.** `activeGoals[0]` is the
+  oldest, so without tracking the id, entries typed for a second goal would be linked to
+  the first — silently, and permanently, since the log is append-only. `AreaFlow` holds
+  the id `addGoal` returns.
+- **The cap stays on the area while the list shown is the goal's.** Those were the same
+  number in one variable; if the cap had followed the list, a second goal would have got
+  a fresh three and an area could hold nine. If the *list* had stayed area-wide, a second
+  goal's screen would have opened showing the first goal's entries — and, once three were
+  written, with no field at all.
+
+**Nothing is ranked during the introduction.** Priority and pinning are both offered on
+the area page and the start page, after there is something to weigh.
 
 ## The three outcomes
 

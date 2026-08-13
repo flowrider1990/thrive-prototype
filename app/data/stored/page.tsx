@@ -175,11 +175,32 @@ export default function StoredPage() {
            */}
           {deleting === 'no' && (
             <div className="space-y-4">
+              {/**
+               * Once everything is gone, the useful thing to offer is a way onward.
+               *
+               * The emphasis rule this looks like it breaks — in a destructive flow the
+               * *safe* choice takes `.btn-primary` — is about the steps that lead **to**
+               * deletion, where emphasis marks what is recommended rather than what comes
+               * next. Those steps are behind us: there is nothing left to protect, and a
+               * page whose only offer is "back to the privacy page" leaves someone who
+               * just cleared everything with no way to begin again.
+               *
+               * A `Link` to `/`, which is the whole mechanism: `forgetEverything()` leaves
+               * the store `undecided`, and `app/page.tsx` derives `greeting` from that. §8e
+               * already asserts a reload lands on the consent question.
+               */}
               <div>
-                <Link href="/data" className="btn btn-primary">
-                  {m.stored.back}
+                <Link href={deleted ? '/' : '/data'} className="btn btn-primary">
+                  {deleted ? m.data.delete.restart : m.stored.back}
                 </Link>
               </div>
+              {deleted && (
+                <div>
+                  <Link href="/data" className="btn btn-quiet">
+                    {m.stored.back}
+                  </Link>
+                </div>
+              )}
               {facts.length > 0 && (
                 <div>
                   <button

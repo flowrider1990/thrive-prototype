@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 211/211** (25 at the
+the two the plan singles out. **The current count is 223/223** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework, 181 after the Supabase foundation); the script itself is the only
 authority on that number, so treat any count written in prose as a snapshot.
@@ -1272,6 +1272,47 @@ assertion reads the same fact the visible knob draws instead of a label that cou
 from it. Also fixed while here: the design-system doc claimed the storage choice was the
 one `OptionList` `current` call site, which was never true — it passed no `current` at
 all.
+
+### Package A — three goals in the introduction, and a way to begin again
+
+223/223. Twelve new checks.
+
+**Up to three goals per area during the introduction**, offered from the entries screen
+and never demanded: the first is still optional, and "Add another goal" disappears at the
+cap. Two things had to be separated that were one variable before:
+
+- **Which goal the entries screen is filling.** `activeGoals[0]` is the *oldest*, so
+  without holding the id `addGoal` returns, entries typed for a second goal would have
+  been linked to the first — silently, and permanently, because the log is append-only.
+- **The cap versus the list.** `ActionEntry` computed `full` from the array it was handed.
+  If the cap had followed the goal-scoped list, an area could hold nine entries; if the
+  list had stayed area-wide, a second goal's screen would have opened showing the first
+  goal's entries and — once three existed — no field at all. The list is now the goal's
+  and the cap is passed in from the area.
+
+**A real bug caught by exploring rather than by running:** `QuestionCard`'s `subject` and
+`eyebrow` were mutually exclusive, so the goal line added to the entries screen was
+silently dropped. It now renders in both branches — *above* the question when the question
+owns the heading, *below* it when the area does, which is the difference between a label
+over something and detail under it. Also renamed `area` → `eyebrow`, since seven of its
+eight call sites pass a goal.
+
+**After deleting everything, "Start again" is the emphasised offer** and points at `/` —
+which is the whole mechanism, since `forgetEverything()` leaves the store `undecided` and
+`app/page.tsx` derives `greeting` from that. "Back to data protection" drops one weight.
+
+That looks like it breaks the rule putting `.btn-primary` on the *safe* choice in a
+destructive flow, and does not: the rule is scoped to the steps *leading to* deletion, and
+those are behind us. Nothing is being recommended against, and a page whose only offer is
+"back to the privacy page" leaves someone who just cleared everything with nowhere to
+begin. §46a and §46b now assert both states, because that rule is exactly the kind of
+thing a later reader would "fix".
+
+**38b was measuring the wrong scope.** It read `main form button`, so it stopped covering
+the entries screen the moment a control appeared beside the form — which is precisely what
+"Add another goal" is. It also used three `.find()` lookups and never noticed a second
+primary. Now scoped to `main section` and asserting exactly one primary with every other
+control quiet.
 
 ## The repository
 

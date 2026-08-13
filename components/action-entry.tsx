@@ -32,20 +32,30 @@ export function ActionEntry({
   area,
   goalId,
   entries,
+  atCap,
   onEnough,
 }: {
   area: AreaId
   /** The goal these serve. Every entry belongs to exactly one. */
   goalId: string
-  /** The open entries, oldest first. */
+  /** This goal's open entries, oldest first. */
   entries: Step[]
+  /**
+   * Whether the **area** is at its cap.
+   *
+   * Separate from `entries.length`, because the cap counts across the whole area while
+   * this list is one goal's: three goals holding three each would be nine open entries
+   * in one area, which is the task manager this is not. Defaults to the list's own
+   * length for the single-goal case.
+   */
+  atCap?: boolean
   /** Offered once there is at least one; absent means the caller wants none. */
   onEnough?: () => void
 }) {
   const { m, t } = useI18n()
   const [editing, setEditing] = useState<string | null>(null)
 
-  const full = entries.length >= MAX_OPEN_STEPS
+  const full = atCap ?? entries.length >= MAX_OPEN_STEPS
 
   return (
     <div className="space-y-6">

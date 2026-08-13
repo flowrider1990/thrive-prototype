@@ -188,6 +188,15 @@ button and the step toward deletion is `.btn-quiet`. Emphasis marks what is
 *recommended*, not what is next — a filled "Yes, delete everything" would be the
 interface leaning on someone at the one moment it should not.
 
+**The exception is the state *after* it happened.** Once everything is deleted there is
+no destructive choice left on the screen: the confirmation is gone and "Delete
+everything" has unmounted with the data. Nothing is being recommended against, and a
+page whose only offer is "back to the privacy page" leaves someone who just cleared
+everything with nowhere to begin. So "Start again" takes `.btn-primary` there and
+leaving drops one weight to a full-size `.btn-quiet` — one primary per state, as
+everywhere. §46a and §46b assert both states, because the rule above is exactly the kind
+of thing a later reader would "fix".
+
 **There is no destructive/danger variant, and adding one is a decision not yet
 made.** The obvious ask — paint the final irreversible action red — has no token to
 use: the palette is monochrome by intent (`CLAUDE.md` §7, "do not introduce an accent

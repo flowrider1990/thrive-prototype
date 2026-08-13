@@ -727,6 +727,9 @@ const EN = {
   tryingOne: 'One thing to try',
   restLabel: 'Everything else',
   goalSkip: 'Not sure yet',
+  goalAnother: 'Add another goal',
+  storedBack: 'Back to data protection',
+  delRestart: 'Start again',
   reconsiderQuestion: 'Would you like to change or explore something here now?',
   pin: 'Pin',
   unpin: 'Unpin',
@@ -1940,17 +1943,25 @@ check(
 
 // Secondary, and it must not compete with entering something concrete. `.btn-primary`
 // on the way out would invite skipping.
+// Scoped to `main section`, not to the form. It used to read `main form button`, which
+// stopped covering the screen the moment a control appeared beside the form — and one
+// did: "Add another goal". Three `.find()` lookups also never noticed a second primary,
+// so the "stays the primary action" half was only ever half asserted.
 const stepsButtons = await evaluate(
   `(() => {
-     const b = [...document.querySelectorAll('main form button')];
+     const b = [...document.querySelectorAll('main section button')];
      return b.map((x) => ({ label: x.textContent.trim(), primary: x.classList.contains('btn-primary'), quiet: x.classList.contains('btn-quiet') }));
    })()`,
 )
 check(
-  '38b. adding stays the primary action and the way out is quiet',
+  '38b. adding stays the primary action, and every way out of it is quiet',
   stepsButtons.find((b) => b.label === EN.add)?.primary === true &&
     stepsButtons.find((b) => b.label === EN.stepsUnknown)?.quiet === true &&
-    stepsButtons.find((b) => b.label === EN.stepsUnknown)?.primary === false,
+    stepsButtons.find((b) => b.label === EN.stepsUnknown)?.primary === false &&
+    // Exactly one, over every control on the screen: entering something concrete.
+    stepsButtons.filter((b) => b.primary).length === 1 &&
+    // And every other control on it is quiet, so nothing competes with that.
+    stepsButtons.every((b) => b.primary || b.quiet),
   JSON.stringify(stepsButtons),
 )
 
@@ -3578,6 +3589,159 @@ check(
   // matching sizes with matching faces is how a hierarchy quietly flattens again.
   weighting.headingFace !== weighting.questionFace,
   `${weighting.headingFace} vs ${weighting.questionFace}`,
+)
+
+// --- 45. more than one goal per area during the introduction -------------------
+//
+// The first goal is optional and the way past it writes nothing (§42h). A second and
+// third may be added, from the entries screen, and nothing says an area should have
+// three — the offer disappears at the cap and says nothing about the ones already
+// written. Nothing is ranked here either: prioritising goals lives on the area page.
+
+await clearStorage()
+await goto('/')
+await click(EN.yes)
+await click(EN.introOk)
+await click(EN.reviewYes)
+await type('Sleep better')
+await click(EN.cont)
+screen = await text()
+check(
+  '45a. after a goal, another one is offered — quietly, and not as the way on',
+  (await visible(EN.goalAnother)) &&
+    // Still the entries question, and adding one is still the primary thing to do.
+    screen.includes(EN.steps) &&
+    (await visible(EN.add)),
+  screen.replace(NL, ' / ').slice(0, 160),
+)
+
+// An entry first, so the second goal has something to be told apart from.
+await type('Walk after dinner')
+await click(EN.add)
+await click(EN.goalAnother)
+screen = await text()
+check(
+  '45b. taking it asks what else, rather than repeating the first question',
+  screen.includes(EN.goalNewQuestion) && !screen.includes(EN.goal),
+  screen.replace(NL, ' / ').slice(0, 160),
+)
+
+await type('Run a 10k')
+await click(EN.cont)
+screen = await text()
+const secondGoal = JSON.parse(await raw())
+check(
+  '45c. the second goal gets its own entries screen, not the first goal is',
+  // Named, because with two goals the question alone cannot say which one.
+  screen.includes('Run a 10k') &&
+    // The first goal's entry is not listed under the second.
+    !screen.includes('Walk after dinner') &&
+    secondGoal.facts.filter((f) => /\.goal\.[^.]+\.text$/.test(f.key)).length === 2,
+  screen.replace(NL, ' / ').slice(0, 200),
+)
+
+// The cap counts across the area, not per goal — so an entry for the second goal plus
+// the first goal's one leaves room for exactly one more.
+await type('Sign up for a race')
+await click(EN.add)
+const linked = JSON.parse(await raw()).facts.filter((f) => /\.step\.[^.]+\.goal$/.test(f.key))
+check(
+  '45d. its entries are linked to it, not to the goal that came first',
+  linked.length === 2 && new Set(linked.map((f) => f.value)).size === 2,
+  linked.map((f) => f.value.slice(0, 8)).join(' '),
+)
+
+await click(EN.goalAnother)
+await type('Sleep through the night')
+await click(EN.cont)
+screen = await text()
+check(
+  '45e. at three goals the offer goes away, and nothing says three was the point',
+  !(await visible(EN.goalAnother)) &&
+    JSON.parse(await raw()).facts.filter((f) => /\.goal\.[^.]+\.text$/.test(f.key)).length === 3,
+  screen.replace(NL, ' / ').slice(0, 160),
+)
+check(
+  '45f. and the area-wide cap still holds, so the field gives way at three entries',
+  // Two entries so far across two goals; one more fills the area.
+  (await count('input')) === 1,
+  `${await count('input')} field(s)`,
+)
+await type('Wind down earlier')
+await click(EN.add)
+check(
+  '45g. the third entry fills the area, whichever goals they belong to',
+  (await count('input')) === 0 && (await text()).includes(EN.full),
+  `${await count('input')} field(s)`,
+)
+
+// Nothing was prioritised on the way through — that is the area page's job.
+const noRank = JSON.parse(await raw()).facts
+check(
+  '45h. and the introduction ranked nothing: no pin, no priority',
+  noRank.every((f) => !f.key.endsWith('.pinned') && !f.key.endsWith('.goal_priority')),
+  noRank
+    .map((f) => f.key.split('.').slice(-1)[0])
+    .filter((k, i, all) => all.indexOf(k) === i)
+    .join(' '),
+)
+
+// --- 46. after deleting everything, beginning again is the offer ---------------
+//
+// Guarded by exactly one assertion before this (§8d, that the confirmation sentence is
+// on the page); nothing said what the person could do next. The emphasis rule that puts
+// `.btn-primary` on the *safe* choice governs the steps leading to deletion — those are
+// behind us here, and a page whose only offer is "back to the privacy page" leaves
+// someone who just cleared everything with nowhere to begin.
+
+await seedOnboarded()
+await goto('/data/stored/')
+const footBefore = await evaluate(
+  `(() => {
+     const primaries = [...document.querySelectorAll('#delete .btn-primary')];
+     return { count: primaries.length, first: primaries[0]?.textContent.trim() ?? null };
+   })()`,
+)
+check(
+  '46a. before deleting, leaving is still the emphasised thing to do',
+  footBefore.count === 1 && footBefore.first === EN.storedBack,
+  JSON.stringify(footBefore),
+)
+
+await click(EN.del)
+await click(EN.delConfirm)
+const footAfter = await evaluate(
+  `(() => {
+     const primaries = [...document.querySelectorAll('#delete .btn-primary')];
+     const quiet = [...document.querySelectorAll('#delete .btn-quiet')];
+     return {
+       primaries: primaries.map((el) => ({ text: el.textContent.trim(), href: el.getAttribute('href') })),
+       quiet: quiet.map((el) => el.textContent.trim()),
+     };
+   })()`,
+)
+check(
+  '46b. afterwards, starting again is the one emphasised thing, and it points at the start',
+  // Exactly one — two primaries in a section is a weighting that says nothing.
+  footAfter.primaries.length === 1 &&
+    footAfter.primaries[0].text === EN.delRestart &&
+    footAfter.primaries[0].href === '/' &&
+    // And leaving is still offered, one weight down.
+    footAfter.quiet.includes(EN.storedBack),
+  JSON.stringify(footAfter),
+)
+check(
+  '46c. the confirmation is still on the page — nothing was navigated away for us',
+  (await text()).includes(EN.delDone) && (await keys()).length === 0,
+  `${(await keys()).length} key(s)`,
+)
+
+await clickText(EN.delRestart)
+await sleep(400)
+check(
+  '46d. following it reaches the beginning, without needing a reload',
+  (await text()).includes(EN.consent),
+  (await text()).replace(NL, ' / ').slice(0, 120),
 )
 
 // --- 9. nothing leaves the browser ---------------------------------------

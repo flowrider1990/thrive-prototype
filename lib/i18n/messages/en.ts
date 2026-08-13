@@ -146,6 +146,12 @@ export const en = {
      * pointed at from the start page.
      */
     goalSkip: 'Not sure yet',
+    /**
+     * Offered on the entries screen, never pushed, and it disappears at the cap.
+     * Nothing states how many goals an area should have — three is what is allowed,
+     * not what is expected.
+     */
+    goalAnother: 'Add another goal',
 
     /**
      * Deliberately no noun for the thing being asked for.
@@ -615,6 +621,17 @@ export const en = {
       cancel: 'Keep it',
       finalConfirm: 'Yes, delete everything',
       done: 'Deleted. Nothing is left.',
+      /**
+       * Its own key rather than borrowing `stopped.restart`: that group is about having
+       * declined, and its neighbouring copy says nothing was ever saved — which is not
+       * what happened here.
+       *
+       * The emphasis rule this looks like it breaks is scoped to the steps *leading to*
+       * deletion, where the safe choice is the recommended one. Those steps are behind
+       * us; nothing is left to protect, and the only useful thing to offer is a way to
+       * begin again.
+       */
+      restart: 'Start again',
     },
   },
 

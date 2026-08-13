@@ -13,7 +13,7 @@ import { useI18n } from '@/lib/i18n'
 export function QuestionCard({
   ack,
   subject,
-  area,
+  eyebrow,
   question,
   note,
   children,
@@ -34,8 +34,15 @@ export function QuestionCard({
    */
   subject?: AreaId
   /**
-   * A quiet line above the question, for context that is not a life area — the goal a
-   * question is about, most often.
+   * A quiet line of context that is not a life area — the goal a question is about, at
+   * seven of its eight call sites. It was called `area` until the `subject` prop
+   * arrived, which made that name actively misleading.
+   *
+   * **It moves depending on `subject`**, and that is the point rather than an accident:
+   * without one it sits *above* the question, which owns the heading, so it reads as a
+   * label over it. With one the area already owns the heading, so this becomes detail
+   * *under* the question instead. The two were mutually exclusive at first, which
+   * silently dropped it on the one screen that needed both.
    *
    * It belongs *inside* this component rather than above it. Rendered by the
    * caller it sat in an `space-y-8` stack, equidistant from the progress marks and
@@ -43,7 +50,7 @@ export function QuestionCard({
    * like it had no subject. Here it is one tight group with the heading, close
    * enough to be read as part of it.
    */
-  area?: ReactNode
+  eyebrow?: ReactNode
   question: string
   note?: string | null
   children?: ReactNode
@@ -64,10 +71,14 @@ export function QuestionCard({
               {/* Sans, full ink, and a step above body: unmistakably the thing to
                   answer, and no longer competing with the area for the display face. */}
               <p className="max-w-prose text-lg leading-relaxed text-ink">{question}</p>
+              {/* After the question here, not before it: with a `subject` the area is
+                  already the heading, so this is detail about what is being asked
+                  rather than a label over it. */}
+              {eyebrow}
             </>
           ) : (
             <>
-              {area}
+              {eyebrow}
               {/* One step down from a page title, and looser, on purpose: a question
                   can run to six lines — the consent one does — and the display scale
                   that suits a page title shouts at that length on a phone. Same

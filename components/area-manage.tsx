@@ -72,7 +72,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
 
   if (view.at === 'reconsider') {
     return (
-      <QuestionCard area={heading()} question={m.manage.reconsiderQuestion}>
+      <QuestionCard eyebrow={heading()} question={m.manage.reconsiderQuestion}>
         <Choice
           options={[
             {
@@ -98,7 +98,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
 
   if (view.at === 'goalNew') {
     return (
-      <QuestionCard area={heading()} question={m.manage.goalNewQuestion}>
+      <QuestionCard eyebrow={heading()} question={m.manage.goalNewQuestion}>
         <TextAnswer
           placeholder={m.goals.goalPlaceholder}
           submitLabel={m.goals.goalSubmit}
@@ -123,7 +123,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
     if (!goal) return <Fallback onDone={back} />
     return (
       <QuestionCard
-        area={<p className="text-sm text-muted">{goal.text}</p>}
+        eyebrow={<p className="text-sm text-muted">{goal.text}</p>}
         question={m.goals.stepsQuestion}
       >
         <TextAnswer
@@ -145,7 +145,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
     const step = state.steps.find((candidate) => candidate.id === view.stepId)
     if (!step) return <Fallback onDone={back} />
     return (
-      <QuestionCard area={heading()} question={m.manage.editQuestion}>
+      <QuestionCard eyebrow={heading()} question={m.manage.editQuestion}>
         <TextAnswer
           placeholder={m.goals.stepsPlaceholder}
           submitLabel={m.manage.editSubmit}

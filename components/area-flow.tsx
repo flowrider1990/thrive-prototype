@@ -7,7 +7,14 @@ import { QuestionCard } from '@/components/question-card'
 import { TextAnswer } from '@/components/text-answer'
 import type { AreaId } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
-import { addGoal, readArea, setReview, type AreaState } from '@/lib/person/goals'
+import {
+  addGoal,
+  MAX_GOALS,
+  MAX_OPEN_STEPS,
+  readArea,
+  setReview,
+  type AreaState,
+} from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
 type Sub = 'review' | 'goal' | 'steps'
@@ -45,6 +52,14 @@ export function AreaFlow({
   const [chosenSub, setSub] = useState<Sub | null>(null)
   const sub = chosenSub ?? resume(state)
 
+  // Which goal the entries screen is filling. There can be up to `MAX_GOALS` in one
+  // area now, so "the area's goal" is no longer a thing to point at. After a reload
+  // this is null and the newest one is the right guess — it is the one just written.
+  const [chosenGoal, setGoalId] = useState<string | null>(null)
+  const goal =
+    state.activeGoals.find((candidate) => candidate.id === chosenGoal) ??
+    state.activeGoals.at(-1)
+
   return (
     <div className="space-y-10">
       {progress}
@@ -75,8 +90,17 @@ export function AreaFlow({
       )}
 
       {sub === 'goal' && (
-        <QuestionCard subject={area} question={m.goals.goalQuestion}>
+        <QuestionCard
+          subject={area}
+          // "What else" once there is one, so a second goal reads as an addition rather
+          // than a correction of the first.
+          question={
+            state.activeGoals.length === 0 ? m.goals.goalQuestion : m.manage.goalNewQuestion
+          }
+        >
           <TextAnswer
+            // Remounted per goal, so the field clears itself between them.
+            key={state.activeGoals.length}
             placeholder={m.goals.goalPlaceholder}
             submitLabel={m.goals.goalSubmit}
             /**
@@ -90,12 +114,14 @@ export function AreaFlow({
              * review answer and stays completable from its own page, and nothing on the
              * start page points at it: `unfinished` needs a goal to fire.
              */
-            skipLabel={m.goals.goalSkip}
+            /**
+              * The first goal is optional — "Not sure yet" writes nothing and moves on.
+              * A later one is not a thing to be unsure about, so the way out says what it
+              * means there: you have what you need.
+              */
+             skipLabel={state.activeGoals.length === 0 ? m.goals.goalSkip : m.goals.stepsEnough}
             onSubmit={(value) => {
-              // One goal per area during the introduction, on purpose. More is something
-              // you discover you want and add from the area's own page — asking for a
-              // second here would turn meeting the app into configuring it.
-              addGoal(area, value)
+              setGoalId(addGoal(area, value))
               setSub('steps')
             }}
             onSkip={onDone}
@@ -103,17 +129,52 @@ export function AreaFlow({
         </QuestionCard>
       )}
 
-      {sub === 'steps' && (
-        <QuestionCard subject={area} question={m.goals.stepsQuestion} note={m.goals.stepsNote}>
+      {sub === 'steps' && goal && (
+        <QuestionCard
+          subject={area}
+          question={m.goals.stepsQuestion}
+          note={m.goals.stepsNote}
+          // Which goal these are for. With one it is redundant, with two it is the
+          // only thing telling them apart.
+          eyebrow={
+            state.activeGoals.length > 1 ? (
+              <p className="text-sm text-muted">{goal.text}</p>
+            ) : undefined
+          }
+        >
           <ActionEntry
             area={area}
-            goalId={state.activeGoals[0].id}
-            entries={state.open}
+            goalId={goal.id}
+            entries={state.open.filter((step) => step.goalId === goal.id)}
+            // The cap counts across the area, not this goal.
+            atCap={state.open.length >= MAX_OPEN_STEPS}
             // Straight out. This used to be `finishSteps`, whose three branches all
             // ended here once nothing is made active — including the "I do not know
             // yet" case, which still writes nothing at all.
             onEnough={onDone}
           />
+
+          {/**
+            * Offered, never pushed. Outside `ActionEntry`'s form on purpose: check 38b
+            * measures the form's buttons to prove that adding an entry is the primary
+            * action and every way out of it is quiet, and a third button inside would
+            * have made that assertion stop covering the screen.
+            *
+            * Nothing here says how many goals an area should have. It disappears at the
+            * cap and says nothing about the ones already written.
+            */}
+          {state.activeGoals.length < MAX_GOALS && (
+            <button
+              type="button"
+              className="btn btn-sm btn-quiet"
+              onClick={() => {
+                setGoalId(null)
+                setSub('goal')
+              }}
+            >
+              {m.goals.goalAnother}
+            </button>
+          )}
         </QuestionCard>
       )}
 

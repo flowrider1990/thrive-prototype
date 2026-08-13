@@ -103,6 +103,7 @@ export const de: Messages = {
     goalPlaceholder: 'In deinen eigenen Worten',
     goalSubmit: 'Weiter',
     goalSkip: 'Bin noch nicht sicher',
+    goalAnother: 'Noch ein Ziel hinzufügen',
 
     stepsQuestion: 'Was könnte dir helfen, diesem Ziel näherzukommen?',
     stepsNote: 'Eines reicht. Du kannst bis zu drei hinzufügen.',
@@ -285,6 +286,7 @@ export const de: Messages = {
       cancel: 'Behalten',
       finalConfirm: 'Ja, alles löschen',
       done: 'Gelöscht. Es ist nichts mehr da.',
+      restart: 'Neu anfangen',
     },
   },
 

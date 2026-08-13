@@ -133,7 +133,16 @@ export function AreaFlow({
               * A later one is not a thing to be unsure about, so the way out says what it
               * means there: you have what you need.
               */
-             skipLabel={state.activeGoals.length === 0 ? m.goals.goalSkip : m.goals.stepsEnough}
+             skipLabel={
+              state.activeGoals.length === 0
+                ? // "Not sure yet" only where the question was unasked for. Reaching this
+                  // from `/areas/` means the area was opened to give it a goal, so the way
+                  // out undoes that rather than answering anything — §42j2 asserts both.
+                  straightToGoal
+                  ? m.goals.goalBack
+                  : m.goals.goalSkip
+                : m.goals.stepsEnough
+            }
             onSubmit={(value) => {
               /**
                * Writing a goal *is* answering "yes, something here".

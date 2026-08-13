@@ -152,6 +152,19 @@ export const en = {
      */
     goalSkip: 'Not sure yet',
     /**
+     * The same slot, on an area opened on purpose.
+     *
+     * "Not sure yet" is the honest way out of a question you were *asked* — the
+     * introduction walks up with six areas and being unsure about one of them is a real
+     * answer worth naming. Nobody is unsure here: they tapped this area to give it a
+     * goal, so the only thing the quiet control does is undo that tap, and it says so.
+     *
+     * Kept as its own key rather than reusing `manage.back` ("Back to your life areas"),
+     * which is the navigation at the top of the page. Two controls that go to the same
+     * place from different heights should not borrow one string.
+     */
+    goalBack: 'Back',
+    /**
      * Offered on the entries screen, never pushed, and it disappears at the cap.
      * Nothing states how many goals an area should have — three is what is allowed,
      * not what is expected.

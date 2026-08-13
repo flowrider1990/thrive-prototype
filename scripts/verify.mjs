@@ -731,6 +731,7 @@ const EN = {
   tryingOne: 'One thing to try',
   restLabel: 'Everything else',
   goalSkip: 'Not sure yet',
+  goalBack: 'Back',
   goalAnother: 'Add another goal',
   storedBack: 'Back to data protection',
   delRestart: 'Start again',
@@ -3714,6 +3715,22 @@ check(
   '42j. and it stays completable from its own page, without confirming the tap first',
   screen.includes(EN.goal) && !screen.includes(EN.reconsiderQuestion),
   screen.replace(NL, ' / ').slice(0, 140),
+)
+check(
+  /**
+   * The way out of the field says the right thing for how you got here.
+   *
+   * "Not sure yet" belongs to a question that walked up uninvited — the introduction asks
+   * about six areas and being unsure about one is a real answer. Nobody is unsure on this
+   * page: they opened this area to give it a goal, so the quiet control undoes the tap.
+   *
+   * Both halves asserted, because the one that will rot is the *negative*: 42h clicks
+   * "Not sure yet" during the introduction and would abort if it ever went missing there,
+   * but nothing else would notice it leaking back onto this page.
+   */
+  '42j2. and its way out says "Back" here, while the introduction still says "Not sure yet"',
+  (await visible(EN.goalBack)) && !(await visible(EN.goalSkip)),
+  `Back: ${await visible(EN.goalBack)}, Not sure yet: ${await visible(EN.goalSkip)}`,
 )
 
 // --- 43. the start page is a working list, and the action dominates it ---------

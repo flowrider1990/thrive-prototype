@@ -106,6 +106,7 @@ export const de: Messages = {
     goalPlaceholder: 'In deinen eigenen Worten',
     goalSubmit: 'Weiter',
     goalSkip: 'Bin noch nicht sicher',
+    goalBack: 'Zurück',
     goalAnother: 'Noch ein Ziel hinzufügen',
 
     stepsQuestion: 'Was könnte dir helfen, diesem Ziel näherzukommen?',

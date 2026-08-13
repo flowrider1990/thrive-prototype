@@ -14,8 +14,10 @@ const icons: Record<AreaId, string> = {
   mind: '😌',
   relationships: '🫂',
   work: '💼',
-  finances: '💵',
   creativity: '🎨',
+  // A tree, not a coin or a banknote: the area asks what being provided for makes
+  // possible, over years, rather than about money as a quantity.
+  finances: '🌳',
 }
 
 /**

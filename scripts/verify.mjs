@@ -760,8 +760,8 @@ const AREAS = [
   { id: 'mind', label: 'Mental Wellbeing', de: 'Mentales Wohlbefinden' },
   { id: 'relationships', label: 'Relationships & Social Life', de: 'Beziehungen & Soziales' },
   { id: 'work', label: 'Work & Career', de: 'Beruf & Karriere' },
-  { id: 'finances', label: 'Money & Finances', de: 'Geld & Finanzen' },
   { id: 'creativity', label: 'Hobbies & Creativity', de: 'Hobbys & Kreativität' },
+  { id: 'finances', label: 'Security & Freedom', de: 'Absicherung & Freiheit' },
 ]
 
 /** The one the introduction ends on, which is the area §25 interrupts. */

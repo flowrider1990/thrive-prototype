@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { GoalIcon } from '@/components/area-icon'
 import { AreaLabel } from '@/components/area-label'
 import { PageShell } from '@/components/page-shell'
 import { areas } from '@/lib/areas'
@@ -82,7 +83,10 @@ export default function AreasPage() {
                  * the other side of it — which also keeps six areas of somebody's
                  * ambitions off a single screen. 34b asserts the words stay off this page.
                  */}
-                <span className="block text-sm text-muted">
+                <span className="flex items-center gap-x-1.5 text-sm text-muted">
+                  {/* One flag per goal, so how many is legible before the number is read.
+                      Bounded by MAX_GOALS at the source, so it cannot grow past three. */}
+                  <GoalIcon count={goalCount} />
                   {goalCount === 0
                     ? m.manage.goalsNone
                     : goalCount === 1

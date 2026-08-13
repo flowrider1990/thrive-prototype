@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { AreaFlow } from '@/components/area-flow'
-import { AreaIcon } from '@/components/area-icon'
+import { AreaIcon, GoalIcon } from '@/components/area-icon'
 import { Choice } from '@/components/choice'
 import { Cross, Pencil, Star } from '@/components/icons'
 import { QuestionCard } from '@/components/question-card'
@@ -130,7 +130,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
 
   if (view.at === 'goalNew') {
     return (
-      <QuestionCard eyebrow={heading()} question={m.manage.goalNewQuestion}>
+      <QuestionCard eyebrow={heading()} mark={<GoalIcon />} question={m.manage.goalNewQuestion}>
         <TextAnswer
           placeholder={m.goals.goalPlaceholder}
           submitLabel={m.goals.goalSubmit}
@@ -205,7 +205,8 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                         goal "Goal #1:" implies a second that is not there, which is the
                         objection that once justified having no label at all — keeping the
                         label and dropping the number answers both halves. */}
-                    <p className="text-sm text-muted tabular-nums">
+                    <p className="flex items-center gap-x-1.5 text-sm text-muted tabular-nums">
+                      <GoalIcon />
                       {goals.length > 1
                         ? t(m.manage.goalNumber, { n: String(index + 1) })
                         : m.manage.goalOnly}

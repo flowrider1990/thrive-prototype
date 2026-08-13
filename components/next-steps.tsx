@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { AreaIcon } from '@/components/area-icon'
+import { AreaIcon, GoalIcon } from '@/components/area-icon'
 import { Choice } from '@/components/choice'
 import { Star } from '@/components/icons'
 import { OptionList } from '@/components/option-list'
@@ -304,6 +304,7 @@ function EntryRow({
             controls and never wraps them — a link containing "How is it going?" would
             navigate on every answer. */}
         <p className="flex flex-wrap items-center gap-x-1.5 text-sm leading-relaxed text-muted">
+          {goal && <GoalIcon />}
           {goal && <span className="min-w-0">{goal.text}</span>}
           {goal && <span aria-hidden="true">·</span>}
           {/* The emoji sits *outside* the link, deliberately.

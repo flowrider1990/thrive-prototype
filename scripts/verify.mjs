@@ -1385,9 +1385,9 @@ const ordered = await evaluate(
 )
 check(
   '7b. and they are an ordered list, oldest first until something says otherwise',
-  ordered?.length === 2 &&
-    ordered[0].startsWith('Goal #1:') &&
-    ordered[1].startsWith('Goal #2:'),
+  // `includes`, not `startsWith`: the row opens with the goal mark now. Which label sits
+  // on which row is still the claim.
+  ordered?.length === 2 && ordered[0].includes('Goal #1:') && ordered[1].includes('Goal #2:'),
   JSON.stringify(ordered),
 )
 
@@ -1459,9 +1459,11 @@ check(
    * there is nothing to count.
    */
   '7f2. and with one goal left the label stays but stops numbering',
+  // The absence to assert is the **number**, not any hidden span: the goal mark is an
+  // `aria-hidden` span and belongs there. Looking for a `#` says what this is about.
   (await text()).includes(EN.goalOnly) &&
     !(await text()).includes(EN.goalNumber) &&
-    !(await evaluate(`!!document.querySelector('main ol li span[aria-hidden]')`)),
+    !(await evaluate(`document.querySelector('main ol li').innerText.includes('#')`)),
   (await text()).replace(NL, ' / ').slice(0, 80),
 )
 
@@ -2798,7 +2800,10 @@ check(
    */
   '34b. and it counts goals rather than printing them — the words stay behind the door',
   rowType !== null &&
-    /^(No goals yet|1 goal set|\d+ goals set)$/.test(rowType.countText) &&
+    // One mark per goal precedes the words now.
+    /^(No goals yet|1 goal set|\d+ goals set)$/.test(
+      rowType.countText.replace(/[^\x20-\x7e]/g, '').trim(),
+    ) &&
     !(await text()).includes('Sleep better'),
   `"${rowType?.countText}", goal text present: ${(await text()).includes('Sleep better')}`,
 )
@@ -4338,7 +4343,12 @@ await goto(`/areas/${AREAS[3].id}/`)
 const shape48 = await evaluate(`(() => {
   const li = document.querySelector('main ol li');
   if (!li) return null;
-  const lines = li.innerText.split(String.fromCharCode(10)).map((l) => l.trim()).filter(Boolean);
+  // The goal mark lands on a line of its own here. It is decoration, so it is not
+  // part of the order being asserted.
+  const lines = li.innerText
+    .split(String.fromCharCode(10))
+    .map((l) => l.replace(/[^ -~‘-‟]/g, '').trim())
+    .filter(Boolean);
   return {
     lines: lines.slice(0, 3),
     // Searched across every line rather than the first few: a goal carrying a reason

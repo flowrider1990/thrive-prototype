@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ActionEntry } from '@/components/action-entry'
+import { GoalIcon } from '@/components/area-icon'
 import { GoalLine } from '@/components/goal-line'
 import { Choice } from '@/components/choice'
 import { QuestionCard } from '@/components/question-card'
@@ -108,6 +109,7 @@ export function AreaFlow({
           subject={area}
           // "What else" once there is one, so a second goal reads as an addition rather
           // than a correction of the first.
+          mark={<GoalIcon />}
           question={
             state.activeGoals.length === 0 ? m.goals.goalQuestion : m.manage.goalNewQuestion
           }

@@ -325,9 +325,13 @@ export const en = {
 
     /**
      * One label for the whole list rather than one per goal: the serif heading is
-     * already unmistakably the thing you want. It pairs with `goals.entriesLabel`
-     * ("What you want to try") one level down — the two name the two levels of the
-     * hierarchy in the same words.
+     * already unmistakably the thing you want.
+     *
+     * There is deliberately **no** matching label over each goal's entries. It used to
+     * repeat `goals.entriesLabel` there, which put the same sentence on screen once per
+     * goal; the indent rule already says those belong to the goal above. That label is
+     * still used where it earns its place — the onboarding screen, where there is no
+     * indent to say it.
      */
     goalsLabel: 'What you want',
     /**
@@ -551,37 +555,20 @@ export const en = {
       cloudDevOnly: 'Cloud sync is currently available to developers only.',
 
       /**
-       * The two modes, as the names of the thing you would be switching **to**.
+       * The label on the one-way opt-in, named as the thing you would be switching
+       * **to**. Only ever shown to someone who is not saving.
        *
-       * Only the one you are not on is ever offered, so there is nothing here that
-       * restates the current setting — the `Currently: …` label above already does
-       * that, and the page's four paragraphs already explain what storage means.
-       *
-       * This deliberately dropped a question and a second option. Reopening the
-       * decision used to reprint onboarding's framing plus both modes with a line of
-       * explanation each, on a page that had just explained all of it. With two modes
-       * and the current one stated, the whole choice is "switch to the other one, or
-       * do not".
+       * **There is no "off" copy any more, and the missing half is the point.** Turning
+       * saving off deleted what was stored, which is what "Delete my data" further down
+       * the page already does — and says. Two controls for one outcome, where the switch
+       * was the one that did it without spelling it out. So `offTitle`, `offBody`,
+       * `offConfirm`, `offDone` and `offDoneEmpty` are gone rather than parked: the
+       * copy for a control that no longer exists is a trap for the next reader, who
+       * would find a full confirmation flow written and assume something regressed.
        */
       optionLocal: 'Save on this device',
 
-      /**
-       * Turning saving off has to delete what was saved, and that is not a warning
-       * dressed up — it is the only honest outcome. "Off" means nothing of yours is
-       * left on the device, so anything already there has to go with it.
-       *
-       * Shown **only when there is something to lose.** Switching with nothing stored
-       * costs nothing, and a confirmation step for a change with no consequence is the
-       * kind of ceremony that teaches people to click through the ones that matter.
-       */
-      offTitle: 'Turn saving off?',
-      offBody:
-        'Saving off means nothing of yours stays on this device, so what is saved here is deleted as part of the change. This visit carries on, and what you do in it stays in this tab until you close it.',
-      offConfirm: 'Turn saving off and delete',
       onDone: 'Saving is on now.',
-      offDone: 'Saving is off now, and what was stored has been deleted.',
-      /** Nothing was stored, so nothing was deleted, and the copy must not claim it. */
-      offDoneEmpty: 'Saving is off now.',
     },
     memoryNote:
       'You asked for nothing to be saved, so nothing is being written to this device at all. What you tell the app this visit stays in this tab and is gone when you close it.',

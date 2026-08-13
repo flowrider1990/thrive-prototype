@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { AreaIcon } from '@/components/area-icon'
 import { Choice } from '@/components/choice'
+import { Pin } from '@/components/icons'
 import { OptionList } from '@/components/option-list'
 import { TextAnswer } from '@/components/text-answer'
 import { areas, type AreaId } from '@/lib/areas'
@@ -119,7 +119,7 @@ export function NextSteps() {
                 {index === 0 ? m.home.pinnedLabel : m.home.restLabel}
               </p>
             )}
-            <ul className="space-y-6 sm:space-y-4">
+            <ul className="space-y-5">
               {group.map((row) => (
                 <li key={row.step.id}>
                   <EntryRow
@@ -261,59 +261,59 @@ function EntryRow({
 
   return (
     /**
-     * Stacked on a phone, three regions across from `sm` up: what to do, what it is
-     * for, and what you can do about it. A working list rather than a phone column
-     * stretched sideways — and no card or box doing it, only alignment.
+     * The action and what it is for are **one block**; the controls sit beside it.
      *
-     * The action takes three parts of the free space to the context's two, because it
-     * is the primary item and the one that can run long. The controls are `shrink-0`
-     * and last, so they sit against the right edge without being positioned there.
+     * This replaced three separate regions spread across the row with `gap-x-6`, which
+     * used the width but read as three disconnected columns — the goal drifted away from
+     * the action it belongs to. Two parts, not three: what this is, and what you can do
+     * about it. Alignment only, no card and no box.
      *
-     * `items-start`, not `center` or `baseline`: an action can wrap to two lines, and
-     * the other two regions should stay level with its first.
+     * On a phone it is two lines rather than four: the action, then one metadata line,
+     * with the controls tucked beside them instead of stacked underneath.
      */
-    <div className="flex flex-col gap-y-1.5 sm:flex-row sm:items-start sm:gap-x-6">
-      {/* Plain text. Not a button, not an option, nothing that acts when touched. */}
-      <p className="min-w-0 max-w-prose leading-relaxed text-ink sm:flex-[3]">{step.text}</p>
+    <div className="flex items-start gap-x-3">
+      {/* The pin comes first in source order but contributes no text, which keeps the
+          entry's own words the start of the row's text content — §42b reads the first
+          thirty characters of the `li` to prove pinning reorders the list. */}
+      <button
+        type="button"
+        className={`pin-toggle ${step.pinned ? "pin-toggle-on" : ""}`}
+        aria-label={t(step.pinned ? m.manage.unpinOn : m.manage.pinOn, { text: step.text })}
+        onClick={() =>
+          step.pinned ? unpinStep(state.area, step.id) : pinStep(state.area, step.id)
+        }
+      >
+        <Pin filled={step.pinned} />
+      </button>
 
-      {/* What this is for, and where it lives. The area is a sibling of the controls
-          and never wraps them — a link containing "How is it going?" would navigate on
-          every answer. */}
-      <p className="flex min-w-0 flex-wrap items-center gap-x-2 text-sm leading-relaxed text-muted sm:flex-[2] sm:pt-0.5">
-        {goal && <span className="min-w-0">{goal.text}</span>}
-        {goal && <span aria-hidden="true">·</span>}
-        <Link
-          href={`/areas/${state.area}?from=home`}
-          className="flex items-center gap-x-1.5"
-        >
-          <AreaIcon area={state.area} />
-          <span className="link-inline">{m.areas[state.area]}</span>
-        </Link>
-      </p>
+      <div className="min-w-0 flex-1 space-y-0.5">
+        {/* Plain text, and a step above the metadata under it. Not a button, not an
+            option, nothing that acts when touched. */}
+        <p className="max-w-prose leading-relaxed text-ink">{step.text}</p>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-1 sm:shrink-0 sm:pt-0">
-        <button
-          ref={trigger}
-          type="button"
-          className="btn btn-sm btn-quiet"
-          // Names the thing it is about: several of these on one page all reading
-          // "How is it going?" are identical controls out loud.
-          aria-label={t(m.home.checkOn, { text: step.text })}
-          onClick={() => onBusy({ stepId: step.id, phase: 'check' })}
-        >
-          {m.home.check}
-        </button>
-        <button
-          type="button"
-          className="btn btn-sm btn-quiet"
-          aria-label={t(step.pinned ? m.manage.unpinOn : m.manage.pinOn, { text: step.text })}
-          onClick={() =>
-            step.pinned ? unpinStep(state.area, step.id) : pinStep(state.area, step.id)
-          }
-        >
-          {step.pinned ? m.manage.unpin : m.manage.pin}
-        </button>
+        {/* One line: what this is for, and where it lives. The area is a sibling of the
+            controls and never wraps them — a link containing "How is it going?" would
+            navigate on every answer. */}
+        <p className="flex flex-wrap items-center gap-x-1.5 text-sm leading-relaxed text-muted">
+          {goal && <span className="min-w-0">{goal.text}</span>}
+          {goal && <span aria-hidden="true">·</span>}
+          <Link href={`/areas/${state.area}?from=home`} className="link-inline">
+            {m.areas[state.area]}
+          </Link>
+        </p>
       </div>
+
+      <button
+        ref={trigger}
+        type="button"
+        className="btn btn-sm btn-quiet shrink-0"
+        // Names the thing it is about: several of these on one page all reading
+        // "How is it going?" are identical controls out loud.
+        aria-label={t(m.home.checkOn, { text: step.text })}
+        onClick={() => onBusy({ stepId: step.id, phase: 'check' })}
+      >
+        {m.home.check}
+      </button>
     </div>
   )
 }

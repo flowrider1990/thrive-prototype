@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 223/223** (25 at the
+the two the plan singles out. **The current count is 219/219** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework, 181 after the Supabase foundation); the script itself is the only
 authority on that number, so treat any count written in prose as a snapshot.
@@ -1313,6 +1313,55 @@ the entries screen the moment a control appeared beside the form — which is pr
 "Add another goal" is. It also used three `.find()` lookups and never noticed a second
 primary. Now scoped to `main section` and asserting exactly one primary with every other
 control quiet.
+
+### Package B — one visual language for the start page and the area page
+
+219/219. The count fell from 224 because §36 shrank from twelve checks to seven: the
+turn-saving-off path they covered no longer exists.
+
+**The start page row is one block, not three columns.** The action and what it is for share
+a left edge with the action a step larger; the control sits against the right edge. The
+previous version spread three regions across the row with `gap-x-6` — it used the width,
+but the goal drifted away from the action it belonged to. Two lines on a phone rather than
+four, and alignment doing all of it.
+
+**The pin is an icon**, the same one on both screens. Bordered like the two icon-only
+controls that already existed — the theme toggle and the collapsed-nav trigger — because a
+control edge at rest is what says "this is a control", which is why `--color-line-strong`
+exists. A pin in a small circle is still far lighter than a text pill, which was the point:
+half the pill weight per row, not none.
+
+Three decisions inside that, each of which the obvious version got wrong:
+
+- **The glyph changes with the state, not the colour.** Filled when pinned, outlined when
+  not, at identical box size — so pressing it moves nothing and the state does not rest on
+  hue. The accessible name flips too, which four `clickAria` sites already required.
+- **`aria-pressed` is deliberately absent.** With a name that already flips, "Unpin,
+  pressed" is ambiguous rather than clearer.
+- **The CSS hook is a class, not an attribute selector.** My first version keyed off
+  `[aria-label^='Unpin']` and therefore had a German string hardcoded in the stylesheet.
+  Once the state lives in the accessible name, a class is the only locale-independent hook.
+
+**The per-goal "What you want to try" heading is gone** from the area page. It put the same
+sentence on screen once per goal; the indent rule already says those entries belong to the
+goal above. The label stays where it earns its place — the onboarding screen, which has no
+indent to say it.
+
+**And the "Save on this device" switch is gone from `/data/`.** Turning it off deleted what
+was stored, which is the same act as "Delete my data" further down the page, done by the
+control that said less about it. What remains in that direction is a plain quiet button
+offering to opt *in*, shown only to someone not already saving — a one-way action is a
+button, because a toggle that can only be flipped on is a control lying about itself.
+
+That opt-in was kept rather than removed with the rest for a reason worth recording: §39
+walks the path where someone declines, says *why*, and later turns saving on, proving
+`consent_concern` never reaches the device even then. Removing the path outright would have
+made that guarantee unreachable rather than merely untested.
+
+**§43 was replaced rather than repaired.** It asserted three regions across one row and
+stacked on a phone — the layout being undone. It now measures what the new row claims: one
+block with the action larger than its metadata, the control attached to the right edge and
+level with the action's first line, and a row under 2.8 line-heights on a phone.
 
 ## The repository
 

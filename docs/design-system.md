@@ -78,6 +78,12 @@ second.
 The palette is monochrome by intent (`CLAUDE.md` §7): emphasis comes from
 contrast, not hue. Do not introduce an accent hue without asking.
 
+**There is exactly one hue, `--color-pin`, and it was asked for.** It paints an active
+pin and nothing else. It is deliberately not named `danger`, `accent` or `red`: a name
+describing the *colour* invites the next reader to reuse it, and the next reuse is the one
+that ends the monochrome palette by accident. See "Icon-only controls" for why a hue is
+safe there specifically, and the danger-variant note below for what it is still not.
+
 ### The dark palette
 
 Defined once as `--dark-*` on `:root`, then mapped twice — once under
@@ -200,11 +206,53 @@ of thing a later reader would "fix".
 **There is no destructive/danger variant, and adding one is a decision not yet
 made.** The obvious ask — paint the final irreversible action red — has no token to
 use: the palette is monochrome by intent (`CLAUDE.md` §7, "do not introduce an accent
-hue without asking"), so a danger colour would be the first hue in the system. It was
-considered and deferred rather than improvised. What carries the weight instead is
-*where* emphasis sits and how many steps there are, which is the pattern above. If a
-danger token is ever added it needs the same treatment as `--color-line-strong`: a
-contrast floor against both backgrounds, in both themes, asserted.
+hue without asking"), and `--color-pin` is **not** it — a red pushpin is an object, not a
+warning, and reusing it here would make one token mean both "kept in view" and "this cannot
+be undone". A danger colour was considered and deferred rather than improvised. What carries
+the weight instead is *where* emphasis sits and how many steps there are, which is the
+pattern above. If a danger token is ever added it needs the same treatment `--color-pin`
+got, which is the treatment `--color-line-strong` got: a contrast floor against both
+backgrounds, in both themes, asserted — §31e.
+
+## Icon-only controls
+
+There are three, and they share a shape: `inline-flex … rounded-full border
+border-line-strong … text-muted transition-colors hover:border-muted hover:text-ink`. The
+theme toggle and the collapsed-nav trigger set it; `.pin-toggle` follows it.
+
+**They are bordered on purpose.** A control edge at rest is what says "this is a control",
+which is the whole reason `--color-line-strong` exists — so a *bare* icon button would
+remove the one thing at rest identifying it as pressable. A pin icon in a small circle is
+still much lighter than a text pill, which was the point: half the pill weight per row,
+not none.
+
+The border is present in both states so pressing one moves nothing, the same guarantee
+`.btn`'s always-transparent border gives.
+
+**The "Icons" note below needs one exception.** It says icons here are `aria-hidden`
+because the adjacent words already say what the icon says. That holds for `Lock` and
+`ArrowLeft`. For a pin the glyph *is* the control's whole content, so the **button** is
+named — `Pin: {text}` / `Unpin: {text}` — and the glyph stays hidden. State still needs
+two cues, so the glyph changes too (filled when pinned, outlined when not) at identical
+box size — size is never the difference.
+
+**Colour is the third cue, and only ever the third.** An active pin is drawn in
+`--color-pin`, the one hue in the palette. It is safe here precisely because it is
+redundant: remove it and the filled glyph and the flipped accessible name still carry the
+state, which is what §17 asks. Adding it the other way round — colour first, then looking
+for a second cue — is how a colour-only state gets shipped. §42d3 asserts the class still
+applies it (`.pin-toggle:hover` has the specificity to take it back), and §31e asserts it
+is readable on both backgrounds in both themes.
+
+The glyph is an office pushpin drawn straight down — wide grip, waist, flange, needle —
+rather than a round head on a stem, which read as a map marker: "where this is" instead of
+"keep this in front of me". The waist is what carries the recognition, so it is drawn wide
+enough to survive at 14px rather than being a detail that disappears.
+
+`aria-pressed` is deliberately **not** used. The accessible name already flips, and
+"Unpin, pressed" is ambiguous rather than clearer — so the CSS hook is a class
+(`.pin-toggle-on`), which is also the only locale-independent option once the state lives
+in the name.
 
 ## The switch, and the check that used to forbid it
 
@@ -215,6 +263,13 @@ bg-surface px-4 py-3 leading-relaxed text-ink` — so the storage choice, which 
 full-width `.option` above a Cancel pill, was visually indistinguishable from an empty
 text input. A setting has to look like a setting, and here that is alignment rather than
 a container.
+
+**There is one switch on `/data/` now, not two.** "Save on this device" was the other,
+and turning it off deleted what was stored — the same act as "Delete my data" further down
+the page, done by the control that said less about it. What remains in that direction is a
+plain quiet button offering to opt *in*, shown only to someone not already saving: a
+one-way action is a button, because a toggle that can only be flipped on is a control
+lying about itself.
 
 State is carried three ways, and only one of them is colour: the knob's **position**,
 the literal word beside it (`ON` / `OFF`), and the track's fill. Metrics never change

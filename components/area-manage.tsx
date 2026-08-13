@@ -5,6 +5,7 @@ import { AreaFlow } from '@/components/area-flow'
 import { AreaIcon } from '@/components/area-icon'
 import { Choice } from '@/components/choice'
 import { GoalManage } from '@/components/goal-manage'
+import { Pin } from '@/components/icons'
 import { QuestionCard } from '@/components/question-card'
 import { TextAnswer } from '@/components/text-answer'
 import type { AreaId } from '@/lib/areas'
@@ -180,7 +181,14 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
 
         <ol className="space-y-8">
           {goals.map((goal, index) => {
-            const trying = state.open.filter((step) => step.goalId === goal.id)
+            // Pinned first here too, so a pin means the same thing on both screens:
+            // the thing you want to see first. Within each half the model's own order
+            // holds, rather than a second one being invented for this list.
+            const forGoal = state.open.filter((step) => step.goalId === goal.id)
+            const trying = [
+              ...forGoal.filter((step) => step.pinned),
+              ...forGoal.filter((step) => !step.pinned),
+            ]
 
             return (
               <li key={goal.id} className="flex items-start gap-x-3">
@@ -211,8 +219,10 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                         longer draws: entries are peers, and what you want kept in
                         view is a pin rather than a rank. */}
                     {trying.length > 0 ? (
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted">{m.goals.entriesLabel}</p>
+                      <div>
+                        {/* No heading over it. The indent rule says these belong to the
+                            goal above, and repeating "What you want to try" once per
+                            goal was the same sentence three times on one screen. */}
                         <ul className="space-y-1">
                           {trying.map((step) => (
                             <li key={step.id}>
@@ -309,28 +319,27 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
 function Entry({ area, step, onEdit }: { area: AreaId; step: Step; onEdit: () => void }) {
   const { m, t } = useI18n()
   return (
-    <div className="flex items-start gap-x-3">
+    <div className="flex items-start gap-x-2.5">
+      {/* The same pin as the start page, so the two screens say it the same way. */}
+      <button
+        type="button"
+        className={`pin-toggle ${step.pinned ? 'pin-toggle-on' : ''}`}
+        aria-label={t(step.pinned ? m.manage.unpinOn : m.manage.pinOn, { text: step.text })}
+        onClick={() => (step.pinned ? unpinStep(area, step.id) : pinStep(area, step.id))}
+      >
+        <Pin filled={step.pinned} />
+      </button>
       {/* Plain text, not a control. Tapping someone's own words used to complete the
           thing they described, with no confirmation and nothing saying it would. */}
       <p className="min-w-0 flex-1 leading-relaxed text-ink">{step.text}</p>
-      <span className="mt-0.5 flex shrink-0 items-center gap-x-2">
-        <button
-          type="button"
-          className="btn btn-sm btn-quiet"
-          aria-label={t(step.pinned ? m.manage.unpinOn : m.manage.pinOn, { text: step.text })}
-          onClick={() => (step.pinned ? unpinStep(area, step.id) : pinStep(area, step.id))}
-        >
-          {step.pinned ? m.manage.unpin : m.manage.pin}
-        </button>
-        <button
-          type="button"
-          className="btn btn-sm btn-quiet"
-          aria-label={t(m.goals.stepsEdit, { text: step.text })}
-          onClick={onEdit}
-        >
-          {m.manage.reviewEdit}
-        </button>
-      </span>
+      <button
+        type="button"
+        className="btn btn-sm btn-quiet shrink-0"
+        aria-label={t(m.goals.stepsEdit, { text: step.text })}
+        onClick={onEdit}
+      >
+        {m.manage.reviewEdit}
+      </button>
     </div>
   )
 }

@@ -461,20 +461,6 @@ async function clickOption(text) {
   await evaluate(`__clickOption(${JSON.stringify(text)})`)
   await sleep(220)
 }
-/** Clicks the switch whose label it is given; a switch has no accessible name of its own. */
-async function clickSwitch(label) {
-  const name = JSON.stringify(label)
-  await evaluate(
-    `(() => {
-       const row = [...document.querySelectorAll('[role="switch"]')]
-         .find((el) => el.textContent.includes(` + name + `));
-       if (!row) throw new Error('no switch labelled: ' + ` + name + `);
-       row.click();
-     })()`,
-  )
-  await sleep(220)
-}
-
 const progress = async () => {
   await evaluate(HELPERS)
   return evaluate('__progress()')
@@ -736,9 +722,8 @@ const EN = {
   storageOptionLocal: 'Save on this device',
   storageOptionCloud: 'Sync with Cloud',
   cloudDevOnly: 'Cloud sync is currently available to developers only.',
-  storageOffDone: 'Saving is off now',
-  storageOffTitle: 'Turn saving off?',
-  storageOffConfirm: 'Turn saving off and delete',
+  storageOnDone: 'Saving is on now.',
+  dataDelete: 'Delete my data',
 }
 
 /**
@@ -1692,7 +1677,7 @@ check(
 )
 
 await clickNav(EN.navData)
-await clickSwitch(EN.storageOptionLocal)
+await click(EN.storageOptionLocal)
 await sleep(300)
 const afterOn = JSON.parse(await raw())
 check(
@@ -2104,6 +2089,43 @@ for (const scheme of ['light', 'dark']) {
     `31d. and a control's edge is visible against the surface it sits on (${scheme})`,
     edgeRatio >= 3,
     `${edgeRatio}:1 (${edge.border} on ${edge.background})`,
+  )
+
+  /**
+   * The one hue in the palette has to clear the same floor as everything else, in
+   * both themes and against both backgrounds.
+   *
+   * A colour is the easiest thing in this project to pick by eye and ship unreadable,
+   * and this one is picked by eye by definition — someone asked for red. A red tuned
+   * against a white page is close to invisible on the dark ground, and the reverse;
+   * that is the whole reason it is two values rather than one.
+   *
+   * Measured through a probe rather than through a pinned entry, so it holds wherever
+   * the glyph is drawn instead of only on the screen that happens to have one. That
+   * the class actually applies the token is §42's job, not this one.
+   */
+  const pin = await evaluate(`(() => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--color-pin)';
+    document.body.append(probe);
+    const colour = getComputedStyle(probe).color;
+    probe.remove();
+    const read = (name) => {
+      const el = document.createElement('span');
+      el.style.color = name;
+      document.body.append(el);
+      const value = getComputedStyle(el).color;
+      el.remove();
+      return value;
+    };
+    return { colour, ground: read('var(--color-ground)'), surface: read('var(--color-surface)') };
+  })()`)
+  const onGround = await contrast(pin.colour, pin.ground)
+  const onSurface = await contrast(pin.colour, pin.surface)
+  check(
+    `31e. and an active pin's colour is readable on both backgrounds (${scheme})`,
+    onGround >= 3 && onSurface >= 3,
+    `${onGround}:1 on ground, ${onSurface}:1 on surface (${pin.colour})`,
   )
 }
 await setScheme('light')
@@ -2637,18 +2659,20 @@ check(
   `areas: ${areaBack.fontSize}/${areaBack.colour} — data: ${dataBack?.fontSize}/${dataBack?.colour}`,
 )
 
-// --- 36. storage is a setting you can read, and off really means off ---------
+// --- 36. the storage settings say what is stored, and offer only one thing -----
 //
-// This section used to drive a "Change storage settings" button that opened a panel
-// holding a single full-width `.option`. That control read as an empty text field, and
-// for a good reason: `.option` and `.field` are the same rule in every property that
-// draws a box. It is two switches now.
+// This section has been rewritten twice, and both times the product got smaller.
 //
-// **36c is deliberately inverted rather than deleted.** It used to assert
-// `count('main [role="switch"]') === 0` under the name "and no toggle was introduced
-// beside it" — a guard against exactly this redesign. Removing a check that says "do
-// not do this" is how a codebase forgets it ever decided; so it now asserts the
-// opposite, and the reversal is recorded in `docs/design-system.md`.
+// It first drove a "Change storage settings" button opening a panel with a single
+// full-width `.option` in it — a control that read as an empty text field, because
+// `.option` and `.field` are the same rule in every property that draws a box. That
+// became two switches. Then the "Save on this device" switch went too: turning it off
+// deleted what was stored, which is the same act as "Delete my data" further down the
+// page, and the switch was the one that did it without saying so. §8 covers the path
+// that spells out the consequence.
+//
+// **36c stays inverted** from the check that once asserted no switch could exist here.
+// Removing a check that says "do not do this" is how a codebase forgets it ever decided.
 
 /** A switch by its label: what it says, and whether it can be operated. */
 const switchState = (label) =>
@@ -2668,107 +2692,76 @@ const switchState = (label) =>
 await setViewport(1200, 800)
 await seedOnboarded()
 await goto('/data/')
-const savingOn = await switchState(EN.storageOptionLocal)
-check(
-  '36a. the setting states itself, in the accessibility tree and in words',
-  // `aria-checked` rather than prose: it is the same fact the visible knob draws, so
-  // there is one source of truth instead of a label to keep in step.
-  savingOn?.checked === 'true' && savingOn.disabled === false && savingOn.says.includes('ON'),
-  JSON.stringify(savingOn),
-)
-
 const cloudOff = await switchState(EN.storageOptionCloud)
 check(
-  '36b. cloud sync is present, off, and says why it cannot be turned on',
+  '36a. cloud sync is present, off, and says why it cannot be turned on',
   cloudOff?.checked === 'false' &&
     // Not operable yet, and the page says so rather than leaving a dead control.
     cloudOff.disabled === true &&
+    cloudOff.says.includes('OFF') &&
     (await text()).includes(EN.cloudDevOnly),
   JSON.stringify(cloudOff),
 )
 
 check(
+  '36b. and it is the only setting here — saving is not offered twice',
+  // Someone already saving has nothing to switch: stopping happens through the control
+  // that names the consequence, and there is no second path to the same outcome.
+  (await count('main [role="switch"]')) === 1 &&
+    !(await visible(EN.storageOptionLocal)) &&
+    // The deletion path is on this page, one weight down, as a link onward.
+    (await visible(EN.dataDelete)),
+  `${await count('main [role="switch"]')} switch(es)`,
+)
+
+check(
   '36c. the setting is a switch — the reversal of the check that once forbade one',
-  (await count('main [role="switch"]')) === 2 &&
+  (await count('main [role="switch"]')) === 1 &&
     // Still not a checkbox: `role="switch"` says "on or off right now", a checkbox says
     // "included when you submit", and there is nothing here to submit.
     (await count('main input[type="checkbox"]')) === 0,
   `${await count('main [role="switch"]')} switches, ${await count('main input[type="checkbox"]')} checkboxes`,
 )
 
-// Nothing is written by looking, and the switch is reachable and operable by keyboard —
-// it is a real `<button>`, which is also what keeps the panel's focus handling working.
-const beforeNoop = await raw()
-check(
-  '36d. it is keyboard-reachable, and reading the page changes nothing',
-  (await tabTo('main [role="switch"]', 30)) && (await raw()) === beforeNoop,
-  'reached by Tab alone',
-)
-
-// Turning saving off deletes what is stored, so it confirms — and states the cost.
-const beforeOff = await raw()
-await clickSwitch(EN.storageOptionLocal)
-screen = await text()
-check(
-  '36e. turning saving off says what it costs, and has not touched anything yet',
-  screen.includes(EN.storageOffTitle) && (await raw()) === beforeOff,
-  screen.replace(NL, ' / ').slice(0, 140),
-)
-
-await click(EN.delKeep)
-check(
-  '36f. and backing out leaves the store byte-identical',
-  (await raw()) === beforeOff && (await switchState(EN.storageOptionLocal))?.checked === 'true',
-  (await raw()) === beforeOff ? 'store untouched' : 'STORE CHANGED',
-)
-
-await clickSwitch(EN.storageOptionLocal)
-await click(EN.storageOffConfirm)
-check(
-  '36g. confirming leaves localStorage completely empty — no key, not just no facts',
-  (await keys()).length === 0,
-  JSON.stringify(await keys()),
-)
-check(
-  '36h. and the switch says off, without anything still claiming otherwise',
-  (await switchState(EN.storageOptionLocal))?.checked === 'false' &&
-    (await text()).includes(EN.storageOffDone),
-  JSON.stringify(await switchState(EN.storageOptionLocal)),
-)
-
-// Back on, through the store's own consent path rather than a second copy of it.
-await clickSwitch(EN.storageOptionLocal)
-check(
-  '36i. turning it back on starts saving again, with consent recorded',
-  (await keys()).length === 1 && JSON.parse(await raw()).consentAt !== null,
-  `${(await keys()).length} key(s)`,
-)
+// Nothing is written by looking at the page.
+const beforeLook = await raw()
 await goto('/data/')
 check(
-  '36j. and the setting survives a reload, so nothing here is a second copy of it',
-  (await switchState(EN.storageOptionLocal))?.checked === 'true',
-  JSON.stringify(await switchState(EN.storageOptionLocal)),
+  '36d. reading the page changes nothing at all',
+  (await raw()) === beforeLook,
+  (await raw()) === beforeLook ? 'store untouched' : 'STORE CHANGED',
 )
 
-// With nothing stored there is nothing to lose, so there is nothing to confirm. A
-// confirmation for a change with no consequence is the ceremony that teaches people to
-// click through the ones that matter.
+// The one thing offered in that direction, and only to someone who is not saving: a way
+// to change your mind after declining. §39 walks it with a concern in the store.
 await clearStorage()
 await goto('/')
-await click(EN.yes)
+await click(EN.no)
+await click(EN.cont)
+await click(EN.contYes)
 await goto('/data/')
-await clickSwitch(EN.storageOptionLocal)
-screen = await text()
 check(
-  '36k. with nothing stored, switching off asks for no confirmation',
-  !screen.includes(EN.storageOffTitle) &&
-    (await switchState(EN.storageOptionLocal))?.checked === 'false',
-  screen.replace(NL, ' / ').slice(0, 140),
+  '36e. after declining, opting in is offered — as a one-way action, not a switch',
+  (await visible(EN.storageOptionLocal)) &&
+    // A button, because it goes one way. A toggle that can only be flipped on is a
+    // control lying about itself.
+    (await count('main [role="switch"]')) === 1 &&
+    (await keys()).length === 0,
+  `${(await keys()).length} key(s) before opting in`,
+)
+
+await click(EN.storageOptionLocal)
+check(
+  '36f. taking it records consent, and says so',
+  (await keys()).length === 1 &&
+    JSON.parse(await raw()).consentAt !== null &&
+    (await text()).includes(EN.storageOnDone),
+  `${(await keys()).length} key(s)`,
 )
 check(
-  '36l. and it still removed the key, without claiming to have deleted anything',
-  (await keys()).length === 0 && !screen.includes('has been deleted'),
-  `${(await keys()).length} key(s)`,
+  '36g. and then it is gone — there is nothing left to offer',
+  !(await visible(EN.storageOptionLocal)),
+  'offer withdrawn',
 )
 
 // --- 30. no internal id reaches any screen, seen or spoken -----------------
@@ -3419,6 +3412,37 @@ check(
     .join(', '),
 )
 
+// The area page has to agree with the start page: a pin means "show me this first"
+// wherever a list of entries is drawn, or it means two different things on two screens.
+await goto(`/areas/${AREAS[0].id}/`)
+const goalOrder = await evaluate(
+  `(() => {
+     const items = [...document.querySelectorAll('main ol li ul li')];
+     return items.map((li) => li.textContent.trim().slice(0, 24));
+   })()`,
+)
+check(
+  '42d2. and pinned comes first inside a goal, not only on the start page',
+  goalOrder?.length === 2 && goalOrder[0].startsWith('Read before bed'),
+  JSON.stringify(goalOrder),
+)
+
+// Colour is the third cue, after the filled glyph and the flipped name — but a third
+// cue that silently stopped applying is still a regression, and `.pin-toggle:hover`
+// has the specificity to take it back.
+const pinColours = await evaluate(`(() => {
+  const buttons = [...document.querySelectorAll('main .pin-toggle')];
+  const on = buttons.find((b) => b.classList.contains('pin-toggle-on'));
+  const off = buttons.find((b) => !b.classList.contains('pin-toggle-on'));
+  if (!on || !off) return null;
+  return { on: getComputedStyle(on).color, off: getComputedStyle(off).color };
+})()`)
+check(
+  '42d3. an active pin is drawn in the pin colour and an inactive one is not',
+  pinColours !== null && pinColours.on !== pinColours.off && pinColours.on === 'rgb(180, 38, 42)',
+  JSON.stringify(pinColours),
+)
+
 // The migration read. A store from before pinning existed says what it meant through
 // the old pointer, and taking that back needs no special case.
 await seedPins({ legacyPointer: true })
@@ -3494,51 +3518,75 @@ check(
   (await text()).replace(NL, ' / ').slice(0, 140),
 )
 
-// --- 43. the start page is a working list at width, not a stretched column -----
+// --- 43. the start page is a working list, and the action dominates it ---------
 //
-// Measured rather than eyeballed, the same way §34 measures the areas list: three
-// regions per row — what to do, what it is for, what you can do about it — side by
-// side once there is room, and stacked on a phone. No card and no box does it, so
-// there is nothing in the markup that would fail loudly if the alignment broke.
+// Measured rather than eyeballed, like §34 and §44. This replaced a version asserting
+// three regions spread across one row at width and stacked on a phone — that layout used
+// the width but read as three disconnected columns, with the goal drifting away from the
+// action it belongs to. What is claimed now is different, so what is measured is too:
+// the action and its metadata are **one block**, the action is the larger of the two, the
+// control is attached to the row rather than parked in a column of its own, and the whole
+// row stays compact on a phone.
 
-/** The three regions of the first row: where each one starts. */
-const rowRegions = () =>
+const rowShape = () =>
   evaluate(
     `(() => {
        const row = document.querySelector('main li')?.firstElementChild;
        if (!row) return null;
-       return [...row.children].map((el) => {
-         const box = el.getBoundingClientRect();
-         return { tag: el.tagName, top: Math.round(box.top), left: Math.round(box.left) };
-       });
+       const block = [...row.children].find((el) => el.tagName === 'DIV');
+       const control = [...row.children].reverse().find((el) => el.tagName === 'BUTTON');
+       if (!block || !control) return null;
+       const action = block.children[0];
+       const meta = block.children[1];
+       const box = (el) => {
+         const r = el.getBoundingClientRect();
+         return { top: Math.round(r.top), left: Math.round(r.left), right: Math.round(r.right) };
+       };
+       const px = (el) => parseFloat(getComputedStyle(el).fontSize);
+       return {
+         rowRight: Math.round(row.getBoundingClientRect().right),
+         rowHeight: Math.round(row.getBoundingClientRect().height),
+         lineHeight: parseFloat(getComputedStyle(action).lineHeight),
+         action: box(action),
+         meta: box(meta),
+         control: box(control),
+         actionPx: px(action),
+         metaPx: px(meta),
+       };
      })()`,
   )
 
 await setViewport(1200, 800)
 await seedOnboarded()
-const across = await rowRegions()
+const shape = await rowShape()
 check(
-  '43a. at desktop width the three regions sit across one row',
-  across?.length === 3 &&
-    // Left to right, in order.
-    across[0].left < across[1].left &&
-    across[1].left < across[2].left &&
-    // And level with each other, allowing for the controls' own line height.
-    Math.max(...across.map((r) => r.top)) - Math.min(...across.map((r) => r.top)) < 12,
-  JSON.stringify(across),
+  '43a. the action and what it is for are one block, with the action the larger of them',
+  // Same left edge: one block, not two columns.
+  shape?.action.left === shape.meta.left &&
+    // And the metadata sits under it rather than beside it.
+    shape.meta.top > shape.action.top &&
+    // Dominance, stated as a number rather than trusted.
+    shape.actionPx > shape.metaPx * 1.1,
+  JSON.stringify(shape),
+)
+check(
+  '43b. the control is attached to the row, not parked in a column of its own',
+  // Against the right edge, which is where "last and shrink-0" puts it — and level
+  // with the action's first line rather than floating between the two lines.
+  shape.rowRight - shape.control.right < 4 &&
+    Math.abs(shape.control.top - shape.action.top) < 12,
+  JSON.stringify({ rowRight: shape.rowRight, control: shape.control, action: shape.action }),
 )
 
 await setViewport(390, 780)
 await goto('/')
-const stacked = await rowRegions()
+const narrow = await rowShape()
 check(
-  '43b. and stack at phone width, still in the same order',
-  stacked?.length === 3 &&
-    // One column: every region starts at the same x.
-    new Set(stacked.map((r) => r.left)).size === 1 &&
-    stacked[0].top < stacked[1].top &&
-    stacked[1].top < stacked[2].top,
-  JSON.stringify(stacked),
+  '43c. and on a phone it is two lines, not four',
+  // The action, its metadata, and nothing stacked under them. Stated as a multiple of
+  // the line height so it cannot be satisfied by shrinking the type.
+  narrow !== null && narrow.rowHeight < narrow.lineHeight * 2.8,
+  `${narrow?.rowHeight}px over a ${narrow?.lineHeight}px line`,
 )
 await setViewport(1200, 800)
 

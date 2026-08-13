@@ -194,13 +194,9 @@ export default function StoredPage() {
                   {deleted ? m.data.delete.restart : m.stored.back}
                 </Link>
               </div>
-              {deleted && (
-                <div>
-                  <Link href="/data" className="btn btn-quiet">
-                    {m.stored.back}
-                  </Link>
-                </div>
-              )}
+              {/* No second way back here. `BackLink` sits at the top of this page and
+                  says the same thing; repeating it at the foot made the end of the page a
+                  choice between one way on and one way back to where you came from. */}
               {facts.length > 0 && (
                 <div>
                   <button

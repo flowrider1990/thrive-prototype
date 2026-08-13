@@ -104,7 +104,7 @@ export const de: Messages = {
 
     goalQuestion: 'Was ist dein Ziel?',
     goalPlaceholder: 'In deinen eigenen Worten',
-    goalSubmit: 'Weiter',
+    goalSubmit: 'Bestätigen',
     goalSkip: 'Bin noch nicht sicher',
     goalBack: 'Zurück',
     goalAnother: 'Noch ein Ziel hinzufügen',

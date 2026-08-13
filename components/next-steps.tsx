@@ -177,12 +177,26 @@ export function NextSteps() {
                 </span>
                 {/* The same mark a goal carries everywhere else it is named. */}
                 <GoalIcon className="mt-0.5" />
+                {/**
+                 * The goal opens the area it lives in.
+                 *
+                 * A goal listed with no way to reach anything was a dead end — the one thing
+                 * you would want after seeing it is where it sits and what is under it.
+                 *
+                 * `?from=home` is what makes the area's back link say "Zurück zur
+                 * Startseite" instead of pointing at `/areas/`; `AreaScreen` already reads
+                 * it, so arriving from here behaves like arriving from a row's area link.
+                 * The link wraps only the words — the star beside it is a control, and a
+                 * link containing it would navigate on every press.
+                 */}
                 <p
-                  className={`min-w-0 flex-1 leading-relaxed text-ink ${
+                  className={`min-w-0 flex-1 leading-relaxed ${
                     goal.pinned ? 'font-semibold' : ''
                   }`}
                 >
-                  {goal.text}
+                  <Link href={`/areas/${state.area}?from=home`} className="link-inline">
+                    {goal.text}
+                  </Link>
                 </p>
                 <button
                   type="button"

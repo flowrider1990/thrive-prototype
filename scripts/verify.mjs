@@ -680,6 +680,7 @@ const EN = {
   reviewNo: 'Not right now',
   goal: 'What is your goal?',
   cont: 'Continue',
+  confirm: 'Confirm',
   steps: 'What could help you move toward this goal?',
   entries: 'What you want to try',
   entriesNote: 'One is enough. You can add up to three.',
@@ -906,7 +907,7 @@ async function seedLegacyOnboarded() {
 async function runArea(goal, steps) {
   await click(EN.reviewYes)
   await type(goal)
-  await click(EN.cont)
+  await click(EN.confirm)
   await enterEntries(steps)
   // One way on from both states that can follow the entries: the cap notice and the
   // saved-something list both offer Continue. With nothing written the field is still
@@ -1368,7 +1369,7 @@ check(
 
 await click(EN.goalAdd)
 await type('Get hired somewhere I like')
-await click(EN.cont)
+await click(EN.confirm)
 screen = await text()
 check(
   /**
@@ -1606,7 +1607,7 @@ await click(EN.yes)
 await click(EN.introOk)
 await click(EN.reviewYes)
 await type('Sleep better')
-await click(EN.cont)
+await click(EN.confirm)
 
 screen = await text()
 check(
@@ -1874,7 +1875,7 @@ check(
 
 await click('Ja')
 await type('Besser schlafen')
-await click('Weiter')
+await click('Bestätigen')
 await type('20 Minuten spazieren gehen')
 await click('Speichern')
 // "Weiter" now, not "Das reicht": with something saved the field has closed and the way
@@ -1934,7 +1935,7 @@ await declineAreas(AREAS.length - 1)
 // The last area: answered, a goal given, then interrupted before any next step.
 await click(EN.reviewYes)
 await type('Draw something every week')
-await click(EN.cont)
+await click(EN.confirm)
 await goto('/')
 screen = await text()
 check(
@@ -2083,7 +2084,7 @@ await click(EN.introOk)
 // Area 1: yes, a goal, then "I do not know yet".
 await click(EN.reviewYes)
 await type('Sleep better')
-await click(EN.cont)
+await click(EN.confirm)
 screen = await text()
 check(
   '38a. the steps screen offers a way on without inventing something',
@@ -4017,7 +4018,7 @@ await click(EN.yes)
 await click(EN.introOk)
 await click(EN.reviewYes)
 await type('Sleep better')
-await click(EN.cont)
+await click(EN.confirm)
 screen = await text()
 check(
   '45a. after a goal, another one is offered — quietly, and not as the way on',
@@ -4040,7 +4041,7 @@ check(
 )
 
 await type('Run a 10k')
-await click(EN.cont)
+await click(EN.confirm)
 screen = await text()
 const secondGoal = JSON.parse(await raw())
 check(
@@ -4066,7 +4067,7 @@ check(
 
 await click(EN.goalAnother)
 await type('Sleep through the night')
-await click(EN.cont)
+await click(EN.confirm)
 screen = await text()
 check(
   '45e. at three goals the offer goes away, and nothing says three was the point',
@@ -4139,8 +4140,10 @@ check(
   footAfter.primaries.length === 1 &&
     footAfter.primaries[0].text === EN.delRestart &&
     footAfter.primaries[0].href === '/' &&
-    // And leaving is still offered, one weight down.
-    footAfter.quiet.includes(EN.storedBack),
+    // **And nothing beside it.** A second "Back to data protection" here repeated the link
+    // at the top of the page, so the end of the page was a choice between going on and
+    // going back where you came from. The way back is the one at the top; §35 covers it.
+    footAfter.quiet.length === 0,
   JSON.stringify(footAfter),
 )
 check(
@@ -4632,6 +4635,37 @@ check(
     JSON.parse(await raw()).homeView === 'goals',
   `${JSON.parse(await raw()).facts.length} facts, homeView ${JSON.parse(await raw()).homeView}`,
 )
+
+/**
+ * A goal opens its area, and the way back follows where you came from.
+ *
+ * `?from=home` is the whole mechanism — `AreaScreen` reads it, and 37e/37f already cover
+ * the fallbacks — so this asserts that the link carries it and that the back link answers
+ * accordingly. A goal you can see but not act on is a dead end.
+ */
+const goalLink = await evaluate(
+  `(() => {
+     const link = document.querySelector('main ul li p a');
+     return link ? { href: link.getAttribute('href'), text: link.textContent.trim() } : null;
+   })()`,
+)
+await clickText(goalLink.text)
+await sleep(500)
+screen = await text()
+const backFromGoal = await evaluate(
+  `(() => {
+     const a = document.querySelector('main a[href]');
+     return a ? { href: new URL(a.href).pathname, text: a.textContent.trim() } : null;
+   })()`,
+)
+check(
+  '49d2. a goal on the start page opens its area, and the way back points at home',
+  goalLink.href.includes('?from=home') &&
+    screen.includes(goalLink.text) &&
+    backFromGoal?.href === '/',
+  `${goalLink.href} -> ${JSON.stringify(backFromGoal)}`,
+)
+await goto('/')
 
 // Back to the default, which is the one value never written: choosing it drops the field
 // rather than storing 'steps', so anyone who does not keep the goals view leaves no trace.

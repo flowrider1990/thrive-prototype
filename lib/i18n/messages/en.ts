@@ -137,7 +137,12 @@ export const en = {
 
     goalQuestion: 'What is your goal?',
     goalPlaceholder: 'In your own words',
-    goalSubmit: 'Continue',
+    /**
+     * "Confirm", not "Continue". The field holds a goal and pressing this commits it —
+     * "Continue" described moving through a walk, which is what the introduction was and
+     * the area page never was. Separate from `stepsContinue`, which really is a way onward.
+     */
+    goalSubmit: 'Confirm',
     /**
      * The way past without inventing something, and the goal-screen counterpart to
      * `stepsUnknown` below.

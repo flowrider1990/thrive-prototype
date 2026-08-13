@@ -119,7 +119,7 @@ export function NextSteps() {
                 {index === 0 ? m.home.pinnedLabel : m.home.restLabel}
               </p>
             )}
-            <ul className="space-y-6">
+            <ul className="space-y-6 sm:space-y-4">
               {group.map((row) => (
                 <li key={row.step.id}>
                   <EntryRow
@@ -260,14 +260,26 @@ function EntryRow({
   }
 
   return (
-    <div className="space-y-1.5">
+    /**
+     * Stacked on a phone, three regions across from `sm` up: what to do, what it is
+     * for, and what you can do about it. A working list rather than a phone column
+     * stretched sideways — and no card or box doing it, only alignment.
+     *
+     * The action takes three parts of the free space to the context's two, because it
+     * is the primary item and the one that can run long. The controls are `shrink-0`
+     * and last, so they sit against the right edge without being positioned there.
+     *
+     * `items-start`, not `center` or `baseline`: an action can wrap to two lines, and
+     * the other two regions should stay level with its first.
+     */
+    <div className="flex flex-col gap-y-1.5 sm:flex-row sm:items-start sm:gap-x-6">
       {/* Plain text. Not a button, not an option, nothing that acts when touched. */}
-      <p className="max-w-prose leading-relaxed text-ink">{step.text}</p>
+      <p className="min-w-0 max-w-prose leading-relaxed text-ink sm:flex-[3]">{step.text}</p>
 
-      {/* One secondary line: what this is for, and where it lives. The area is a
-          sibling of the controls and never wraps them — a link containing "How is it
-          going?" would navigate on every answer. */}
-      <p className="flex flex-wrap items-center gap-x-2 text-sm leading-relaxed text-muted">
+      {/* What this is for, and where it lives. The area is a sibling of the controls
+          and never wraps them — a link containing "How is it going?" would navigate on
+          every answer. */}
+      <p className="flex min-w-0 flex-wrap items-center gap-x-2 text-sm leading-relaxed text-muted sm:flex-[2] sm:pt-0.5">
         {goal && <span className="min-w-0">{goal.text}</span>}
         {goal && <span aria-hidden="true">·</span>}
         <Link
@@ -279,7 +291,7 @@ function EntryRow({
         </Link>
       </p>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-1">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-1 sm:shrink-0 sm:pt-0">
         <button
           ref={trigger}
           type="button"

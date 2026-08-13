@@ -3483,6 +3483,54 @@ check(
   (await text()).replace(NL, ' / ').slice(0, 140),
 )
 
+// --- 43. the start page is a working list at width, not a stretched column -----
+//
+// Measured rather than eyeballed, the same way §34 measures the areas list: three
+// regions per row — what to do, what it is for, what you can do about it — side by
+// side once there is room, and stacked on a phone. No card and no box does it, so
+// there is nothing in the markup that would fail loudly if the alignment broke.
+
+/** The three regions of the first row: where each one starts. */
+const rowRegions = () =>
+  evaluate(
+    `(() => {
+       const row = document.querySelector('main li')?.firstElementChild;
+       if (!row) return null;
+       return [...row.children].map((el) => {
+         const box = el.getBoundingClientRect();
+         return { tag: el.tagName, top: Math.round(box.top), left: Math.round(box.left) };
+       });
+     })()`,
+  )
+
+await setViewport(1200, 800)
+await seedOnboarded()
+const across = await rowRegions()
+check(
+  '43a. at desktop width the three regions sit across one row',
+  across?.length === 3 &&
+    // Left to right, in order.
+    across[0].left < across[1].left &&
+    across[1].left < across[2].left &&
+    // And level with each other, allowing for the controls' own line height.
+    Math.max(...across.map((r) => r.top)) - Math.min(...across.map((r) => r.top)) < 12,
+  JSON.stringify(across),
+)
+
+await setViewport(390, 780)
+await goto('/')
+const stacked = await rowRegions()
+check(
+  '43b. and stack at phone width, still in the same order',
+  stacked?.length === 3 &&
+    // One column: every region starts at the same x.
+    new Set(stacked.map((r) => r.left)).size === 1 &&
+    stacked[0].top < stacked[1].top &&
+    stacked[1].top < stacked[2].top,
+  JSON.stringify(stacked),
+)
+await setViewport(1200, 800)
+
 // --- 9. nothing leaves the browser ---------------------------------------
 
 const requested = events

@@ -4021,75 +4021,31 @@ await type('Sleep better')
 await click(EN.confirm)
 screen = await text()
 check(
-  '45a. after a goal, another one is offered — quietly, and not as the way on',
-  (await visible(EN.goalAnother)) &&
-    // Still the entries question, and adding one is still the primary thing to do.
-    screen.includes(EN.steps) &&
-    (await visible(EN.save)),
+  /**
+   * **The introduction offers no second goal**, and that is the change.
+   *
+   * It used to, quietly, on the entries screen. The offer is gone from the walk entirely,
+   * so the introduction now creates at most one goal per area — more are added from the
+   * area's own page, where the whole hierarchy is on screen to add them against.
+   *
+   * What the deleted §45b–45g covered has not been lost, it moved: 7a0 asserts a later goal
+   * is asked about its next steps on the area page, and 48g that it opens in place under the
+   * goal it belongs to. Their point was per-goal linkage, and that is where linkage now
+   * happens.
+   */
+  '45a. the introduction asks for one goal per area and offers no second',
+  screen.includes(EN.steps) &&
+    (await visible(EN.save)) &&
+    !(await visible(EN.goalAnother)),
   screen.replace(NL, ' / ').slice(0, 160),
 )
 
-// An entry first, so the second goal has something to be told apart from.
+// One entry, then out. Nothing along the way ranks anything: pinning and priority are both
+// decisions for later, on a page that shows what there is to decide between.
 await type('Walk after dinner')
 await click(EN.save)
-await click(EN.goalAnother)
-screen = await text()
-check(
-  '45b. taking it asks what else, rather than repeating the first question',
-  screen.includes(EN.goalNewQuestion) && !screen.includes(EN.goal),
-  screen.replace(NL, ' / ').slice(0, 160),
-)
-
-await type('Run a 10k')
-await click(EN.confirm)
-screen = await text()
-const secondGoal = JSON.parse(await raw())
-check(
-  '45c. the second goal gets its own entries screen, not the first goal is',
-  // Named, because with two goals the question alone cannot say which one.
-  screen.includes('Run a 10k') &&
-    // The first goal's entry is not listed under the second.
-    !screen.includes('Walk after dinner') &&
-    secondGoal.facts.filter((f) => /\.goal\.[^.]+\.text$/.test(f.key)).length === 2,
-  screen.replace(NL, ' / ').slice(0, 200),
-)
-
-// The cap counts across the area, not per goal — so an entry for the second goal plus
-// the first goal's one leaves room for exactly one more.
-await type('Sign up for a race')
-await click(EN.save)
-const linked = JSON.parse(await raw()).facts.filter((f) => /\.step\.[^.]+\.goal$/.test(f.key))
-check(
-  '45d. its entries are linked to it, not to the goal that came first',
-  linked.length === 2 && new Set(linked.map((f) => f.value)).size === 2,
-  linked.map((f) => f.value.slice(0, 8)).join(' '),
-)
-
-await click(EN.goalAnother)
-await type('Sleep through the night')
-await click(EN.confirm)
-screen = await text()
-check(
-  '45e. at three goals the offer goes away, and nothing says three was the point',
-  !(await visible(EN.goalAnother)) &&
-    JSON.parse(await raw()).facts.filter((f) => /\.goal\.[^.]+\.text$/.test(f.key)).length === 3,
-  screen.replace(NL, ' / ').slice(0, 160),
-)
-check(
-  '45f. and the area-wide cap still holds, so the field gives way at three entries',
-  // Two entries so far across two goals; one more fills the area.
-  (await count('input')) === 1,
-  `${await count('input')} field(s)`,
-)
-await type('Wind down earlier')
-await click(EN.save)
-check(
-  '45g. the third entry fills the area, whichever goals they belong to',
-  (await count('input')) === 0 && (await text()).includes(EN.full),
-  `${await count('input')} field(s)`,
-)
-
-// Nothing was prioritised on the way through — that is the area page's job.
+await click(EN.cont)
+await declineRest()
 const noRank = JSON.parse(await raw()).facts
 check(
   '45h. and the introduction ranked nothing: no pin, no priority',

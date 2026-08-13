@@ -11,7 +11,6 @@ import type { AreaId } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
 import {
   addGoal,
-  MAX_GOALS,
   MAX_OPEN_STEPS,
   readArea,
   setReview,
@@ -202,32 +201,6 @@ export function AreaFlow({
             onEnough={onDone}
           />
 
-          {/**
-            * Offered, never pushed. Outside `ActionEntry`'s form on purpose: check 38b
-            * measures the form's buttons to prove that adding an entry is the primary
-            * action and every way out of it is quiet, and a third button inside would
-            * have made that assertion stop covering the screen.
-            *
-            * Nothing here says how many goals an area should have. It disappears at the
-            * cap and says nothing about the ones already written.
-            */}
-          {/* Not on the area's own page: the overview there already carries
-              "+ Weiteres Ziel hinzufügen" — the very control that got the person here — so
-              this was a second copy of it, offering to abandon the question on screen. In
-              the introduction it stays, because an area is walked past once and would
-              otherwise never be asked about again. */}
-          {!straightToGoal && state.activeGoals.length < MAX_GOALS && (
-            <button
-              type="button"
-              className="btn btn-sm btn-quiet"
-              onClick={() => {
-                setGoalId(null)
-                setSub('goal')
-              }}
-            >
-              {m.goals.goalAnother}
-            </button>
-          )}
         </QuestionCard>
       )}
 

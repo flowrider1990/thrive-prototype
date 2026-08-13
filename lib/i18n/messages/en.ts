@@ -169,12 +169,6 @@ export const en = {
      * place from different heights should not borrow one string.
      */
     goalBack: 'Back',
-    /**
-     * Offered on the entries screen, never pushed, and it disappears at the cap.
-     * Nothing states how many goals an area should have — three is what is allowed,
-     * not what is expected.
-     */
-    goalAnother: 'Add another goal',
 
     /**
      * Deliberately no noun for the thing being asked for.

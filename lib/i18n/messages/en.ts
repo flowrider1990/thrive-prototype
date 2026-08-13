@@ -437,8 +437,15 @@ export const en = {
     noStepOne: 'Decide on next steps to reach your goal.',
     noStepMany: 'Decide on next steps to reach your goals.',
     /** A count rather than one arbitrary entry: with nothing pinned, none is first. */
-    tryingOne: 'One thing to try',
-    trying: '{count} things to try',
+    /**
+     * "Planned", not "to try out".
+     *
+     * Trying something out frames a next step as an experiment someone might abandon; these
+     * are things the person decided to do. The count is what the row is for, so the number
+     * leads — "1", not "One", since it sits beside "1 goal set" one line above.
+     */
+    tryingOne: '1 activity planned',
+    trying: '{count} activities planned',
 
     reconsiderQuestion: 'Would you like to change or explore something here now?',
     reconsiderYes: 'Yes',
@@ -540,13 +547,19 @@ export const en = {
     addStepFor: 'Add something for: {goal}',
     goalAdd: '+ Add another goal',
     /**
-     * The same control where the area holds none.
+     * An area holding no goals, reachable by removing the last one.
      *
-     * "Add another goal" against an empty area promised a first one that was not there —
-     * reachable by removing the last goal, which leaves you on this page with nothing
-     * listed and a button claiming otherwise.
+     * It read as a broken page: a heading, nothing under it, and two controls one of which
+     * offered to add "another" goal that was never there. So it says what the emptiness
+     * *means* — nothing here needs attention — and offers the single thing worth doing
+     * about it. `goalAddFirst` is gone with the state that needed it: at zero there is no
+     * "add another" button to mislabel.
+     *
+     * Hedged with "seems", as on `/areas/`: the app is reporting an absence, not making a
+     * claim about someone's life.
      */
-    goalAddFirst: '+ Add a goal',
+    emptyNote: 'Everything seems fine here.',
+    goalCreate: 'Create a goal',
     /**
      * The visible word shortens to "Edit" because it now sits beside the goal it acts
      * on, where "Change this goal" repeated the subject the line above already names.

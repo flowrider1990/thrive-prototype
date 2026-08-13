@@ -135,15 +135,20 @@ export function AreaFlow({
               * A later one is not a thing to be unsure about, so the way out says what it
               * means there: you have what you need.
               */
-             skipLabel={
-              state.activeGoals.length === 0
-                ? // "Not sure yet" only where the question was unasked for. Reaching this
-                  // from `/areas/` means the area was opened to give it a goal, so the way
-                  // out undoes that rather than answering anything — §42j2 asserts both.
-                  straightToGoal
-                  ? m.goals.goalBack
-                  : m.goals.goalSkip
-                : m.goals.stepsEnough
+             /**
+             * On the area page the way out is always "Zurück", first goal or later one.
+             *
+             * "Bin noch nicht sicher" and "Das reicht" are both answers to a question that
+             * walked up uninvited, which is the introduction's situation and not this one:
+             * here the person opened the area, or pressed "+ Weiteres Ziel hinzufügen", so
+             * the only thing the quiet control does is undo that. §42j2 asserts both sides.
+             */
+            skipLabel={
+              straightToGoal
+                ? m.goals.goalBack
+                : state.activeGoals.length === 0
+                  ? m.goals.goalSkip
+                  : m.goals.stepsEnough
             }
             onSubmit={(value) => {
               /**
@@ -206,7 +211,12 @@ export function AreaFlow({
             * Nothing here says how many goals an area should have. It disappears at the
             * cap and says nothing about the ones already written.
             */}
-          {state.activeGoals.length < MAX_GOALS && (
+          {/* Not on the area's own page: the overview there already carries
+              "+ Weiteres Ziel hinzufügen" — the very control that got the person here — so
+              this was a second copy of it, offering to abandon the question on screen. In
+              the introduction it stays, because an area is walked past once and would
+              otherwise never be asked about again. */}
+          {!straightToGoal && state.activeGoals.length < MAX_GOALS && (
             <button
               type="button"
               className="btn btn-sm btn-quiet"
@@ -227,9 +237,16 @@ export function AreaFlow({
 
 /** Where an interrupted pass through this area left off. */
 function resume(state: AreaState, straightToGoal = false): Sub {
-  // Opened on purpose: the tap was the answer to the review question, so the first thing
-  // on screen is the field. Everything after this behaves identically either way.
-  if (straightToGoal && state.activeGoals.length === 0) return 'goal'
+  /**
+   * Opened on purpose: the tap was the answer to the review question, so the first thing on
+   * screen is the field. Everything after it behaves identically either way.
+   *
+   * **Unconditional**, where it used to require the area to hold no goals. All three ways
+   * `AreaManage` enters this flow want the goal question — an area with none, `reconsider`
+   * answered yes (only reachable with none), and "add another goal", which is the one the
+   * guard used to send to the steps screen of a goal it had not asked for yet.
+   */
+  if (straightToGoal) return 'goal'
   if (!state.review || state.review === 'not_now') return 'review'
   if (state.activeGoals.length === 0) return 'goal'
   return 'steps'

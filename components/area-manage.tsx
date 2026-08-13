@@ -10,7 +10,6 @@ import { TextAnswer } from '@/components/text-answer'
 import type { AreaId } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
 import {
-  addGoal,
   addStep,
   completeGoal,
   editGoal,
@@ -33,12 +32,15 @@ type View =
   | { at: 'flow' }
   | { at: 'overview' }
   /**
-   * Adding a *goal* keeps its own screen; everything else about a goal or an entry now
-   * happens inline. `goal`, `add` and `editStep` are gone with `GoalManage`: managing
-   * something used to mean leaving the page that draws the hierarchy and coming back,
-   * which is the jumping this pass removed.
+   * `goalNew` is gone too, and with it the last duplicated screen. It asked the same
+   * question as `AreaFlow`'s goal step, with the same placeholder, label and `addGoal`
+   * call — and differed in one line, returning to the overview where the flow goes on to
+   * ask for a next step. That divergence *was* the duplication, so adding a goal now
+   * enters the flow like the first one does.
+   *
+   * `goal`, `add` and `editStep` went earlier with `GoalManage`: managing something used
+   * to mean leaving the page that draws the hierarchy and coming back.
    */
-  | { at: 'goalNew' }
 
 /**
  * One life area, opened on purpose rather than walked through.
@@ -145,20 +147,6 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
     )
   }
 
-  if (view.at === 'goalNew') {
-    return (
-      <QuestionCard eyebrow={heading()} mark={<GoalIcon />} question={m.manage.goalNewQuestion}>
-        <TextAnswer
-          placeholder={m.goals.goalPlaceholder}
-          submitLabel={m.goals.goalSubmit}
-          onSubmit={(value) => {
-            addGoal(area, value)
-            back()
-          }}
-        />
-      </QuestionCard>
-    )
-  }
 
 
 
@@ -174,10 +162,42 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
           `AreaLabel` for the same reason `components/stored-areas.tsx` does it at the
           call site: that component must not render headings, or it would be wrong at
           its four other call sites. */}
+      {/* `subject`, the larger size — the same one `QuestionCard` uses when the area is
+          the heading. Both are this page at display scale, so a smaller mark here made the
+          icon jump as you moved between them. */}
       <h1 className="heading flex items-center gap-x-3">
-        <AreaIcon area={area} size="eyebrow" />
+        <AreaIcon area={area} size="subject" />
         {m.areas[area]}
       </h1>
+
+      {/**
+       * An area with nothing in it says so, and offers one thing.
+       *
+       * Reachable by removing the last goal — which used to leave a heading, empty space,
+       * and two controls, one of them offering to add "another" goal that had never
+       * existed. A single primary reads as the way on rather than as a page that failed to
+       * load, and the way *out* is the back link at the top, which every nested page has.
+       */}
+      {allGoals.length === 0 && !deletingGoal && (
+        <div className="space-y-6">
+          <p className="max-w-prose leading-relaxed text-muted">{m.manage.emptyNote}</p>
+          {/* One primary and one quiet way back, the same pairing the footer uses where
+              there is a list. The back link at the top is the page's own exit; this is the
+              one belonging to the two choices on offer here. */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setView({ at: 'flow' })}
+            >
+              {m.manage.goalCreate}
+            </button>
+            <button type="button" className="btn btn-quiet" onClick={onDone}>
+              {m.manage.done}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-3">
         {/* One card per goal, so a goal and its entries read as one object rather than
@@ -514,15 +534,15 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
           when the goals were a run of lines; each goal is a bordered card now, so the line
           was a second edge doing the same job — and it read as a card boundary of its
           own. */}
-      {!deletingGoal && (
+      {!deletingGoal && allGoals.length > 0 && (
       <div className="flex flex-wrap items-center gap-x-5 gap-y-3 pt-2">
         {allGoals.length < MAX_GOALS && (
           <button
             type="button"
             className="btn btn-quiet"
-            onClick={() => setView({ at: 'goalNew' })}
+            onClick={() => setView({ at: 'flow' })}
           >
-            {allGoals.length === 0 ? m.manage.goalAddFirst : m.manage.goalAdd}
+            {m.manage.goalAdd}
           </button>
         )}
         {/* Quiet, beside the equally quiet "add a goal". Nothing here is the

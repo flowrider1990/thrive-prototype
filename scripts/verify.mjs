@@ -733,7 +733,7 @@ const EN = {
   delConfirm: 'Yes, delete everything',
   delDone: 'Deleted. Nothing is left.',
   pinnedLabel: 'Pinned',
-  tryingOne: 'One thing to try',
+  tryingOne: '1 activity planned',
   restLabel: 'Everything else',
   goalSkip: 'Not sure yet',
   goalBack: 'Back',
@@ -1365,6 +1365,30 @@ check(
 await click(EN.goalAdd)
 await type('Get hired somewhere I like')
 await click(EN.cont)
+screen = await text()
+check(
+  /**
+   * A later goal is followed by the same question as the first one.
+   *
+   * It used to return to the overview instead, so a goal added this way began with nothing
+   * under it — the very state `/areas/` then flags as a hint. The cause was a duplicated
+   * screen: `AreaManage` had its own copy of the goal question whose only difference was
+   * where it went afterwards, and deleting the copy is what made the two paths one.
+   */
+  '7a0. a later goal is asked about its next steps, exactly as the first one is',
+  screen.includes(EN.steps) &&
+    screen.includes('Get hired somewhere I like') &&
+    // And not the offer to add a third instead: on this page the overview already carries
+    // it, so here it only invited abandoning the question on screen. §45a asserts the
+    // introduction still makes the offer.
+    !(await visible(EN.goalAnother)),
+  screen.replace(NL, ' / ').slice(0, 140),
+)
+// Out of the steps screen without inventing anything. Which control that is depends on the
+// area, not on this goal: the cap counts across the whole area, and by now this one is at
+// it — so the field has given way to the notice and its Continue. Either way it writes
+// nothing and returns to the area.
+await click((await visible(EN.stepsUnknown)) ? EN.stepsUnknown : EN.cont)
 screen = await text()
 check(
   '7a. a second goal sits beside the first, each one named and numbered',

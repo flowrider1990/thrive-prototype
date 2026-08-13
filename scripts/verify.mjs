@@ -759,8 +759,8 @@ const AREAS = [
   { id: 'body', label: 'Physical Health', de: 'Körperliche Gesundheit' },
   { id: 'mind', label: 'Mental Wellbeing', de: 'Mentales Wohlbefinden' },
   { id: 'relationships', label: 'Relationships & Social Life', de: 'Beziehungen & Soziales' },
-  { id: 'work', label: 'Work & Career', de: 'Arbeit & Beruf' },
-  { id: 'finances', label: 'Finances', de: 'Finanzen' },
+  { id: 'work', label: 'Work & Career', de: 'Beruf & Karriere' },
+  { id: 'finances', label: 'Money & Finances', de: 'Geld & Finanzen' },
   { id: 'creativity', label: 'Hobbies & Creativity', de: 'Hobbys & Kreativität' },
 ]
 

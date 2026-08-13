@@ -80,8 +80,8 @@ export const de: Messages = {
     // erhebt keine medizinischen Ansprüche.
     mind: 'Mentales Wohlbefinden',
     relationships: 'Beziehungen & Soziales',
-    work: 'Arbeit & Beruf',
-    finances: 'Finanzen',
+    work: 'Beruf & Karriere',
+    finances: 'Geld & Finanzen',
     creativity: 'Hobbys & Kreativität',
   },
 

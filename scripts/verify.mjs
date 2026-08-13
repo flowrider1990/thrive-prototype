@@ -1979,7 +1979,7 @@ await clickNav(EN.navAreas)
 screen = await text()
 check(
   '25c. the unfinished area is reachable and says what is missing',
-  screen.includes(LAST_AREA.label) && screen.includes('not decided yet what could help'),
+  screen.includes(LAST_AREA.label) && screen.includes('decide on next steps to reach your goal'),
 )
 await clickOption(LAST_AREA.label)
 await waitForText('Draw something every week')
@@ -2130,7 +2130,7 @@ check(
   // is the sentence about there being nothing to try yet — which is the half this check
   // was really about: two screens describing one state in one wording.
   '38g. and the areas list says the same thing in the same words',
-  screen.includes('not decided yet what could help') && screen.includes(EN.goalsOne),
+  screen.includes('decide on next steps to reach your goal') && screen.includes(EN.goalsOne),
   screen.replace(/\n/g, ' / ').slice(0, 160),
 )
 

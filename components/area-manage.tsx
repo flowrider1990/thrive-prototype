@@ -99,8 +99,17 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
     ? [state.priority, ...state.activeGoals.filter((goal) => goal.id !== state.priority?.id)]
     : state.activeGoals
 
+  /**
+   * `back`, not `onDone`: finishing here returns to **this area**, not to the list of
+   * areas.
+   *
+   * Writing a goal is the reason someone opened the area, so the useful thing to see next
+   * is the goal they just wrote, with its entries under it — not a list of six areas one
+   * of which they were already in. It used to leave the page entirely, which meant the one
+   * screen showing what had just been created was the one you were sent away from.
+   */
   if (view.at === 'flow')
-    return <AreaFlow area={area} straightToGoal onDone={onDone} />
+    return <AreaFlow area={area} straightToGoal onDone={back} />
 
   if (view.at === 'reconsider') {
     return (
@@ -334,8 +343,19 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                     )}
                   </div>
 
-                  {/* The rule is what says "these belong to the goal above". It stays
-                      on `line` because it is decorative rather than a control edge. */}
+                  {/**
+                   * Hidden while the goal's removal is being confirmed.
+                   *
+                   * The question and the add control belong to a goal that may be about to
+                   * go, so leaving them up asks how you want to reach something while
+                   * asking whether to keep it — and offers a field for an entry that would
+                   * be orphaned by the next tap. With them gone the confirmation is the
+                   * only thing on the goal, which is what a confirmation is for.
+                   *
+                   * The rule is what says "these belong to the goal above". It stays on
+                   * `line` because it is decorative rather than a control edge.
+                   */}
+                  {deletingGoal !== goal.id && (
                   <div className="space-y-3 border-s-2 border-line ps-5">
                     {/* A question, where Package B deliberately left no heading at all.
                         That removal was right about the *label*: repeating "What you want
@@ -418,6 +438,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                         </div>
                       ))}
                   </div>
+                  )}
                 </div>
               </li>
             )
@@ -456,7 +477,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
             className="btn btn-quiet"
             onClick={() => setView({ at: 'goalNew' })}
           >
-            {m.manage.goalAdd}
+            {goals.length === 0 ? m.manage.goalAddFirst : m.manage.goalAdd}
           </button>
         )}
         {/* Quiet, beside the equally quiet "add a goal". Nothing here is the

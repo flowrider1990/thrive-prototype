@@ -116,7 +116,9 @@ export default function AreasPage() {
                     }`}
                   >
                     {state.open.length === 0
-                      ? m.manage.noStep
+                      ? goalCount === 1
+                        ? m.manage.noStepOne
+                        : m.manage.noStepMany
                       : state.open.length === 1
                         ? m.manage.tryingOne
                         : t(m.manage.trying, { count: String(state.open.length) })}

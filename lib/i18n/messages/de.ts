@@ -164,7 +164,8 @@ export const de: Messages = {
     goalsNone: 'Keine Ziele vorhanden',
     goalsOne: '1 Ziel angegeben',
     goalsMany: '{count} Ziele angegeben',
-    noStep: 'Hinweis: Du hast noch nicht festgelegt, was dir dabei helfen könnte.',
+    noStepOne: 'Lege nächste Schritte fest, um dein Ziel zu erreichen.',
+    noStepMany: 'Lege nächste Schritte fest, um deine Ziele zu erreichen.',
     tryingOne: 'Eine Sache zum Ausprobieren',
     trying: '{count} Sachen zum Ausprobieren',
 
@@ -193,6 +194,7 @@ export const de: Messages = {
     addStep: 'Etwas hinzufügen',
     addStepFor: 'Etwas hinzufügen für: {goal}',
     goalAdd: '+ Weiteres Ziel hinzufügen',
+    goalAddFirst: '+ Ziel hinzufügen',
     goalChange: 'Ändern',
     goalChangeOn: 'Dieses Ziel ändern: {goal}',
     done: 'Zurück',

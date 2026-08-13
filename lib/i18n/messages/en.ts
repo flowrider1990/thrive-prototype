@@ -415,7 +415,27 @@ export const en = {
      * Lowercase after the colon on purpose — one sentence with a label on it, not a
      * heading followed by a second sentence.
      */
-    noStep: 'Note: you have not decided yet what could help.',
+    /**
+     * **Says what to do, not what you have failed to do.**
+     *
+     * It used to read "you have not decided yet what could help" — accurate, and phrased
+     * as an absence on the person's part, on a page listing six areas where several could
+     * carry it at once. An instruction is the same information pointed forwards.
+     *
+     * Two forms because the row's goals are counted: one goal or several.
+     *
+     * **No "Note:" prefix, unlike the hint on the start page.** That label earns its place
+     * where the sentence states a fact — "there are goals with no concrete steps" needs
+     * something to say why it is being mentioned. This one is already an instruction, so
+     * the label repeated in a word what the imperative said in its first syllable.
+     *
+     * Which leaves gold and italic carrying the treatment, and that is enough here: the
+     * sentence tells you what to do whether or not you can see either. Nothing about its
+     * *meaning* rests on the styling — which is the actual §17 requirement, rather than
+     * a label being present for its own sake.
+     */
+    noStepOne: 'Decide on next steps to reach your goal.',
+    noStepMany: 'Decide on next steps to reach your goals.',
     /** A count rather than one arbitrary entry: with nothing pinned, none is first. */
     tryingOne: 'One thing to try',
     trying: '{count} things to try',
@@ -509,6 +529,14 @@ export const en = {
     /** Three visible "Add" buttons are three identical controls out loud. */
     addStepFor: 'Add something for: {goal}',
     goalAdd: '+ Add another goal',
+    /**
+     * The same control where the area holds none.
+     *
+     * "Add another goal" against an empty area promised a first one that was not there —
+     * reachable by removing the last goal, which leaves you on this page with nothing
+     * listed and a button claiming otherwise.
+     */
+    goalAddFirst: '+ Add a goal',
     /**
      * The visible word shortens to "Edit" because it now sits beside the goal it acts
      * on, where "Change this goal" repeated the subject the line above already names.

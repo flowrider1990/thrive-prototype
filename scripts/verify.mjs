@@ -3531,6 +3531,55 @@ check(
 )
 await setViewport(1200, 800)
 
+// --- 44. during the introduction the life area is the heading ------------------
+//
+// The question is identical on every area screen; the area is the one part that
+// changes, and it used to be the smallest thing on the page. Measured rather than
+// eyeballed, like §34: the heading has to be genuinely larger, and it has to be the
+// heading — a bigger line that is not the `h1` would leave the outline saying the
+// question is the subject.
+
+await clearStorage()
+await goto('/')
+await click(EN.yes)
+await click(EN.introOk)
+const weighting = await evaluate(
+  `(() => {
+     const h1 = document.querySelector('main h1');
+     if (!h1) return null;
+     const question = [...document.querySelectorAll('main p')]
+       .find((p) => p.textContent.trim().startsWith('Would you like to change'));
+     if (!question) return null;
+     const px = (el) => parseFloat(getComputedStyle(el).fontSize);
+     const face = (el) => getComputedStyle(el).fontFamily.split(',')[0].replace(/["']/g, '');
+     return {
+       heading: h1.textContent.trim(),
+       headingPx: px(h1),
+       headingFace: face(h1),
+       questionPx: px(question),
+       questionFace: face(question),
+       headings: document.querySelectorAll('main h1').length,
+     };
+   })()`,
+)
+check(
+  '44a. the area names the page, and the question reads beneath it',
+  // The h1 is the area, not the question.
+  weighting?.heading.includes('Physical Health') &&
+    // Exactly one, so the outline cannot claim two subjects.
+    weighting.headings === 1 &&
+    // Genuinely larger, not a nudge.
+    weighting.headingPx > weighting.questionPx * 1.4,
+  JSON.stringify(weighting),
+)
+check(
+  '44b. and the two use different faces, so neither competes with the other',
+  // Display serif names the area; the question is sans. Both are asserted because
+  // matching sizes with matching faces is how a hierarchy quietly flattens again.
+  weighting.headingFace !== weighting.questionFace,
+  `${weighting.headingFace} vs ${weighting.questionFace}`,
+)
+
 // --- 9. nothing leaves the browser ---------------------------------------
 
 const requested = events

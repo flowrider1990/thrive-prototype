@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 209/209** (25 at the
+the two the plan singles out. **The current count is 213/213** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework, 181 after the Supabase foundation); the script itself is the only
 authority on that number, so treat any count written in prose as a snapshot.
@@ -1198,6 +1198,43 @@ its unpinning, the skippable goal, and — for the first time — that the `role
 region is mounted **before** it has anything to say. Nothing asserted that in any of the
 three places that depend on it, and a list of rows is exactly what would have broken it
 silently.
+
+### Step 1b — the start page as a working list at width
+
+Three regions per row from `sm` up, stacked on a phone, done with alignment rather than
+a card. §43 measures it: at 1200px the regions run left to right with their tops within
+12px; at 390px they share one x with increasing tops.
+
+Not changed, deliberately: the column is `max-w-2xl`, shared by header, main and footer,
+and 20a asserts its left edge is identical on every route so the page cannot jump
+sideways as you navigate. A genuinely wider start page means retiring that guarantee,
+which is a design-system decision rather than a Home refinement.
+
+### Step 2 — during the introduction the life area is the heading
+
+The question is the same on every area screen; the area is the one part that changes,
+and it was the smallest thing on the page. `QuestionCard` gained a `subject` prop: given
+an area it becomes the `h1` at full display scale with a matching icon size, and the
+question drops to `text-lg` sans.
+
+It is a new prop rather than a change to the existing `area` slot because that slot does
+two jobs across thirteen call sites — four onboarding screens pass an area, seven pass a
+*goal*, and six pass nothing. Enlarging the shared slot would have put someone's goal at
+display size as the title of an "add something" screen.
+
+Two things worth recording:
+
+- **`AreaIcon` needed a new size key**, not a larger `eyebrow`: `eyebrow` is shared with
+  `AreaLabel size="card"`, whose type size check 34a measures.
+- **The risk flagged in planning turned out not to exist.** `AreaFlow`'s other caller is
+  `AreaManage`'s flow view, which I expected to end up with two display-scale area names
+  on one screen — but it *early-returns* `<AreaFlow>` instead of nesting it, so only one
+  heading ever renders. Worth checking rather than assuming, and worth recording so the
+  next person does not re-derive it.
+
+§44 measures the result: the `h1` is the area, there is exactly one of them, it is more
+than 1.4× the question's size, and the two use different faces — because matching sizes
+with matching faces is how a hierarchy quietly flattens again.
 
 ## The repository
 

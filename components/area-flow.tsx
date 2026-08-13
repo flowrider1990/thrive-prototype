@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { ActionEntry } from '@/components/action-entry'
-import { AreaLabel } from '@/components/area-label'
 import { Choice } from '@/components/choice'
 import { QuestionCard } from '@/components/question-card'
 import { TextAnswer } from '@/components/text-answer'
@@ -46,18 +45,12 @@ export function AreaFlow({
   const [chosenSub, setSub] = useState<Sub | null>(null)
   const sub = chosenSub ?? resume(state)
 
-  // Every question on this screen is about one area, and each `QuestionCard`
-  // renders it as an eyebrow on its own heading. Passing the same element to each
-  // is what keeps the area tied to the question rather than floating above the
-  // whole screen, which is where it used to sit.
-  const eyebrow = <AreaLabel area={area} size="eyebrow" />
-
   return (
     <div className="space-y-10">
       {progress}
 
       {sub === 'review' && (
-        <QuestionCard area={eyebrow} question={m.goals.reviewQuestion}>
+        <QuestionCard subject={area} question={m.goals.reviewQuestion}>
           <Choice
             options={[
               {
@@ -82,7 +75,7 @@ export function AreaFlow({
       )}
 
       {sub === 'goal' && (
-        <QuestionCard area={eyebrow} question={m.goals.goalQuestion}>
+        <QuestionCard subject={area} question={m.goals.goalQuestion}>
           <TextAnswer
             placeholder={m.goals.goalPlaceholder}
             submitLabel={m.goals.goalSubmit}
@@ -111,7 +104,7 @@ export function AreaFlow({
       )}
 
       {sub === 'steps' && (
-        <QuestionCard area={eyebrow} question={m.goals.stepsQuestion} note={m.goals.stepsNote}>
+        <QuestionCard subject={area} question={m.goals.stepsQuestion} note={m.goals.stepsNote}>
           <ActionEntry
             area={area}
             goalId={state.activeGoals[0].id}

@@ -404,7 +404,17 @@ a label the app chose would be the wrong trade, and size alone separates them on
 name is bigger. §34a measures the two font sizes rather than trusting the eye, and
 §34b pins the goal to ink.
 
-None renders a heading element — the eyebrow sits above the `h1` that owns the
+`QuestionCard`'s `subject` prop is the exception, and it does not go through
+`AreaLabel` for exactly this reason: during the introduction the **area is the `h1`**,
+at full `.heading` scale with `AreaIcon size="subject"` beside it, and the question
+drops to `text-lg` sans. The question is identical on every area screen, so the one
+part that changes should not be the smallest thing on the page. `AreaLabel` still may
+not emit a heading — it has five call sites where an `h2` before the question would put
+the outline in the wrong order — so `QuestionCard` builds that heading itself, the same
+way `components/stored-areas.tsx` does. §44 measures both the size gap and that there
+is only one `h1`.
+
+None of `AreaLabel`'s own sizes renders a heading element — the eyebrow sits above the `h1` that owns the
 question, and an `h2` in front of it would put the document outline in the wrong
 order. On `/areas/` the whole row is a link, and a heading inside a link is worse
 again.

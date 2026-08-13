@@ -25,6 +25,12 @@ const icons: Record<AreaId, string> = {
  * as a footnote to its own question.
  */
 const sizes = {
+  /**
+   * Beside a display-scale heading that names the area — the onboarding questions and
+   * the area page. Its own key rather than a bigger `eyebrow`, because `eyebrow` is
+   * shared with `AreaLabel size="card"`, whose type size check 34a measures.
+   */
+  subject: 'text-3xl sm:text-4xl',
   eyebrow: 'text-xl',
   inline: 'text-base',
 } as const

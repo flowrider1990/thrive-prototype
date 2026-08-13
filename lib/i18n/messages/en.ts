@@ -529,10 +529,20 @@ export const en = {
        * "Currently" for the same reason it appears in `p1`: this describes the mode in
        * force today and must not read as a permanent property.
        */
-      local: 'Currently: saved on this device',
-      memory: 'Currently: this tab only',
-      undecided: 'Currently: not decided yet',
-      change: 'Change storage settings',
+      /**
+       * The state in words, beside the switch. §17 forbids meaning carried by colour
+       * alone, and a knob's position on its own is a graphic — so the word is what
+       * makes the setting readable rather than merely visible.
+       */
+      on: 'ON',
+      off: 'OFF',
+      /**
+       * Present, off, and not operable yet — with the reason under it rather than a
+       * dead control to poke at. Registration is never required to use any of this,
+       * and nothing here asks for it.
+       */
+      optionCloud: 'Sync with Cloud',
+      cloudDevOnly: 'Cloud sync is currently available to developers only.',
 
       /**
        * The two modes, as the names of the thing you would be switching **to**.
@@ -548,7 +558,6 @@ export const en = {
        * do not".
        */
       optionLocal: 'Save on this device',
-      optionMemory: 'This tab only',
 
       /**
        * Turning saving off has to delete what was saved, and that is not a warning

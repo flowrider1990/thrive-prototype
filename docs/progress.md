@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 213/213** (25 at the
+the two the plan singles out. **The current count is 211/211** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework, 181 after the Supabase foundation); the script itself is the only
 authority on that number, so treat any count written in prose as a snapshot.
@@ -1235,6 +1235,43 @@ Two things worth recording:
 §44 measures the result: the `h1` is the area, there is exactly one of them, it is more
 than 1.4× the question's size, and the two use different faces — because matching sizes
 with matching faces is how a hierarchy quietly flattens again.
+
+### Step 3 — storage looks like a setting
+
+Two switches on `/data/`, read and set in place, replacing a "Change storage settings"
+button that opened a panel holding a single full-width `.option`. The complaint was that
+it looked like a text field, and the CSS agrees: `.option` and `.field` are the same rule
+in every property that draws a box, so one bordered row above a Cancel pill is
+indistinguishable from an empty input.
+
+`.switch` is therefore **not** on a surface at all — label left, state right, alignment
+doing the structure. State is carried three ways with only one of them colour: knob
+position, the word `ON`/`OFF`, and the track fill. Metrics never change when it flips.
+
+A `<button role="switch" aria-checked>`, not a checkbox: `role="switch"` says "on or off
+right now" where a checkbox says "included when you submit", and there is nothing to
+submit. It also keeps `StorageChoice`'s `panel.querySelector('button')?.focus()` working,
+which an `<input>` would have broken silently.
+
+**The `Currently: …` line is gone.** The switch is the state, and a switch labelled "Save
+on this device" beside a line reading "Currently: saved on this device" says it twice —
+and would have to be kept in step with it forever. `data.storage.local`/`memory`/
+`undecided`/`change`/`optionMemory` all lost their renderer and went with it; the copy
+shrank. `undecided` now reads as off, truthfully: nothing is being written.
+
+Cloud sync is the second switch — present, off, not operable, with the reason under it.
+
+**Check 36c was inverted, not deleted.** It asserted
+`count('main [role="switch"]') === 0` under the name "and no toggle was introduced beside
+it": a deliberate guard against this redesign. Quietly deleting a check that says *do not
+do this* is how a codebase forgets it ever decided, so it now asserts the opposite and
+the reversal is recorded in `docs/design-system.md`. It still forbids a checkbox.
+
+§36 is twelve checks again, and better ones: `aria-checked` rather than prose, so the
+assertion reads the same fact the visible knob draws instead of a label that could drift
+from it. Also fixed while here: the design-system doc claimed the storage choice was the
+one `OptionList` `current` call site, which was never true — it passed no `current` at
+all.
 
 ## The repository
 

@@ -259,13 +259,12 @@ export const de: Messages = {
     deleteEntry: 'Meine Daten löschen',
 
     storage: {
-      local: 'Aktuell: Auf diesem Gerät gespeichert',
-      memory: 'Aktuell: Nur für diesen Tab',
-      undecided: 'Aktuell: Noch nicht entschieden',
-      change: 'Speichereinstellungen ändern',
+      on: 'EIN',
+      off: 'AUS',
+      optionCloud: 'Mit der Cloud synchronisieren',
+      cloudDevOnly: 'Cloud-Synchronisierung ist derzeit nur für Entwickler verfügbar.',
 
       optionLocal: 'Auf diesem Gerät speichern',
-      optionMemory: 'Nur für diesen Tab',
 
       offTitle: 'Speichern ausschalten?',
       offBody:

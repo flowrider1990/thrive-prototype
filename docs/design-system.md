@@ -161,8 +161,10 @@ same hook `.nav-link` uses, so the visible mark and the accessibility tree have 
 source of truth. A caller that marks an option visually **must** set it: the tick is
 `Check` from `components/menu.tsx` and is `aria-hidden`, so on its own it is a state
 carried by appearance alone, which §17 does not allow. `Check`'s slot is always
-rendered, so moving the mark shifts nothing. The storage choice on `/data/` is the one
-call site.
+rendered, so moving the mark shifts nothing. The only call site that sets it is the nav
+in `components/page-shell.tsx` — an earlier version of this said the storage choice on
+`/data/` was, which was never true: it passed no `current` at all, and it is a pair of
+switches now.
 
 `.option` means exactly one thing: **pick this**. Selecting one chooses something; it
 never spends anything. That is now true, and it was not: the focused next step on the
@@ -194,6 +196,37 @@ considered and deferred rather than improvised. What carries the weight instead 
 *where* emphasis sits and how many steps there are, which is the pattern above. If a
 danger token is ever added it needs the same treatment as `--color-line-strong`: a
 contrast floor against both backgrounds, in both themes, asserted.
+
+## The switch, and the check that used to forbid it
+
+`.switch` is a settings row: label on the left, state on the right, and **no bordered
+surface at all**. That absence is the whole point. `.option` and `.field` are the same
+rule in every property that draws a box — `w-full rounded-md border border-line-strong
+bg-surface px-4 py-3 leading-relaxed text-ink` — so the storage choice, which was one
+full-width `.option` above a Cancel pill, was visually indistinguishable from an empty
+text input. A setting has to look like a setting, and here that is alignment rather than
+a container.
+
+State is carried three ways, and only one of them is colour: the knob's **position**,
+the literal word beside it (`ON` / `OFF`), and the track's fill. Metrics never change
+when it flips, which is the same rule the progress marks follow — `.switch-track` and
+`.switch-knob` keep their size in both states and the knob moves by `translateX`, so
+nothing on the page reflows. The knob's travel uses a logical margin and is mirrored
+under `[dir='rtl']`.
+
+It is a `<button role="switch" aria-checked>`, not an `<input type="checkbox">`. Two
+reasons: `role="switch"` says "this is on or off right now" where a checkbox says "this
+will be included when you submit", and there is no form here to submit; and
+`StorageChoice`'s inline-panel focus handling calls
+`panel.querySelector('button')?.focus()`, which an input would have broken silently.
+
+**Check 36c used to assert that no switch existed.** Its name was "and no toggle was
+introduced beside it", and it was a deliberate guard against this exact redesign. It is
+now inverted rather than deleted, because quietly removing a check that says *do not do
+this* is how a codebase forgets it ever decided. It still forbids a checkbox.
+
+A disabled switch — currently cloud sync — keeps its state readable and carries a line
+saying why it cannot be operated, rather than being a dead control to poke at.
 
 `.link-inline` is a link inside a sentence. Its underline is load-bearing, not
 decoration: these sit in `text-muted` prose, so without the rule "this word is a

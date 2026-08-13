@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { PageShell } from '@/components/page-shell'
-import { StorageChoice, StorageStatus } from '@/components/storage-choice'
+import { StorageChoice } from '@/components/storage-choice'
 import { useI18n } from '@/lib/i18n'
 import { usePerson } from '@/lib/person/store'
 
@@ -33,14 +33,11 @@ export default function DataPage() {
   return (
     <PageShell>
       <div className="space-y-10">
-        {/* The title and the current state are one tight group. The state is the thing
-            someone arrives to check, so it belongs to the title rather than sitting as
-            a third item further down — the same proximity argument as the area eyebrow
-            inside `QuestionCard`. */}
-        <div className="space-y-2">
-          <h1 className="heading">{m.data.title}</h1>
-          <StorageStatus />
-        </div>
+        {/* The state used to sit here as a "Currently: …" line, because the control
+            further down was a button that opened a panel and said nothing on its own.
+            The switches say it themselves now, and repeating it over them would be the
+            page saying the same thing twice. */}
+        <h1 className="heading">{m.data.title}</h1>
 
         <div className="space-y-4">
           {[m.data.p1, m.data.p2, m.data.p3, m.data.p4].map((paragraph) => (

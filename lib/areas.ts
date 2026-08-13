@@ -12,17 +12,23 @@
  * `body` therefore reads as "Physical Health" while keeping the id it was given.
  *
  * **Order is presentation, not data.** It drives the sequence the introduction asks
- * in and the order of the progress marks, and nothing else — so `mind` sits beside
- * `body` because the two health areas being adjacent is the only thing the ordering
- * says. Reordering is free; renaming is not.
+ * in and the order of the progress marks, and nothing else. It runs roughly outward
+ * from the person — the two health areas adjacent, then the people around them, then
+ * what they spend their days on — and ends on `finances`, which reads as "Absicherung &
+ * Freiheit" and asks about the longest horizon of the six. Reordering is free; renaming
+ * is not.
+ *
+ * `finances` is the clearest case of why ids and names are separate. Its label no longer
+ * mentions money at all, because the area is about what money is *for*; the id stays
+ * because thousands of stored keys begin with it.
  */
 export const areas = [
   'body',
   'mind',
   'relationships',
   'work',
-  'finances',
   'creativity',
+  'finances',
 ] as const
 
 export type AreaId = (typeof areas)[number]

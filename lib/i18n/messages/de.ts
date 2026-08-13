@@ -81,8 +81,11 @@ export const de: Messages = {
     mind: 'Mentales Wohlbefinden',
     relationships: 'Beziehungen & Soziales',
     work: 'Beruf & Karriere',
-    finances: 'Geld & Finanzen',
     creativity: 'Hobbys & Kreativität',
+    // Nicht „Geld & Finanzen“: der Bereich fragt, was Geld ermöglicht — abgesichert
+    // sein und Handlungsspielraum haben —, nicht nach dem Kontostand. Die id heißt
+    // weiter `finances`, weil sie in gespeicherten Schlüsseln steckt.
+    finances: 'Absicherung & Freiheit',
   },
 
   intro: {

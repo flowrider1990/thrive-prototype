@@ -109,8 +109,13 @@ export const en = {
     mind: 'Mental Wellbeing',
     relationships: 'Relationships & Social Life',
     work: 'Work & Career',
-    finances: 'Money & Finances',
     creativity: 'Hobbies & Creativity',
+    /**
+     * Not "Money & Finances": the area asks what money is *for* — being provided for,
+     * and having room to choose — rather than about an amount. The id stays `finances`
+     * because it is inside every key stored under it.
+     */
+    finances: 'Security & Freedom',
   },
 
   intro: {

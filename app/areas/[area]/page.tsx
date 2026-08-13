@@ -4,7 +4,7 @@ import { AreaScreen } from '@/components/area-screen'
 import { areas, isAreaId } from '@/lib/areas'
 
 /**
- * The five ids are a compile-time constant, so this export is exhaustive by
+ * The ids are a compile-time constant, so this export is exhaustive by
  * construction.
  *
  * `output: 'export'` requires it — a dynamic segment without it is a build error —
@@ -33,7 +33,7 @@ export default async function AreaPage({ params }: PageProps<'/areas/[area]'>) {
 
   // `params` is typed `string`, because a URL can say anything. Narrowing here is
   // what lets `AreaScreen` take an `AreaId` rather than re-validating. Unreachable
-  // under a static export — only the five generated paths exist — so this is about
+  // under a static export — only the generated paths exist — so this is about
   // the type, not about a request that could arrive.
   if (!isAreaId(area)) notFound()
 

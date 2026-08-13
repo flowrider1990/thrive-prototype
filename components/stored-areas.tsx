@@ -4,7 +4,7 @@ import { AreaIcon } from '@/components/area-icon'
 import { Chevron } from '@/components/menu'
 import { areas } from '@/lib/areas'
 import { formatWhen, useI18n } from '@/lib/i18n'
-import { readAreaDetail, type AreaDetail, type StepDetail } from '@/lib/person/goals'
+import { readAreaDetail, type GoalDetail, type StepDetail } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
 /**
@@ -20,7 +20,7 @@ import { usePerson } from '@/lib/person/store'
  * difference between this page and the start page.
  *
  * **Each area folds away.** The page grows without bound as the app is used, and
- * five areas of full history is a wall of text to scroll through when you came to
+ * every area's full history is a wall of text to scroll through when you came to
  * check one thing. A closed area still says which area it is, what the goal is and
  * how much is behind it, so folding hides detail rather than hiding that anything
  * is there — and `<details>` means find-in-page can still open a closed section, so
@@ -47,8 +47,12 @@ export function StoredAreas() {
    * date of its own — saying "working on this" without one is honest, where reusing
    * the creation date would quietly invent a timestamp.
    */
-  function became(detail: AreaDetail, step: StepDetail): string | null {
-    if (step.id === detail.activeId) return m.stored.areas.active
+  function became(step: StepDetail): string | null {
+    // Pinned is not an outcome, so it is said alongside rather than instead — and it
+    // carries no date, because a pin is a preference rather than a thing that
+    // happened. A legacy `step_active` pointer reads as a pin, which is what keeps
+    // it visible on the one page that promises to show everything.
+    if (step.pinned) return m.stored.areas.pinned
     const word =
       step.state === 'done'
         ? m.stored.areas.done
@@ -61,16 +65,39 @@ export function StoredAreas() {
     return step.stateAt ? `${word} · ${formatWhen(step.stateAt, locale)}` : word
   }
 
+  /**
+   * Where a goal stands, and when it was written down.
+   *
+   * The same shape as `became()` one level up, and the same rule about dates: being
+   * the one put first is a pointer rather than a fact about the goal, so it carries
+   * no date of its own. Reaching or setting aside a goal is a fact, and does.
+   */
+  function standing(goal: GoalDetail): string {
+    const parts = [noted(goal.createdAt)]
+    if (goal.priority) parts.push(m.stored.areas.goalPriority)
+    const word =
+      goal.state === 'done'
+        ? m.stored.areas.goalReached
+        : goal.state === 'retired'
+          ? m.stored.areas.retired
+          : null
+    if (word) parts.push(goal.stateAt ? `${word} · ${formatWhen(goal.stateAt, locale)}` : word)
+    return parts.join(' · ')
+  }
+
   return (
     <div className="space-y-6">
-      {/* Once, above all five. "set aside" and "changed from" would otherwise read as
+      {/* Once, above all of them. "set aside" and "changed from" would otherwise read as
           things having been taken away, and on the page whose whole job is to be
           checkable that would be the one misleading sentence. */}
       <p className="max-w-prose text-sm leading-relaxed text-muted">{m.stored.areas.note}</p>
 
       <div className="space-y-3">
         {details.map((detail) => {
-          const goal = detail.goals[0]?.value
+          // What the area is about now, for the closed summary line. Goals are
+          // newest first, so the first still-standing one is the current one.
+          const goal =
+            detail.goals.find((entry) => entry.state === 'active')?.text ?? detail.goals[0]?.text
           const count =
             detail.steps.length === 1
               ? m.stored.entryCountOne
@@ -80,7 +107,7 @@ export function StoredAreas() {
             <details key={detail.area} className="disclosure border-t border-line pt-3">
               {/* A grid rather than nested boxes, because `summary` may only contain
                   phrasing and heading content — the `h2` is allowed, a wrapping `div`
-                  is not. Keeping the real `h2` matters: five areas are five sections
+                  is not. Keeping the real `h2` matters: each area is a section
                   of this document, and the outline should say so.
 
                   The marker spans both rows so it aligns with the heading while the
@@ -119,14 +146,30 @@ export function StoredAreas() {
                 {detail.goals.length > 0 && (
                   <div className="space-y-2 border-s-2 border-line ps-5">
                     <dt className="text-sm text-muted">{m.stored.areas.goal}</dt>
-                    {detail.goals.map((goalEntry, index) => (
-                      <dd key={index} className="space-y-1">
+                    {detail.goals.map((goalEntry) => (
+                      <dd key={goalEntry.id} className="space-y-1">
                         <p className="whitespace-pre-line leading-relaxed text-ink">
-                          {index === 0
-                            ? goalEntry.value
-                            : t(m.stored.areas.earlier, { goal: goalEntry.value })}
+                          {goalEntry.text}
                         </p>
-                        <p className="text-xs text-muted">{noted(goalEntry.at)}</p>
+                        {/* Only when it is there. An absent reason is not an empty
+                            one, and the page should not invent a blank line for it. */}
+                        {goalEntry.why && (
+                          <p className="whitespace-pre-line text-sm leading-relaxed text-muted">
+                            {t(m.stored.areas.why, { why: goalEntry.why })}
+                          </p>
+                        )}
+                        {/* Every earlier wording of *this* goal, newest first. A
+                            reworded goal is the same goal said differently, which is
+                            why these sit under it rather than beside it as peers. */}
+                        {goalEntry.previous.map((wording, index) => (
+                          <p
+                            key={index}
+                            className="whitespace-pre-line text-sm leading-relaxed text-muted"
+                          >
+                            {t(m.stored.areas.earlier, { goal: wording })}
+                          </p>
+                        ))}
+                        <p className="text-xs text-muted">{standing(goalEntry)}</p>
                       </dd>
                     ))}
                   </div>
@@ -136,7 +179,7 @@ export function StoredAreas() {
                   <div className="space-y-2 border-s-2 border-line ps-5">
                     <dt className="text-sm text-muted">{m.stored.areas.steps}</dt>
                     {detail.steps.map((step) => {
-                      const outcome = became(detail, step)
+                      const outcome = became(step)
                       return (
                         <dd key={step.id} className="space-y-1">
                           <p className="whitespace-pre-line leading-relaxed text-ink">

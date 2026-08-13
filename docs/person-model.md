@@ -46,6 +46,14 @@ Current state is therefore a derived read: **newest entry per `key`**, which is
 what `current(key)` returns. `history(key)` gives all of them, oldest first, and
 `/data/stored/` shows every entry with the date it was noted.
 
+**Ties are broken on the id, never on position.** `newest()` used to prefer whichever
+matching fact came later in the array, and array order is insertion order — which is
+not the same on two devices once facts arrive by more than one route. Two devices
+could then derive different current state from the same set of facts, and because that
+is a derivation rather than a merge, nothing upstream would notice. Exact-timestamp
+ties are rare and the tie-break is arbitrary; the point is that it is arbitrary the
+same way everywhere. The sorts in `lib/person/goals.ts` follow the same rule.
+
 `version` exists so a later shape change can migrate rather than guess.
 
 ## Values are never parsed
@@ -67,6 +75,13 @@ the first:
 - **a token or a reference** — written by the app: `'yes'`, `'done'`, or a step's
   internal id. Never shown as itself.
 
+`/data/stored/`'s generic list prints `value` directly, which is correct for an
+utterance and wrong for a token. `stored.tokens` in the catalogs maps a token to the
+sentence it reads as — the same division of labour `stored.areas.review` / `yes`
+already uses one level down: the label supplies the occasion, the value is a whole
+sentence. An unrecognised token still falls through and prints, because a
+hand-edited store should look odd rather than be quietly omitted.
+
 A reference must never reach a screen. That is why `/data/stored/` renders life-area facts
 through `lib/person/goals.ts` rather than through its generic key-grouped list —
 see `docs/goals-and-areas.md`.
@@ -76,10 +91,17 @@ see `docs/goals-and-areas.md`.
 | key | asked by | notes |
 | --- | --- | --- |
 | `area.<a>.review` | each life area | `'yes'` or `'not_now'` — both real answers |
-| `area.<a>.goal` | the goal question | one current goal per area; earlier ones kept |
+| `area.<a>.goal` | the goal question | **legacy**: a goal written before goals had ids. Read, never written — new goals get an id |
+| `area.<a>.goal.<gid>.text` | the goal question | one per goal; earlier wordings kept |
+| `area.<a>.goal.<gid>.why` | why it matters | optional; an empty value is how it is cleared |
+| `area.<a>.goal.<gid>.state` | reaching or setting a goal aside | `'done'` / `'retired'`; absent means active |
+| `area.<a>.goal_priority` | the goal put first | holds a goal id, so it is never rendered raw |
 | `area.<a>.step.<sid>.text` | the next-step question | the step's words; re-appended when reworded |
 | `area.<a>.step.<sid>.state` | done, or removed from current steps | `'done'` / `'retired'`; absent means open |
-| `area.<a>.step_active` | choosing what to work on | holds a step id, so it is never rendered raw |
+| `area.<a>.step.<sid>.goal` | which goal an entry serves | holds a goal id; absent means "attribute it" |
+| `area.<a>.step.<sid>.pinned` | keeping an entry in view | `'yes'` / `'no'`; absent means not pinned. Any number may be |
+| `area.<a>.step_active` | *legacy* — one entry per area was "the one being worked on" | **read as a pin**, never written. Holds a step id, so it is never rendered raw |
+| `introduction_done` | reaching the end of the introduction | `'yes'`. A token: rendered through `stored.tokens`, never as itself |
 | `consent_concern` | the question after declining | **memory mode only** — never written to the device |
 | `preferred_name` | *parked* — the name question was removed | still shown on `/data/stored/` if it is there |
 | `opening_intent` | *parked* — the open question was removed | still shown on `/data/stored/` if it is there |

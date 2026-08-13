@@ -18,6 +18,7 @@ export function TextAnswer({
   submitLabel,
   skipLabel,
   multiline = false,
+  maxLength,
   allowEmpty = false,
   initialValue = '',
   onSubmit,
@@ -27,6 +28,14 @@ export function TextAnswer({
   submitLabel: string
   skipLabel?: string
   multiline?: boolean
+  /**
+   * A storage ceiling, not a writing target — so it is stated in prose where it
+   * matters and never metered. There is no counter anywhere in this app, and one
+   * here would turn writing about your own life into a measured task. Set it far
+   * enough above what anyone writing in good faith reaches, because a hard limit
+   * with no counter silently swallows keystrokes.
+   */
+  maxLength?: number
   allowEmpty?: boolean
   initialValue?: string
   onSubmit: (value: string) => void
@@ -69,6 +78,7 @@ export function TextAnswer({
           }}
           placeholder={placeholder}
           rows={4}
+          maxLength={maxLength}
           className="field resize-none"
         />
       ) : (
@@ -79,6 +89,7 @@ export function TextAnswer({
           onChange={(event) => setValue(event.target.value)}
           placeholder={placeholder}
           autoComplete="off"
+          maxLength={maxLength}
           className="field"
         />
       )}

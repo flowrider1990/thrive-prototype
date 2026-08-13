@@ -37,10 +37,10 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 181/181** (25 at the
+the two the plan singles out. **The current count is 219/219** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
-the UX/UI rework); the script itself is the only authority on that number, so treat
-any count written in prose as a snapshot.
+the UX/UI rework, 181 after the Supabase foundation); the script itself is the only
+authority on that number, so treat any count written in prose as a snapshot.
 
 **Pass the base URL explicitly.** The default is `http://localhost:4321`, which is
 not safe on a machine running a second worktree — a stale or foreign server there
@@ -946,6 +946,423 @@ backend is the architectural change that section governs — see
   dependencies too, so CI would download the CLI binary on every build without
   needing it. Worth scoping then.
 
+## Sprint: taxonomy, multiple goals, hierarchy (branch `feature/verify-area-agnostic`)
+
+Foundation-first, and the first two steps are both about being *able* to add a life
+area safely rather than about adding one.
+
+### Step 0 — the suite stopped caring how many life areas there are
+
+No product change; 181/181 before and after, and `git diff` touched only
+`scripts/verify.mjs`.
+
+The reason it went first: **a sixth area does not make the suite fail, it makes it
+abort.** `__click` throws when no control matches its exact text, `evaluate()`
+rethrows, there is exactly one `try` block in 2900 lines, and the run is top-level
+`await`. Nine walks through the introduction each carried their own literal number of
+"Not right now" clicks; the first wrong one throws from inside the page, the process
+dies after 9 of 181 results, no summary is printed, `chrome.kill()` is never reached,
+and a headless Chrome is left running. So the damage could not be measured by running
+the suite — it had to be fixed blind, which is exactly why it was worth isolating.
+
+`AREAS` at the top of the script now carries ids and both languages' labels, mirrored
+by hand from `lib/areas.ts` and the catalogs. Deliberately not imported: the script
+runs outside the bundle, and owing nothing to the app's modules is what makes a
+passing run mean something — the same discipline `STORAGE_KEY` already has.
+`declineRest()` replaced all nine walks, bounded by `AREAS.length`, returning how many
+it declined so §4h can assert the number rather than merely that the helper returned.
+
+Three findings worth keeping:
+
+- **`EN.intro` was a two-directional needle.** §4b asserts the introduction is on
+  screen; §25f asserts it is not. A stale needle fails §4b loudly but makes §25f pass
+  while guarding nothing, and the silent failure is the one to design against. It now
+  matches "areas of your life, one at a time" — no number in it.
+- **§4e compared against `marks[4]`**, which with six areas keeps passing while no
+  longer being the last mark. Now `at(-1)`.
+- **Relabelling `body` is not cosmetic** in a suite that selects controls by exact
+  visible text: ten literals, three of them `clickOption`/`clickSummary`/`clickText`,
+  which abort rather than fail. All ten now go through the fixture.
+
+### Step 1 — the introduction records that it finished
+
+`introductionFinished()` was `areas.every(a => readArea(a).review)` — monotonic in the
+*answers* but not in the *question set*, so adding an area made it false for every
+store that already existed. Now it reads an `introduction_done` fact and falls back to
+`LEGACY_AREAS` for stores written before that fact existed. Behaviour-preserving today:
+185/185, and `LEGACY_AREAS` is currently identical to `areas`.
+
+What the old line actually cost, traced rather than guessed: the start page stops
+rendering `NextSteps`, and `page-shell.tsx` withdraws the navigation from every page —
+including `/data/`, the route to what is stored and to deleting it. Then it self-heals
+after one answer, so it would have read as a cosmetic glitch. Real user impact today is
+zero (Pages disabled, repo private, no users); behavioural impact was 100% of existing
+stores, including every manual-QA profile, and it silently invalidated
+`seedOnboarded()`.
+
+Two things that made the work honest rather than plausible:
+
+- **§40 runs on its own fixture.** `seedOnboarded()` now writes the fact, so it could
+  only ever prove the easy half. `seedLegacyOnboarded()` writes the five area ids out
+  as literals — deriving them from `AREAS` would make it agree with the app by
+  construction and assert nothing. §40c also asserts the conclusion **wrote nothing**:
+  the fallback is a read.
+- **The fallback was falsified before being trusted.** Temporarily reducing
+  `introductionFinished()` to the fact alone fails §25a, §25b and §25b2 *before* it
+  fails §40 — because §25's scenario is interrupted before `nextArea()` closes the
+  pass, so it has always been the fallback carrying it. Worth knowing: that section
+  will keep exercising the fallback rather than the fact.
+
+`introduction_done` is a token, so `/data/stored/` renders it through a new
+`stored.tokens` map instead of printing `yes` at the person it is about. The generic
+list prints `fact.value` directly, which is right for an utterance and wrong for
+anything the app wrote.
+
+### Step 2 — a sixth life area, and Physical Health
+
+`mind` / "Mental Wellbeing" at **index 1**, not appended, and that is a verification
+decision as much as a product one: §25 is built entirely on "closing the tab midway
+through the *last* area" and pins `Hobbies & Creativity` and `/areas/creativity/` in
+six places. Appending makes the new area last and moves all six. Inserting keeps
+`creativity` last, and physical-then-mental is the better reading anyway. The cost is
+one needle — §4g asserts which area comes third — against six.
+
+`body` keeps its id and reads as "Physical Health". Without the contrast, "Body &
+Health" quietly claimed all of health.
+
+Step 0 paid off: the suite needed **one line** in `AREAS`, plus `/areas/mind/` added
+to two route loops. 186/186.
+
+It did leave one coupling that only a real sixth area could expose, and it is worth
+recording because it is the same class of bug Step 0 was about:
+`clickOption('Work & Career')` at §24m named the area §4's walk gives its second goal
+to. That area is `AREAS[2]`, so inserting anything before it moves which one it is —
+and the failure was not a failed assertion but an abort, on a screen showing the
+"reconsider" view because the area it landed on had no goal. Now derived, with a
+comment saying why.
+
+Three compile-time guards caught the rest before any of it ran, which is worth
+knowing about for the next area: `Record<AreaId, string>` in `area-icon.tsx`,
+`m.areas[area]` indexing in `area-label.tsx` and `next-steps.tsx`, and `de: Messages`.
+A half-added area does not build. `generateStaticParams` produced `/areas/mind/`
+itself, and `ProgressMarks` needed no change at all — it was already generic.
+
+### Step 3 — goal ids, and entries that belong to one
+
+The real migration, and it landed with **no component changed and 186/186 still
+green** — then 192/192 with the checks that exercise the new shape. That was the
+design goal: `AreaState.goal` stayed as a deprecated derived read, so the key shape
+and the screens move one at a time and each is reviewable alone.
+
+`area.<a>.goal.<gid>.{text,why,state}`, `area.<a>.goal_priority`, and
+`area.<a>.step.<sid>.goal`. **No `version` bump**, because `GOAL_KEY` cannot match the
+legacy `area.<a>.goal` (too few segments) or `goal_priority` (not `goal.`), so all
+three coexist and the migration is a read. `docs/goals-and-areas.md` had guessed this
+"might qualify" for a bump; it does not, by that file's own test.
+
+Decisions worth keeping:
+
+- **The legacy goal's text stays at the old key forever.** One ternary in
+  `goalTextKey()` is the whole special case. Migrating it on first edit would split one
+  goal's wording history across two keys and break the "changed from" chain exactly at
+  the seam — on the page whose job is to show how something changed.
+- **Entries are attributed, not backfilled.** No `.goal` fact plus a legacy goal means
+  it belongs to that goal — not a guess, since an area used to hold exactly one. Reads
+  never write, which is also what lets §41f seed the same store twice.
+- **The cascade is a derivation.** An entry leaves the open set when its own state says
+  so *or* when its goal does. Closing a goal is one write, nothing is destroyed, and
+  `/data/stored/` still shows what was being tried — better than a real cascade for a
+  product whose copy promises nothing is removed.
+- **The cap stays on the area** at three open entries, not three per goal. Nine open
+  entries in one area is the task manager this is not.
+- **`goalAt()` removed** rather than updated: "which goal was current when this
+  happened" only had an answer while an area held one goal, and it had no caller.
+
+Two things caught by doing rather than planning:
+
+- **`stored-areas.tsx` could not be deferred** — it failed to compile the moment
+  `AreaDetail.goals` changed shape, which is the right outcome: `/data/stored/` is the
+  page that promises "nothing here is removed", so a new field it silently omitted
+  would make that false.
+- **§41b was vacuous on first writing.** It asserted an entry whose goal was reached
+  does not appear on the start page — but home only ever shows the *active* entry per
+  area, so that text could not have appeared whatever its goal. Rewritten against the
+  area page with a controlled pair: two entries, both open, neither active, differing
+  only in whether their goal was reached.
+
+Also fixed here because sync would have made it expensive later: `newest()` broke ties
+on array position, and array order is insertion order. Two devices could derive
+different current state from the same facts, and being a derivation rather than a merge
+nothing upstream would notice. Now tie-broken on the fact id, as are the sorts in
+`goals.ts`.
+
+Deliberately **not** done: the `usePerson` key index (no measured problem), `maxLength`
+on `TextAnswer` (belongs with the "why" field that needs it), and an explicit `'open'`
+state value (nothing needs the inverse yet).
+
+### Steps 4 and 5 — the interface catches up: goals, hierarchy, priority, why
+
+199/199. Onboarding still asks for **one goal per area** and should keep doing so: six
+areas is already up to twenty-four screens, and a second goal is something you discover
+you want rather than something to be asked for on first meeting. More are added from the
+area's own page.
+
+**The page is the hierarchy.** The area is the `h1`, each goal an `h2`, and what is
+being tried for it is indented under it. Two of those three levels come free from the
+two typefaces the app already owns — display serif for *what you want*, sans for *what
+you will do* — and the third from the `border-s-2 border-line ps-5` rule that four other
+call sites already use. **No new CSS class, no card, no badge, no colour token.**
+
+Until this page had goals in it there was no heading element on it at all: the area name
+was a `<p>` and the goal a `<dd>`. Fixing the outline turned out to be most of the
+hierarchy work.
+
+**Priority is the ordinal.** The goals are a real `<ol>`, the one put first is first, and
+`1. 2. 3.` in `tabular-nums` is the entire marking — three cues (number, position, list
+semantics), none of them colour, none changing an element's metrics. Hidden with one
+goal, because a lone "1." implies siblings that are not there. One key, one write, and
+two taps reach any order of three; there is no rank to renumber. That settles the
+"marking versus ranking" question this file parked: **one pointer gives both**.
+
+**The goal-change walk was replaced rather than retargeted.** Changing a goal used to
+review every open entry one screen at a time, because entries belonged to the area. It
+fired on the common case (rewording) where it is now unnecessary — same goal id, entries
+stay attached — and did not exist for the rare one (closing) where something really is
+affected. One sentence on one screen now covers what three screens used to: *"What you
+were trying for it is set aside with it. Nothing is deleted."* With nothing being tried
+for the goal there is no consequence and no confirmation, because a confirmation with
+nothing to say teaches people to tap through steps.
+
+Two things found by building rather than planning:
+
+- **Entries added from the start page had no goal**, so they were stored and then
+  invisible on the area page — there was no goal to list them under. `next-steps.tsx`
+  now links them to the row's goal. `AreaManage` also grew a "Not tied to a goal right
+  now" group, because *stored and unshowable* is the one state that page cannot have.
+- **§7 could not test closing a goal.** Closing one takes its entries with it, and the
+  goal it closed owned the only active entry left in the run — so a later check lost the
+  word it was looking for. Moved to §41, on a seeded store where nothing downstream
+  depends on it, and §7 now covers the case that costs nothing instead.
+
+`AreaState.goal` is gone, as its deprecation note said it would be when this landed.
+
+## Iteration: less friction (branch `feature/verify-area-agnostic`)
+
+Using the six-area, three-goal loop surfaced friction rather than missing features, so
+this iteration removes and clarifies more than it adds. 209/209.
+
+### Step 1 — pinning, a shorter introduction, and one list of what you are working on
+
+Three changes in one commit, and they could not be split: removing the prioritisation
+screen means nothing is ever active, so a start page that filtered on `active` renders
+empty — and §24 then **aborts at check 16 of ~190**, discarding the rest including the
+network and console sweeps. The new start page is what keeps those checks meaningful.
+
+**`step_active` became pinning.** One pointer per area meant *the* thing being worked
+on; several entries can now be pinned, it is never asked for, and it orders the start
+page without ranking anything. No migration: an explicit `step.<sid>.pinned` fact wins
+in either direction, so only when nothing was ever said about an entry does the old
+pointer speak for it — which means unpinning a legacy-pointed entry needs no special
+case, and a store from before pinning keeps saying what it said. Same technique as
+`LEGACY_GID`; reads never write.
+
+**`isSettled()` is gone.** It required a goal *and* something active. Both are optional
+now — the goal is skippable and nothing is prioritised — so it would have sent people
+back to questions they deliberately passed on. Where an interrupted pass resumes is the
+first area with **no review answer**: the first thing every pass writes, never taken
+away, and therefore the only predicate that cannot nag.
+
+**Both questions in an area can now be passed on**, and neither writes anything: *Not
+sure yet* on the goal, *I do not know yet* on what could help. Worded differently
+because they are different admissions. A skipped goal is never pointed at from the
+start page, because `home.unfinished` needs a goal with no entries to fire.
+
+Three things found by building rather than planning:
+
+- **Relaxing the resume predicate silently skipped a screen.** An area counts as
+  settled once it holds a goal, and `app/page.tsx` recomputed the walked area every
+  render — so writing a goal advanced the walk instantly and the "what could help"
+  question never appeared. The walked area is now fixed at the one transition that
+  starts the walk. Found by the suite aborting on a screen it did not expect, which is
+  the abort behaviour earning its keep.
+- **The project's lint forbids `setState` inside an effect**, which rejected the first
+  fix and pushed toward the better one — latching at the transition rather than
+  reacting to a derived value.
+- **A completed entry's row unmounted before its follow-up could render.** Once an
+  entry leaves the open set its row disappears, so the "what could help" question had
+  nowhere to appear. The old code kept the busy *area* mounted for exactly this reason;
+  the new one keeps the busy *entry* in place.
+
+Ten new checks (§42) cover pinning, several pinned at once, the legacy pointer read and
+its unpinning, the skippable goal, and — for the first time — that the `role="status"`
+region is mounted **before** it has anything to say. Nothing asserted that in any of the
+three places that depend on it, and a list of rows is exactly what would have broken it
+silently.
+
+### Step 1b — the start page as a working list at width
+
+Three regions per row from `sm` up, stacked on a phone, done with alignment rather than
+a card. §43 measures it: at 1200px the regions run left to right with their tops within
+12px; at 390px they share one x with increasing tops.
+
+Not changed, deliberately: the column is `max-w-2xl`, shared by header, main and footer,
+and 20a asserts its left edge is identical on every route so the page cannot jump
+sideways as you navigate. A genuinely wider start page means retiring that guarantee,
+which is a design-system decision rather than a Home refinement.
+
+### Step 2 — during the introduction the life area is the heading
+
+The question is the same on every area screen; the area is the one part that changes,
+and it was the smallest thing on the page. `QuestionCard` gained a `subject` prop: given
+an area it becomes the `h1` at full display scale with a matching icon size, and the
+question drops to `text-lg` sans.
+
+It is a new prop rather than a change to the existing `area` slot because that slot does
+two jobs across thirteen call sites — four onboarding screens pass an area, seven pass a
+*goal*, and six pass nothing. Enlarging the shared slot would have put someone's goal at
+display size as the title of an "add something" screen.
+
+Two things worth recording:
+
+- **`AreaIcon` needed a new size key**, not a larger `eyebrow`: `eyebrow` is shared with
+  `AreaLabel size="card"`, whose type size check 34a measures.
+- **The risk flagged in planning turned out not to exist.** `AreaFlow`'s other caller is
+  `AreaManage`'s flow view, which I expected to end up with two display-scale area names
+  on one screen — but it *early-returns* `<AreaFlow>` instead of nesting it, so only one
+  heading ever renders. Worth checking rather than assuming, and worth recording so the
+  next person does not re-derive it.
+
+§44 measures the result: the `h1` is the area, there is exactly one of them, it is more
+than 1.4× the question's size, and the two use different faces — because matching sizes
+with matching faces is how a hierarchy quietly flattens again.
+
+### Step 3 — storage looks like a setting
+
+Two switches on `/data/`, read and set in place, replacing a "Change storage settings"
+button that opened a panel holding a single full-width `.option`. The complaint was that
+it looked like a text field, and the CSS agrees: `.option` and `.field` are the same rule
+in every property that draws a box, so one bordered row above a Cancel pill is
+indistinguishable from an empty input.
+
+`.switch` is therefore **not** on a surface at all — label left, state right, alignment
+doing the structure. State is carried three ways with only one of them colour: knob
+position, the word `ON`/`OFF`, and the track fill. Metrics never change when it flips.
+
+A `<button role="switch" aria-checked>`, not a checkbox: `role="switch"` says "on or off
+right now" where a checkbox says "included when you submit", and there is nothing to
+submit. It also keeps `StorageChoice`'s `panel.querySelector('button')?.focus()` working,
+which an `<input>` would have broken silently.
+
+**The `Currently: …` line is gone.** The switch is the state, and a switch labelled "Save
+on this device" beside a line reading "Currently: saved on this device" says it twice —
+and would have to be kept in step with it forever. `data.storage.local`/`memory`/
+`undecided`/`change`/`optionMemory` all lost their renderer and went with it; the copy
+shrank. `undecided` now reads as off, truthfully: nothing is being written.
+
+Cloud sync is the second switch — present, off, not operable, with the reason under it.
+
+**Check 36c was inverted, not deleted.** It asserted
+`count('main [role="switch"]') === 0` under the name "and no toggle was introduced beside
+it": a deliberate guard against this redesign. Quietly deleting a check that says *do not
+do this* is how a codebase forgets it ever decided, so it now asserts the opposite and
+the reversal is recorded in `docs/design-system.md`. It still forbids a checkbox.
+
+§36 is twelve checks again, and better ones: `aria-checked` rather than prose, so the
+assertion reads the same fact the visible knob draws instead of a label that could drift
+from it. Also fixed while here: the design-system doc claimed the storage choice was the
+one `OptionList` `current` call site, which was never true — it passed no `current` at
+all.
+
+### Package A — three goals in the introduction, and a way to begin again
+
+223/223. Twelve new checks.
+
+**Up to three goals per area during the introduction**, offered from the entries screen
+and never demanded: the first is still optional, and "Add another goal" disappears at the
+cap. Two things had to be separated that were one variable before:
+
+- **Which goal the entries screen is filling.** `activeGoals[0]` is the *oldest*, so
+  without holding the id `addGoal` returns, entries typed for a second goal would have
+  been linked to the first — silently, and permanently, because the log is append-only.
+- **The cap versus the list.** `ActionEntry` computed `full` from the array it was handed.
+  If the cap had followed the goal-scoped list, an area could hold nine entries; if the
+  list had stayed area-wide, a second goal's screen would have opened showing the first
+  goal's entries and — once three existed — no field at all. The list is now the goal's
+  and the cap is passed in from the area.
+
+**A real bug caught by exploring rather than by running:** `QuestionCard`'s `subject` and
+`eyebrow` were mutually exclusive, so the goal line added to the entries screen was
+silently dropped. It now renders in both branches — *above* the question when the question
+owns the heading, *below* it when the area does, which is the difference between a label
+over something and detail under it. Also renamed `area` → `eyebrow`, since seven of its
+eight call sites pass a goal.
+
+**After deleting everything, "Start again" is the emphasised offer** and points at `/` —
+which is the whole mechanism, since `forgetEverything()` leaves the store `undecided` and
+`app/page.tsx` derives `greeting` from that. "Back to data protection" drops one weight.
+
+That looks like it breaks the rule putting `.btn-primary` on the *safe* choice in a
+destructive flow, and does not: the rule is scoped to the steps *leading to* deletion, and
+those are behind us. Nothing is being recommended against, and a page whose only offer is
+"back to the privacy page" leaves someone who just cleared everything with nowhere to
+begin. §46a and §46b now assert both states, because that rule is exactly the kind of
+thing a later reader would "fix".
+
+**38b was measuring the wrong scope.** It read `main form button`, so it stopped covering
+the entries screen the moment a control appeared beside the form — which is precisely what
+"Add another goal" is. It also used three `.find()` lookups and never noticed a second
+primary. Now scoped to `main section` and asserting exactly one primary with every other
+control quiet.
+
+### Package B — one visual language for the start page and the area page
+
+219/219. The count fell from 224 because §36 shrank from twelve checks to seven: the
+turn-saving-off path they covered no longer exists.
+
+**The start page row is one block, not three columns.** The action and what it is for share
+a left edge with the action a step larger; the control sits against the right edge. The
+previous version spread three regions across the row with `gap-x-6` — it used the width,
+but the goal drifted away from the action it belonged to. Two lines on a phone rather than
+four, and alignment doing all of it.
+
+**The pin is an icon**, the same one on both screens. Bordered like the two icon-only
+controls that already existed — the theme toggle and the collapsed-nav trigger — because a
+control edge at rest is what says "this is a control", which is why `--color-line-strong`
+exists. A pin in a small circle is still far lighter than a text pill, which was the point:
+half the pill weight per row, not none.
+
+Three decisions inside that, each of which the obvious version got wrong:
+
+- **The glyph changes with the state, not the colour.** Filled when pinned, outlined when
+  not, at identical box size — so pressing it moves nothing and the state does not rest on
+  hue. The accessible name flips too, which four `clickAria` sites already required.
+- **`aria-pressed` is deliberately absent.** With a name that already flips, "Unpin,
+  pressed" is ambiguous rather than clearer.
+- **The CSS hook is a class, not an attribute selector.** My first version keyed off
+  `[aria-label^='Unpin']` and therefore had a German string hardcoded in the stylesheet.
+  Once the state lives in the accessible name, a class is the only locale-independent hook.
+
+**The per-goal "What you want to try" heading is gone** from the area page. It put the same
+sentence on screen once per goal; the indent rule already says those entries belong to the
+goal above. The label stays where it earns its place — the onboarding screen, which has no
+indent to say it.
+
+**And the "Save on this device" switch is gone from `/data/`.** Turning it off deleted what
+was stored, which is the same act as "Delete my data" further down the page, done by the
+control that said less about it. What remains in that direction is a plain quiet button
+offering to opt *in*, shown only to someone not already saving — a one-way action is a
+button, because a toggle that can only be flipped on is a control lying about itself.
+
+That opt-in was kept rather than removed with the rest for a reason worth recording: §39
+walks the path where someone declines, says *why*, and later turns saving on, proving
+`consent_concern` never reaches the device even then. Removing the path outright would have
+made that guarantee unreachable rather than merely untested.
+
+**§43 was replaced rather than repaired.** It asserted three regions across one row and
+stacked on a phone — the layout being undone. It now measures what the new row claims: one
+block with the action larger than its metadata, the control attached to the right edge and
+level with the action's first line, and a row under 2.8 line-heights on a phone.
+
 ## The repository
 
 Pushed to <https://github.com/flowrider1990/thrive-prototype>, **private** for
@@ -1043,6 +1460,16 @@ genuinely is unfinished — which is the tell. The shape of the fix is additive:
 key, no `version` bump, per the rule in `docs/person-model.md`. It should be decided
 together with the status concept already parked in `docs/goals-and-areas.md`, not before
 it.
+
+**Amended (2026-08-13, `introduction_done`).** Still open, and deliberately not fixed —
+but its *worst* consequence is gone. `resumeArea` is only consulted when `step === 'area'`,
+which now requires `introductionFinished()` to be false, so nobody is routed back into
+onboarding by this. What remains is the narrow original complaint: a reload mid-pass can
+re-offer the steps question for an area that answered "I do not know yet", and answering
+again appends a redundant `step_active`. `introduction_done` records that the **pass**
+finished; `isSettled` decides **where an interrupted pass resumes**. Those are separated on
+purpose in `lib/person/goals.ts`, and conflating them is the mistake the comments there
+exist to prevent.
 
 ### 4. Switching focus requires retiring the previous entry
 

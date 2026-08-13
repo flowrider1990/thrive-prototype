@@ -88,7 +88,25 @@ export const en = {
   },
 
   areas: {
-    body: 'Body & Health',
+    /**
+     * "Physical Health" rather than "Body & Health", now that mental wellbeing has an
+     * area of its own: without the contrast, "Body & Health" quietly claimed all of
+     * health. The id stays `body`, because ids are persisted inside fact keys.
+     */
+    body: 'Physical Health',
+    /**
+     * Scoped to inner life on purpose — rest, mood, stress, calm, how you are in
+     * yourself. The risk with this area is not that it is too narrow but that it
+     * absorbs the whole app: stress from work and loneliness both land here, and both
+     * have areas that own them. Kept separate from Physical Health because physical
+     * health is one input to wellbeing, while wellbeing is downstream of
+     * relationships, work and circumstance too — merging them would make the merged
+     * area the place everything hard goes.
+     *
+     * "Wellbeing", not "Health": this is not a clinical category and the app makes no
+     * medical claims.
+     */
+    mind: 'Mental Wellbeing',
     relationships: 'Relationships & Social Life',
     work: 'Work & Career',
     finances: 'Finances',
@@ -98,13 +116,13 @@ export const en = {
   intro: {
     // The thanks is the consent acknowledgement above this question, so it is
     // not repeated here.
-    question: 'Next we will look at five areas of your life, one at a time.',
+    question: 'Next we will look at six areas of your life, one at a time.',
     note: 'You do not need a goal in every one. "Not right now" is a real answer, and anything you note can be changed later.',
     submit: 'Okay',
   },
 
   goals: {
-    /** The five marks are a progressbar; these are its accessible name and value. */
+    /** The marks are a progressbar; these are its accessible name and value. */
     progressLabel: 'Life areas looked at',
     progressValue: 'Area {current} of {total}',
 
@@ -115,6 +133,25 @@ export const en = {
     goalQuestion: 'What is your goal?',
     goalPlaceholder: 'In your own words',
     goalSubmit: 'Continue',
+    /**
+     * The way past without inventing something, and the goal-screen counterpart to
+     * `stepsUnknown` below.
+     *
+     * Worded differently on purpose: they answer different questions. This one is
+     * about not having settled on what you want here; that one is about having a goal
+     * and not yet knowing what would help.
+     *
+     * Taking it writes nothing at all — no empty goal, no placeholder — so the area
+     * keeps its review answer, stays completable from its own page, and is never
+     * pointed at from the start page.
+     */
+    goalSkip: 'Not sure yet',
+    /**
+     * Offered on the entries screen, never pushed, and it disappears at the cap.
+     * Nothing states how many goals an area should have — three is what is allowed,
+     * not what is expected.
+     */
+    goalAnother: 'Add another goal',
 
     /**
      * Deliberately no noun for the thing being asked for.
@@ -164,7 +201,6 @@ export const en = {
     stepsEditSubmit: 'Save',
     stepsEditCancel: 'Cancel',
 
-    focusQuestion: 'Which one would you like to focus on first?',
   },
 
   complete: {
@@ -222,9 +258,12 @@ export const en = {
     outcomeAside: 'This does not fit me anymore',
     cancel: 'Cancel',
     done: 'Noted.',
-    chooseNextQuestion: 'Would you like to choose what to try next?',
-    chooseNext: 'Choose something',
-    later: 'Later',
+    /**
+     * Only rendered when both groups exist. With everything pinned, or nothing, one
+     * unlabelled list says more than two headings over an obvious split.
+     */
+    pinnedLabel: 'Pinned',
+    restLabel: 'Everything else',
     newStepQuestion: 'What could help you move toward this goal?',
     newStepPlaceholder: 'Something small and concrete',
     newStepSubmit: 'Save',
@@ -276,26 +315,78 @@ export const en = {
      * question uses, so the empty state and the question agree.
      */
     noStep: 'You have not decided yet what could help.',
+    /** A count rather than one arbitrary entry: with nothing pinned, none is first. */
+    tryingOne: 'One thing to try',
+    trying: '{count} things to try',
 
     reconsiderQuestion: 'Would you like to change or explore something here now?',
     reconsiderYes: 'Yes',
     reconsiderNo: 'Leave it for now',
 
-    goalLabel: 'Your goal',
-    activeLabel: 'Focusing on',
-    preparedLabel: 'Also prepared',
-    changeGoal: 'Change goal',
+    /**
+     * One label for the whole list rather than one per goal: the serif heading is
+     * already unmistakably the thing you want.
+     *
+     * There is deliberately **no** matching label over each goal's entries. It used to
+     * repeat `goals.entriesLabel` there, which put the same sentence on screen once per
+     * goal; the indent rule already says those belong to the goal above. That label is
+     * still used where it earns its place — the onboarding screen, where there is no
+     * indent to say it.
+     */
+    goalsLabel: 'What you want',
+    /**
+     * Kept in view on the start page. Deliberately not "focus": several entries can
+     * be pinned, so a word implying one would be a promise the model does not make.
+     * Separate from goal priority, which orders goals rather than entries.
+     */
+    pin: 'Pin',
+    unpin: 'Unpin',
+    pinOn: 'Pin: {text}',
+    unpinOn: 'Unpin: {text}',
     addStep: 'Add something to try',
+    /** Three visible "Add" buttons are three identical controls out loud. */
+    addStepFor: 'Add something to try for: {goal}',
+    goalAdd: 'Add a goal',
+    goalChange: 'Change this goal',
+    goalChangeOn: 'Change this goal: {goal}',
     done: 'Done',
 
-    goalQuestion: 'What is your goal now?',
+    /** "Else", because the first one was asked for during the introduction. */
+    goalNewQuestion: 'What else do you want here?',
+    goalMenuQuestion: 'What would you like to change?',
+    goalReword: 'Change the wording',
 
-    /** One step per screen. Nothing is carried over silently, nothing is dropped silently. */
-    reviewQuestion: 'Your goal changed. Is this still useful?',
-    reviewKeep: 'Keep',
+    /**
+     * Rewritten from "Need more motivation? …", which opens by telling someone they
+     * lack motivation — a diagnosis nobody asked for, and the kind of claim the
+     * Feature Manifest rules out. This reports instead, and leaves the reader to
+     * decide whether it applies to them.
+     */
+    goalWhy: 'Write down why this matters',
+    goalWhyEdit: 'Change why this matters',
+    goalWhyInvite: 'Some people find it easier to keep going when the reason is written down.',
+    goalWhyQuestion: 'Why does reaching this goal matter to you?',
+    /** The ceiling stated in prose, the way the three-entry cap already is. */
+    goalWhyNote: 'A sentence or two is plenty. You can leave it empty.',
+
+    goalTop: 'Move this to the top',
+    goalTopNote: 'The one at the top is what this area is about right now.',
+
+    goalReached: 'I have reached this',
+    goalReachedQuestion: 'Have you reached this goal?',
+    goalDrop: 'Remove from your current goals',
+    goalDropQuestion: 'Is this no longer a goal for you?',
+    /**
+     * The consequence, stated before it happens rather than discovered afterwards.
+     * Nothing is deleted — what was being tried leaves the list because the goal it
+     * was for is closed, and `/data/stored/` still holds all of it.
+     */
+    goalCloseNote: 'What you were trying for it is set aside with it. Nothing is deleted.',
+    goalCloseCancel: 'Not yet',
+    /** Only ever shown when there is one, and there should not be. */
+    looseLabel: 'Not tied to a goal right now',
+
     reviewEdit: 'Edit',
-    /** Deliberately not "Remove": nothing is deleted, and the copy should not pretend otherwise. */
-    reviewRemove: 'Remove from current steps',
     editQuestion: 'What should it say instead?',
     editSubmit: 'Save',
   },
@@ -331,11 +422,28 @@ export const en = {
       preferred_name: 'What I should call you',
       opening_intent: 'What you wanted when you arrived',
       consent_concern: 'What you said about saving',
+      introduction_done: 'When you finished the introduction',
+    },
+    /**
+     * Values the app wrote rather than words someone chose, and the sentence each
+     * one reads as.
+     *
+     * The generic list on this page prints `fact.value` directly, which is right for
+     * an utterance and wrong for a token — `docs/person-model.md` is explicit that a
+     * token must never reach a screen as itself. Same division of labour as
+     * `areas.review` / `areas.yes` one level down: the label supplies the occasion,
+     * the value is a whole sentence, and neither needs the other to make sense.
+     *
+     * Deliberately says nothing about how many areas there are. A sentence that
+     * counted them would have to be rewritten every time the list changed.
+     */
+    tokens: {
+      introduction_done: { yes: 'You went through all the life areas once' },
     },
     /** Life-area facts are shown through the domain layer, so no internal id is ever printed. */
     areas: {
       /**
-       * Said once, above all five areas, because it is true of every line under it
+       * Said once, above every area, because it is true of every line under it
        * and because the words below — "set aside", "changed from" — would otherwise
        * be read as things having been removed. Nothing on this page is ever deleted
        * except by deleting all of it: the store is append-only.
@@ -357,7 +465,8 @@ export const en = {
       steps: 'What you wanted to try',
       /** When it was first written down, which is separate from what became of it. */
       added: 'added {when}',
-      active: 'working on this',
+      /** A pin, not an outcome — so it reads as a preference and carries no date. */
+      pinned: 'kept in view',
       open: 'prepared',
       done: 'done',
       /**
@@ -365,6 +474,15 @@ export const en = {
        * down, and either would be a false claim about the person's own data.
        */
       retired: 'set aside',
+      /**
+       * A goal is *reached*, not "done": done is what you say about a thing you were
+       * trying, and a goal is the thing it was for.
+       */
+      goalReached: 'reached',
+      /** A pointer, not a fact about the goal — so `standing()` gives it no date. */
+      goalPriority: 'first for now',
+      /** Only rendered when there is one; an absent reason is not an empty one. */
+      why: 'why it matters: {why}',
       edited: 'reworded from: {text}',
       /** The collapsed summary has to say enough to be worth not opening. */
       noGoal: 'No goal recorded',
@@ -421,44 +539,36 @@ export const en = {
        * "Currently" for the same reason it appears in `p1`: this describes the mode in
        * force today and must not read as a permanent property.
        */
-      local: 'Currently: saved on this device',
-      memory: 'Currently: this tab only',
-      undecided: 'Currently: not decided yet',
-      change: 'Change storage settings',
+      /**
+       * The state in words, beside the switch. §17 forbids meaning carried by colour
+       * alone, and a knob's position on its own is a graphic — so the word is what
+       * makes the setting readable rather than merely visible.
+       */
+      on: 'ON',
+      off: 'OFF',
+      /**
+       * Present, off, and not operable yet — with the reason under it rather than a
+       * dead control to poke at. Registration is never required to use any of this,
+       * and nothing here asks for it.
+       */
+      optionCloud: 'Sync with Cloud',
+      cloudDevOnly: 'Cloud sync is currently available to developers only.',
 
       /**
-       * The two modes, as the names of the thing you would be switching **to**.
+       * The label on the one-way opt-in, named as the thing you would be switching
+       * **to**. Only ever shown to someone who is not saving.
        *
-       * Only the one you are not on is ever offered, so there is nothing here that
-       * restates the current setting — the `Currently: …` label above already does
-       * that, and the page's four paragraphs already explain what storage means.
-       *
-       * This deliberately dropped a question and a second option. Reopening the
-       * decision used to reprint onboarding's framing plus both modes with a line of
-       * explanation each, on a page that had just explained all of it. With two modes
-       * and the current one stated, the whole choice is "switch to the other one, or
-       * do not".
+       * **There is no "off" copy any more, and the missing half is the point.** Turning
+       * saving off deleted what was stored, which is what "Delete my data" further down
+       * the page already does — and says. Two controls for one outcome, where the switch
+       * was the one that did it without spelling it out. So `offTitle`, `offBody`,
+       * `offConfirm`, `offDone` and `offDoneEmpty` are gone rather than parked: the
+       * copy for a control that no longer exists is a trap for the next reader, who
+       * would find a full confirmation flow written and assume something regressed.
        */
       optionLocal: 'Save on this device',
-      optionMemory: 'This tab only',
 
-      /**
-       * Turning saving off has to delete what was saved, and that is not a warning
-       * dressed up — it is the only honest outcome. "Off" means nothing of yours is
-       * left on the device, so anything already there has to go with it.
-       *
-       * Shown **only when there is something to lose.** Switching with nothing stored
-       * costs nothing, and a confirmation step for a change with no consequence is the
-       * kind of ceremony that teaches people to click through the ones that matter.
-       */
-      offTitle: 'Turn saving off?',
-      offBody:
-        'Saving off means nothing of yours stays on this device, so what is saved here is deleted as part of the change. This visit carries on, and what you do in it stays in this tab until you close it.',
-      offConfirm: 'Turn saving off and delete',
       onDone: 'Saving is on now.',
-      offDone: 'Saving is off now, and what was stored has been deleted.',
-      /** Nothing was stored, so nothing was deleted, and the copy must not claim it. */
-      offDoneEmpty: 'Saving is off now.',
     },
     memoryNote:
       'You asked for nothing to be saved, so nothing is being written to this device at all. What you tell the app this visit stays in this tab and is gone when you close it.',
@@ -498,13 +608,24 @@ export const en = {
       cancel: 'Keep it',
       finalConfirm: 'Yes, delete everything',
       done: 'Deleted. Nothing is left.',
+      /**
+       * Its own key rather than borrowing `stopped.restart`: that group is about having
+       * declined, and its neighbouring copy says nothing was ever saved — which is not
+       * what happened here.
+       *
+       * The emphasis rule this looks like it breaks is scoped to the steps *leading to*
+       * deletion, where the safe choice is the recommended one. Those steps are behind
+       * us; nothing is left to protect, and the only useful thing to offer is a way to
+       * begin again.
+       */
+      restart: 'Start again',
     },
   },
 
   about: {
     title: 'About {app}',
     isTitle: 'What this is',
-    isP1: '{app} is a prototype of an app meant to support a person in living and thriving. What you have seen is its beginning: a question about consent, and five areas of a life to look at one at a time.',
+    isP1: '{app} is a prototype of an app meant to support a person in living and thriving. What you have seen is its beginning: a question about consent, and six areas of a life to look at one at a time.',
     /**
      * "For now" and "at the moment" carry the same weight here as "currently" does in
      * the `data` group. These are the strongest claims the app makes about itself, and

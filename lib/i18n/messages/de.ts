@@ -75,7 +75,10 @@ export const de: Messages = {
   },
 
   areas: {
-    body: 'Körper & Gesundheit',
+    body: 'Körperliche Gesundheit',
+    // "Mentales", nicht "Psychisches": psychisch ist die klinische Ebene, und die App
+    // erhebt keine medizinischen Ansprüche.
+    mind: 'Mentales Wohlbefinden',
     relationships: 'Beziehungen & Soziales',
     work: 'Arbeit & Beruf',
     finances: 'Finanzen',
@@ -83,7 +86,7 @@ export const de: Messages = {
   },
 
   intro: {
-    question: 'Als Nächstes schauen wir uns fünf Bereiche deines Lebens an, einen nach dem anderen.',
+    question: 'Als Nächstes schauen wir uns sechs Bereiche deines Lebens an, einen nach dem anderen.',
     note: 'Du brauchst nicht in jedem ein Ziel. „Gerade nicht“ ist eine echte Antwort, und alles, was du notierst, kannst du später ändern.',
     submit: 'Okay',
   },
@@ -99,6 +102,8 @@ export const de: Messages = {
     goalQuestion: 'Was ist dein Ziel?',
     goalPlaceholder: 'In deinen eigenen Worten',
     goalSubmit: 'Weiter',
+    goalSkip: 'Bin noch nicht sicher',
+    goalAnother: 'Noch ein Ziel hinzufügen',
 
     stepsQuestion: 'Was könnte dir helfen, diesem Ziel näherzukommen?',
     stepsNote: 'Eines reicht. Du kannst bis zu drei hinzufügen.',
@@ -115,7 +120,6 @@ export const de: Messages = {
     stepsEditSubmit: 'Speichern',
     stepsEditCancel: 'Abbrechen',
 
-    focusQuestion: 'Womit möchtest du zuerst anfangen?',
   },
 
   complete: {
@@ -136,9 +140,8 @@ export const de: Messages = {
     outcomeAside: 'Das passt für mich nicht mehr',
     cancel: 'Abbrechen',
     done: 'Notiert.',
-    chooseNextQuestion: 'Möchtest du wählen, was du als Nächstes ausprobierst?',
-    chooseNext: 'Etwas wählen',
-    later: 'Später',
+    pinnedLabel: 'Angepinnt',
+    restLabel: 'Alles andere',
     newStepQuestion: 'Was könnte dir helfen, diesem Ziel näherzukommen?',
     newStepPlaceholder: 'Etwas Kleines und Konkretes',
     newStepSubmit: 'Speichern',
@@ -158,24 +161,48 @@ export const de: Messages = {
     noGoal: 'Noch kein Ziel',
     notNow: 'Gerade nicht',
     noStep: 'Du hast noch nicht festgelegt, was dir dabei helfen könnte.',
+    tryingOne: 'Eine Sache zum Ausprobieren',
+    trying: '{count} Sachen zum Ausprobieren',
 
     reconsiderQuestion: 'Möchtest du hier jetzt etwas verändern oder ausprobieren?',
     reconsiderYes: 'Ja',
     reconsiderNo: 'Erst einmal so lassen',
 
-    goalLabel: 'Dein Ziel',
-    activeLabel: 'Daran arbeitest du gerade',
-    preparedLabel: 'Außerdem notiert',
-    changeGoal: 'Ziel ändern',
+    goalsLabel: 'Was du willst',
+    pin: 'Anpinnen',
+    unpin: 'Loslösen',
+    pinOn: 'Anpinnen: {text}',
+    unpinOn: 'Loslösen: {text}',
     addStep: 'Etwas zum Ausprobieren hinzufügen',
+    addStepFor: 'Etwas zum Ausprobieren hinzufügen für: {goal}',
+    goalAdd: 'Ziel hinzufügen',
+    goalChange: 'Dieses Ziel ändern',
+    goalChangeOn: 'Dieses Ziel ändern: {goal}',
     done: 'Fertig',
 
-    goalQuestion: 'Was ist jetzt dein Ziel?',
+    goalNewQuestion: 'Was willst du hier außerdem?',
+    goalMenuQuestion: 'Was möchtest du ändern?',
+    goalReword: 'Formulierung ändern',
 
-    reviewQuestion: 'Dein Ziel hat sich geändert. Ist das hier noch nützlich?',
-    reviewKeep: 'Behalten',
+    goalWhy: 'Aufschreiben, warum es dir wichtig ist',
+    goalWhyEdit: 'Ändern, warum es dir wichtig ist',
+    goalWhyInvite: 'Manchen hilft es, den Grund einmal aufzuschreiben.',
+    goalWhyQuestion: 'Warum ist es dir wichtig, dieses Ziel zu erreichen?',
+    goalWhyNote: 'Ein oder zwei Sätze genügen. Du kannst es auch leer lassen.',
+
+    goalTop: 'Nach oben setzen',
+    goalTopNote: 'Ganz oben steht, worum es in diesem Bereich gerade geht.',
+
+    goalReached: 'Das habe ich erreicht',
+    goalReachedQuestion: 'Hast du dieses Ziel erreicht?',
+    goalDrop: 'Aus deinen aktuellen Zielen entfernen',
+    goalDropQuestion: 'Ist das kein Ziel mehr für dich?',
+    goalCloseNote:
+      'Was du dafür ausprobieren wolltest, wird mit beiseitegelegt. Gelöscht wird nichts.',
+    goalCloseCancel: 'Noch nicht',
+    looseLabel: 'Gerade keinem Ziel zugeordnet',
+
     reviewEdit: 'Ändern',
-    reviewRemove: 'Aus den aktuellen Schritten entfernen',
     editQuestion: 'Was soll stattdessen dastehen?',
     editSubmit: 'Speichern',
   },
@@ -197,6 +224,10 @@ export const de: Messages = {
       preferred_name: 'Wie ich dich nennen soll',
       opening_intent: 'Was du beim Ankommen wolltest',
       consent_concern: 'Was du zum Speichern gesagt hast',
+      introduction_done: 'Als du die Einführung abgeschlossen hast',
+    },
+    tokens: {
+      introduction_done: { yes: 'Du hast alle Lebensbereiche einmal durchgesehen' },
     },
     areas: {
       note: 'Hier wird nichts entfernt. Frühere Formulierungen und Dinge, die du beiseitegelegt hast, bleiben erhalten — so bleibt sichtbar, wie sich etwas verändert hat.',
@@ -207,10 +238,13 @@ export const de: Messages = {
       earlier: 'geändert von: {goal}',
       steps: 'Was du ausprobieren wolltest',
       added: 'hinzugefügt {when}',
-      active: 'daran arbeitest du',
+      pinned: 'im Blick behalten',
       open: 'notiert',
       done: 'erledigt',
       retired: 'beiseitegelegt',
+      goalReached: 'erreicht',
+      goalPriority: 'zurzeit zuerst',
+      why: 'warum es zählt: {why}',
       edited: 'umformuliert aus: {text}',
       noGoal: 'Kein Ziel notiert',
     },
@@ -226,21 +260,14 @@ export const de: Messages = {
     deleteEntry: 'Meine Daten löschen',
 
     storage: {
-      local: 'Aktuell: Auf diesem Gerät gespeichert',
-      memory: 'Aktuell: Nur für diesen Tab',
-      undecided: 'Aktuell: Noch nicht entschieden',
-      change: 'Speichereinstellungen ändern',
+      on: 'EIN',
+      off: 'AUS',
+      optionCloud: 'Mit der Cloud synchronisieren',
+      cloudDevOnly: 'Cloud-Synchronisierung ist derzeit nur für Entwickler verfügbar.',
 
       optionLocal: 'Auf diesem Gerät speichern',
-      optionMemory: 'Nur für diesen Tab',
 
-      offTitle: 'Speichern ausschalten?',
-      offBody:
-        'Speichern aus bedeutet, dass nichts von dir auf diesem Gerät bleibt — deshalb wird mit der Umstellung gelöscht, was hier gespeichert ist. Dieser Besuch geht weiter, und was du darin machst, bleibt in diesem Tab, bis du ihn schließt.',
-      offConfirm: 'Speichern ausschalten und löschen',
       onDone: 'Speichern ist jetzt an.',
-      offDone: 'Speichern ist jetzt aus, und was gespeichert war, wurde gelöscht.',
-      offDoneEmpty: 'Speichern ist jetzt aus.',
     },
     memoryNote:
       'Du wolltest nicht, dass etwas gespeichert wird — deshalb wird auf dieses Gerät gar nichts geschrieben. Was du der App diesmal erzählst, bleibt in diesem Tab und ist weg, sobald du ihn schließt.',
@@ -253,13 +280,14 @@ export const de: Messages = {
       cancel: 'Behalten',
       finalConfirm: 'Ja, alles löschen',
       done: 'Gelöscht. Es ist nichts mehr da.',
+      restart: 'Neu anfangen',
     },
   },
 
   about: {
     title: 'Über {app}',
     isTitle: 'Was das hier ist',
-    isP1: '{app} ist der Prototyp einer App, die einen Menschen dabei unterstützen soll, gut zu leben. Was du gesehen hast, ist ihr Anfang: die Frage nach deinem Einverständnis und fünf Lebensbereiche, die man sich nacheinander ansieht.',
+    isP1: '{app} ist der Prototyp einer App, die einen Menschen dabei unterstützen soll, gut zu leben. Was du gesehen hast, ist ihr Anfang: die Frage nach deinem Einverständnis und sechs Lebensbereiche, die man sich nacheinander ansieht.',
     isP2: 'Sie läuft vorerst vollständig in deinem Browser. Derzeit gibt es keinen Server, kein Konto, keine Auswertung und keine KI. Nichts, was du schreibst, wird irgendwohin geschickt, und auf dein Gerät wird nichts geschrieben, solange du nicht ja gesagt hast.',
     isP3: 'Was du erzählst, bleibt in deinen eigenen Worten. Antworten werden ergänzt statt überschrieben, damit eine spätere Antwort eine frühere nie löscht — wie sich etwas verändert hat, ist ja das Interessante.',
     isNotTitle: 'Was sie noch nicht ist',

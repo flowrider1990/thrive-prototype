@@ -6,7 +6,7 @@ import { BackLink } from '@/components/back-link'
 import { PageShell } from '@/components/page-shell'
 import { StoredAreas } from '@/components/stored-areas'
 import { formatWhen, useI18n } from '@/lib/i18n'
-import { isAreaKey } from '@/lib/person/goals'
+import { INTRODUCTION_DONE, isAreaKey } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
 /**
@@ -16,7 +16,12 @@ import { usePerson } from '@/lib/person/store'
  * longer asks either question — but anyone who answered them before still has the
  * answers, and this page's whole job is to show what is there.
  */
-const KEY_ORDER = ['preferred_name', 'opening_intent', 'consent_concern']
+const KEY_ORDER = [
+  'preferred_name',
+  'opening_intent',
+  'consent_concern',
+  INTRODUCTION_DONE,
+]
 
 /** Nothing → one confirmation → gone. Deleting is never one tap away. */
 type Deleting = 'no' | 'confirming'
@@ -71,6 +76,19 @@ export default function StoredPage() {
     .filter((group) => group.entries.length > 0)
 
   const labels: Record<string, string | undefined> = m.stored.keys
+
+  /**
+   * Some values are tokens the app wrote, not words someone chose, so printing them
+   * would show an internal enum to the person it is about. Utterances fall through
+   * unchanged, which is the whole point — they are already the answer.
+   *
+   * An unrecognised token still falls through rather than being hidden: a
+   * hand-edited store should degrade to something odd-looking, never to a page that
+   * quietly omits what it holds.
+   */
+  const tokens: Record<string, Record<string, string | undefined> | undefined> = m.stored.tokens
+  const readable = (fact: { key: string; value: string }) =>
+    tokens[fact.key]?.[fact.value] ?? fact.value
   const intro =
     mode === 'local' ? m.stored.introSaved : mode === 'memory' ? m.stored.introMemory : m.stored.introUnknown
 
@@ -109,7 +127,7 @@ export default function StoredPage() {
                 </dt>
                 {group.entries.map((fact) => (
                   <dd key={fact.id} className="space-y-1 border-s-2 border-line ps-5">
-                    <p className="whitespace-pre-line leading-relaxed text-ink">{fact.value}</p>
+                    <p className="whitespace-pre-line leading-relaxed text-ink">{readable(fact)}</p>
                     <p className="text-xs text-muted">
                       {t(m.stored.learnedAt, { when: formatWhen(fact.learnedAt, locale) })}
                     </p>
@@ -157,11 +175,32 @@ export default function StoredPage() {
            */}
           {deleting === 'no' && (
             <div className="space-y-4">
+              {/**
+               * Once everything is gone, the useful thing to offer is a way onward.
+               *
+               * The emphasis rule this looks like it breaks — in a destructive flow the
+               * *safe* choice takes `.btn-primary` — is about the steps that lead **to**
+               * deletion, where emphasis marks what is recommended rather than what comes
+               * next. Those steps are behind us: there is nothing left to protect, and a
+               * page whose only offer is "back to the privacy page" leaves someone who
+               * just cleared everything with no way to begin again.
+               *
+               * A `Link` to `/`, which is the whole mechanism: `forgetEverything()` leaves
+               * the store `undecided`, and `app/page.tsx` derives `greeting` from that. §8e
+               * already asserts a reload lands on the consent question.
+               */}
               <div>
-                <Link href="/data" className="btn btn-primary">
-                  {m.stored.back}
+                <Link href={deleted ? '/' : '/data'} className="btn btn-primary">
+                  {deleted ? m.data.delete.restart : m.stored.back}
                 </Link>
               </div>
+              {deleted && (
+                <div>
+                  <Link href="/data" className="btn btn-quiet">
+                    {m.stored.back}
+                  </Link>
+                </div>
+              )}
               {facts.length > 0 && (
                 <div>
                   <button

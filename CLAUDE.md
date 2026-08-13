@@ -110,8 +110,9 @@ Existing foundation:
 - automated verification.
 
 First product loop (see `docs/goals-and-areas.md`):
-- five fixed life areas, reviewed one per screen during onboarding,
-- one current goal per area, where the person wants one,
+- six fixed life areas, reviewed one per screen during onboarding,
+- up to three goals per area, where the person wants them — one asked for during
+  onboarding, more added from the area's own page,
 - up to three prepared next steps, at most one active,
 - completing a step, then choosing another or not,
 - a small per-area view for changing the goal and the steps.
@@ -130,8 +131,10 @@ Once the current shell/deployment foundation is complete and a new implementatio
 
 Built (approved and implemented — §4):
 - a small set of life areas,
-- one active goal per area,
-- one next step per goal, with a few prepared,
+- up to three goals per area, with one of them put first,
+- an optional note on a goal saying why it matters,
+- up to three things to try across an area, each belonging to one goal, any number of
+  which can be pinned to the start page,
 - complete a step,
 - mobile-first responsive UI,
 - light and dark monochrome themes.

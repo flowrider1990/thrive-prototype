@@ -30,19 +30,32 @@ import { addStep, editStep, MAX_OPEN_STEPS, type Step } from '@/lib/person/goals
  */
 export function ActionEntry({
   area,
+  goalId,
   entries,
+  atCap,
   onEnough,
 }: {
   area: AreaId
-  /** The open entries, oldest first. */
+  /** The goal these serve. Every entry belongs to exactly one. */
+  goalId: string
+  /** This goal's open entries, oldest first. */
   entries: Step[]
+  /**
+   * Whether the **area** is at its cap.
+   *
+   * Separate from `entries.length`, because the cap counts across the whole area while
+   * this list is one goal's: three goals holding three each would be nine open entries
+   * in one area, which is the task manager this is not. Defaults to the list's own
+   * length for the single-goal case.
+   */
+  atCap?: boolean
   /** Offered once there is at least one; absent means the caller wants none. */
   onEnough?: () => void
 }) {
   const { m, t } = useI18n()
   const [editing, setEditing] = useState<string | null>(null)
 
-  const full = entries.length >= MAX_OPEN_STEPS
+  const full = atCap ?? entries.length >= MAX_OPEN_STEPS
 
   return (
     <div className="space-y-6">
@@ -137,7 +150,7 @@ export function ActionEntry({
                 : undefined
             }
             onSubmit={(value) => {
-              addStep(area, value)
+              addStep(area, value, goalId)
             }}
             onSkip={onEnough}
           />

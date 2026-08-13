@@ -78,6 +78,12 @@ second.
 The palette is monochrome by intent (`CLAUDE.md` §7): emphasis comes from
 contrast, not hue. Do not introduce an accent hue without asking.
 
+**There is exactly one hue, `--color-pin`, and it was asked for.** It paints an active
+pin and nothing else. It is deliberately not named `danger`, `accent` or `red`: a name
+describing the *colour* invites the next reader to reuse it, and the next reuse is the one
+that ends the monochrome palette by accident. See "Icon-only controls" for why a hue is
+safe there specifically, and the danger-variant note below for what it is still not.
+
 ### The dark palette
 
 Defined once as `--dark-*` on `:root`, then mapped twice — once under
@@ -161,8 +167,10 @@ same hook `.nav-link` uses, so the visible mark and the accessibility tree have 
 source of truth. A caller that marks an option visually **must** set it: the tick is
 `Check` from `components/menu.tsx` and is `aria-hidden`, so on its own it is a state
 carried by appearance alone, which §17 does not allow. `Check`'s slot is always
-rendered, so moving the mark shifts nothing. The storage choice on `/data/` is the one
-call site.
+rendered, so moving the mark shifts nothing. The only call site that sets it is the nav
+in `components/page-shell.tsx` — an earlier version of this said the storage choice on
+`/data/` was, which was never true: it passed no `current` at all, and it is a pair of
+switches now.
 
 `.option` means exactly one thing: **pick this**. Selecting one chooses something; it
 never spends anything. That is now true, and it was not: the focused next step on the
@@ -186,14 +194,103 @@ button and the step toward deletion is `.btn-quiet`. Emphasis marks what is
 *recommended*, not what is next — a filled "Yes, delete everything" would be the
 interface leaning on someone at the one moment it should not.
 
+**The exception is the state *after* it happened.** Once everything is deleted there is
+no destructive choice left on the screen: the confirmation is gone and "Delete
+everything" has unmounted with the data. Nothing is being recommended against, and a
+page whose only offer is "back to the privacy page" leaves someone who just cleared
+everything with nowhere to begin. So "Start again" takes `.btn-primary` there and
+leaving drops one weight to a full-size `.btn-quiet` — one primary per state, as
+everywhere. §46a and §46b assert both states, because the rule above is exactly the kind
+of thing a later reader would "fix".
+
 **There is no destructive/danger variant, and adding one is a decision not yet
 made.** The obvious ask — paint the final irreversible action red — has no token to
 use: the palette is monochrome by intent (`CLAUDE.md` §7, "do not introduce an accent
-hue without asking"), so a danger colour would be the first hue in the system. It was
-considered and deferred rather than improvised. What carries the weight instead is
-*where* emphasis sits and how many steps there are, which is the pattern above. If a
-danger token is ever added it needs the same treatment as `--color-line-strong`: a
-contrast floor against both backgrounds, in both themes, asserted.
+hue without asking"), and `--color-pin` is **not** it — a red pushpin is an object, not a
+warning, and reusing it here would make one token mean both "kept in view" and "this cannot
+be undone". A danger colour was considered and deferred rather than improvised. What carries
+the weight instead is *where* emphasis sits and how many steps there are, which is the
+pattern above. If a danger token is ever added it needs the same treatment `--color-pin`
+got, which is the treatment `--color-line-strong` got: a contrast floor against both
+backgrounds, in both themes, asserted — §31e.
+
+## Icon-only controls
+
+There are three, and they share a shape: `inline-flex … rounded-full border
+border-line-strong … text-muted transition-colors hover:border-muted hover:text-ink`. The
+theme toggle and the collapsed-nav trigger set it; `.pin-toggle` follows it.
+
+**They are bordered on purpose.** A control edge at rest is what says "this is a control",
+which is the whole reason `--color-line-strong` exists — so a *bare* icon button would
+remove the one thing at rest identifying it as pressable. A pin icon in a small circle is
+still much lighter than a text pill, which was the point: half the pill weight per row,
+not none.
+
+The border is present in both states so pressing one moves nothing, the same guarantee
+`.btn`'s always-transparent border gives.
+
+**The "Icons" note below needs one exception.** It says icons here are `aria-hidden`
+because the adjacent words already say what the icon says. That holds for `Lock` and
+`ArrowLeft`. For a pin the glyph *is* the control's whole content, so the **button** is
+named — `Pin: {text}` / `Unpin: {text}` — and the glyph stays hidden. State still needs
+two cues, so the glyph changes too (filled when pinned, outlined when not) at identical
+box size — size is never the difference.
+
+**Colour is the third cue, and only ever the third.** An active pin is drawn in
+`--color-pin`, the one hue in the palette. It is safe here precisely because it is
+redundant: remove it and the filled glyph and the flipped accessible name still carry the
+state, which is what §17 asks. Adding it the other way round — colour first, then looking
+for a second cue — is how a colour-only state gets shipped. §42d3 asserts the class still
+applies it (`.pin-toggle:hover` has the specificity to take it back), and §31e asserts it
+is readable on both backgrounds in both themes.
+
+The glyph is an office pushpin drawn straight down — wide grip, waist, flange, needle —
+rather than a round head on a stem, which read as a map marker: "where this is" instead of
+"keep this in front of me". The waist is what carries the recognition, so it is drawn wide
+enough to survive at 14px rather than being a detail that disappears.
+
+`aria-pressed` is deliberately **not** used. The accessible name already flips, and
+"Unpin, pressed" is ambiguous rather than clearer — so the CSS hook is a class
+(`.pin-toggle-on`), which is also the only locale-independent option once the state lives
+in the name.
+
+## The switch, and the check that used to forbid it
+
+`.switch` is a settings row: label on the left, state on the right, and **no bordered
+surface at all**. That absence is the whole point. `.option` and `.field` are the same
+rule in every property that draws a box — `w-full rounded-md border border-line-strong
+bg-surface px-4 py-3 leading-relaxed text-ink` — so the storage choice, which was one
+full-width `.option` above a Cancel pill, was visually indistinguishable from an empty
+text input. A setting has to look like a setting, and here that is alignment rather than
+a container.
+
+**There is one switch on `/data/` now, not two.** "Save on this device" was the other,
+and turning it off deleted what was stored — the same act as "Delete my data" further down
+the page, done by the control that said less about it. What remains in that direction is a
+plain quiet button offering to opt *in*, shown only to someone not already saving: a
+one-way action is a button, because a toggle that can only be flipped on is a control
+lying about itself.
+
+State is carried three ways, and only one of them is colour: the knob's **position**,
+the literal word beside it (`ON` / `OFF`), and the track's fill. Metrics never change
+when it flips, which is the same rule the progress marks follow — `.switch-track` and
+`.switch-knob` keep their size in both states and the knob moves by `translateX`, so
+nothing on the page reflows. The knob's travel uses a logical margin and is mirrored
+under `[dir='rtl']`.
+
+It is a `<button role="switch" aria-checked>`, not an `<input type="checkbox">`. Two
+reasons: `role="switch"` says "this is on or off right now" where a checkbox says "this
+will be included when you submit", and there is no form here to submit; and
+`StorageChoice`'s inline-panel focus handling calls
+`panel.querySelector('button')?.focus()`, which an input would have broken silently.
+
+**Check 36c used to assert that no switch existed.** Its name was "and no toggle was
+introduced beside it", and it was a deliberate guard against this exact redesign. It is
+now inverted rather than deleted, because quietly removing a check that says *do not do
+this* is how a codebase forgets it ever decided. It still forbids a checkbox.
+
+A disabled switch — currently cloud sync — keeps its state readable and carries a line
+saying why it cannot be operated, rather than being a dead control to poke at.
 
 `.link-inline` is a link inside a sentence. Its underline is load-bearing, not
 decoration: these sit in `text-muted` prose, so without the rule "this word is a
@@ -234,7 +331,7 @@ item shifts nothing.
 
 ### The progress marks
 
-`components/progress-marks.tsx` follows the same rule. Five marks, three states, and
+`components/progress-marks.tsx` follows the same rule. One mark per area, three states, and
 a 12×12 box in every one of them, so advancing cannot reflow the question
 underneath:
 
@@ -261,13 +358,13 @@ The marks must stay **direct children** of the `[role="progressbar"]` element �
 silently rather than loudly.
 
 `docs/plan.md` rejected a progress bar for onboarding — "there is nothing to
-endure" — and that still holds for a flow of unknown length. The five areas are a
+endure" — and that still holds for a flow of unknown length. The life areas are a
 known, small, finite set, and knowing how many are left is orientation rather than
 a demand. Percentages were considered and rejected: they frame reviewing your own
 life as a task to complete.
 
 It is a real `role="progressbar"` with `aria-valuenow` and a translated
-`aria-valuetext` ("Area 2 of 5"), because five dots say nothing out loud. What it
+`aria-valuetext` ("Area 2 of 6"), because a row of dots says nothing out loud. What it
 measures is **areas looked at** — "not right now" advances it exactly as much as
 setting a goal does.
 
@@ -285,8 +382,8 @@ Two rules that are easy to undo by accident:
   `<div>` is not allowed; an `<h2>` is. That is why `components/stored-areas.tsx`
   lays its summary out as a **grid** rather than nesting boxes — it needs a heading
   and a line of text beside a marker, and the grid places them without a wrapper the
-  content model forbids. Keeping the real `h2` is what keeps five stored areas
-  visible as five sections in the document outline.
+  content model forbids. Keeping the real `h2` is what keeps each stored area
+  visible as its own section in the document outline.
 - **Only the marker moves.** The chevron rotates; no height, padding or weight
   changes, so opening a section shifts nothing except the content it reveals. The
   hover cue is on the marker rather than the summary text, because recolouring the
@@ -398,13 +495,23 @@ and is `text-ink`; `row` labels an area inside a list and is `text-sm text-muted
 
 `card` exists because that list had no hierarchy: the name was `text-sm text-muted`
 while the goal beneath it was full-size ink, so the row's own *subject* was the
-quietest thing in it and five rows read as ten interchangeable lines. The goal drops a
+quietest thing in it and the rows read as twice as many interchangeable lines. The goal drops a
 step in size but **stays `text-ink`** — muting the person's own words to make room for
 a label the app chose would be the wrong trade, and size alone separates them once the
 name is bigger. §34a measures the two font sizes rather than trusting the eye, and
 §34b pins the goal to ink.
 
-None renders a heading element — the eyebrow sits above the `h1` that owns the
+`QuestionCard`'s `subject` prop is the exception, and it does not go through
+`AreaLabel` for exactly this reason: during the introduction the **area is the `h1`**,
+at full `.heading` scale with `AreaIcon size="subject"` beside it, and the question
+drops to `text-lg` sans. The question is identical on every area screen, so the one
+part that changes should not be the smallest thing on the page. `AreaLabel` still may
+not emit a heading — it has five call sites where an `h2` before the question would put
+the outline in the wrong order — so `QuestionCard` builds that heading itself, the same
+way `components/stored-areas.tsx` does. §44 measures both the size gap and that there
+is only one `h1`.
+
+None of `AreaLabel`'s own sizes renders a heading element — the eyebrow sits above the `h1` that owns the
 question, and an `h2` in front of it would put the document outline in the wrong
 order. On `/areas/` the whole row is a link, and a heading inside a link is worse
 again.
@@ -471,7 +578,7 @@ a substring.)*
 
 ## Page rhythm
 
-Five pages drifted into five different spacings for the same relationships. These are
+Five pages had drifted into five different spacings for the same relationships. These are
 now one set of numbers, and the point of writing them down is that the next page uses
 them instead of picking again:
 

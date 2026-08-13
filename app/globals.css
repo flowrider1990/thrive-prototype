@@ -48,6 +48,24 @@
      meant tuning emphasis silently retuned focus. */
   --color-focus: #1f1e1c;
 
+  /**
+   * The one hue in the palette, and it is scoped to exactly one thing: a pin that is
+   * active.
+   *
+   * This is deliberately **not** a general danger or accent token. `docs/design-system.md`
+   * records adding one of those as an unmade decision, and it stays unmade — a red
+   * pushpin is a real-world object, not a warning, and naming the token `pin` keeps a
+   * later reader from reaching for it as "the error colour".
+   *
+   * It is a *third* cue, never the only one: the glyph is filled when pinned and
+   * outlined when not, and the button's accessible name flips. §17 is satisfied without
+   * it, which is the only reason a hue is safe to add here at all.
+   *
+   * Both values clear 3:1 against `ground` and `surface` in their own theme — measured,
+   * and asserted by §31e.
+   */
+  --color-pin: #b4262a;
+
   --text-base: 1.0625rem;
 
   /* This project's shape scale, replacing Tailwind's defaults for these three
@@ -84,6 +102,7 @@
   --dark-line-strong: #6b6b75;
   --dark-accent: #e5e2dd;
   --dark-focus: #eae7e2;
+  --dark-pin: #f08a86;
 }
 
 /**
@@ -101,6 +120,7 @@
     --color-line-strong: var(--dark-line-strong);
     --color-accent: var(--dark-accent);
     --color-focus: var(--dark-focus);
+    --color-pin: var(--dark-pin);
     color-scheme: dark;
   }
 }
@@ -333,6 +353,82 @@
    * `underline-offset-2` keeps the rule off the descenders, which is what stops an
    * underlined link inside body text reading as struck through.
    */
+  /**
+   * A settings switch: label on the left, state on the right.
+   *
+   * Deliberately **not** on a `.option`/`.field` surface. Those two are the same rule
+   * in every property that draws a box — `rounded-md border border-line-strong
+   * bg-surface px-4 py-3` — so a single bordered row above a Cancel pill read as an
+   * empty text input, which is what this replaced. A settings row is alignment, not a
+   * container.
+   *
+   * State is carried three ways and only one of them is colour: the knob's **position**,
+   * the literal word beside it, and the track's fill. Metrics never change, so flipping
+   * one moves nothing on the page — the same rule the progress marks follow.
+   */
+  .switch {
+    @apply flex w-full items-center justify-between gap-x-4 py-2 text-start;
+    @apply leading-relaxed text-ink transition-colors;
+  }
+  .switch:disabled {
+    @apply cursor-not-allowed text-muted;
+  }
+
+  .switch-track {
+    @apply relative inline-flex h-5 w-9 shrink-0 items-center rounded-full;
+    @apply border border-line-strong transition-colors;
+  }
+  .switch:hover:not(:disabled) .switch-track {
+    border-color: var(--color-muted);
+  }
+  .switch[aria-checked='true'] .switch-track {
+    @apply border-transparent bg-accent;
+  }
+
+  .switch-knob {
+    @apply h-3 w-3 rounded-full bg-line-strong transition-transform;
+    /* Logical, so the knob travels the right way in a right-to-left layout. */
+    margin-inline-start: 0.1875rem;
+  }
+  .switch[aria-checked='true'] .switch-knob {
+    @apply bg-ground;
+    transform: translateX(1rem);
+  }
+  [dir='rtl'] .switch[aria-checked='true'] .switch-knob {
+    transform: translateX(-1rem);
+  }
+
+  /**
+   * An icon-only toggle whose whole content is a glyph.
+   *
+   * Bordered like the other two icon-only controls in the app — the theme toggle and the
+   * collapsed-nav trigger — because a control edge at rest is what says "this is a
+   * control", which is the whole reason `--color-line-strong` exists. It is smaller than
+   * a text pill, which is the point: half the pill weight per row, not none.
+   *
+   * The border is present in both states so pressing it moves nothing, the same
+   * guarantee `.btn`'s transparent border gives.
+   */
+  .pin-toggle {
+    @apply inline-flex shrink-0 items-center justify-center rounded-full p-1.5;
+    @apply border border-line-strong text-muted transition-colors;
+    @apply hover:border-muted hover:text-ink;
+  }
+  /**
+   * A class rather than an attribute selector, because the obvious hooks are both
+   * wrong here: the accessible name is what carries the state (it flips between
+   * "Pin: …" and "Unpin: …"), so keying off it would be locale-coupled — and
+   * `aria-pressed` alongside a name that already flips reads as "Unpin, pressed",
+   * which is ambiguous rather than clearer.
+   */
+  .pin-toggle-on,
+  .pin-toggle-on:hover {
+    @apply border-muted;
+    /* The icon inherits it through `currentColor`. Listed with `:hover` because
+       `.pin-toggle:hover` is the same specificity and would otherwise win. */
+    color: var(--color-pin);
+  }
+
   .link-inline {
     @apply text-ink underline decoration-line-strong underline-offset-2 transition-colors;
   }

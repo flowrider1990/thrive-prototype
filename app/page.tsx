@@ -12,7 +12,7 @@ import { QuestionCard } from '@/components/question-card'
 import { TextAnswer } from '@/components/text-answer'
 import { areas, type AreaId } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
-import { introductionFinished, isSettled, readArea } from '@/lib/person/goals'
+import { finishIntroduction, introductionFinished, readArea } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
 type Step =
@@ -53,11 +53,16 @@ export default function Home() {
   // `components/page-shell.tsx`, and the two must never disagree — a nav appearing
   // while this page still shows the introduction would offer empty pages.
   //
-  // `isSettled` is deliberately not what decides it: completing something and
-  // choosing "Later" un-settles an area, and the app would drop back into onboarding
-  // months later. It decides only *where an interrupted pass resumes*.
   const reviewed = states.filter((state) => state.review).length
-  const resumeArea = states.find((state) => !isSettled(state))?.area ?? areas[0]
+
+  // Where an interrupted pass resumes: the first area that has not been answered at
+  // all. A review answer is the first thing every area's pass writes and is never
+  // taken away, which makes this the only predicate that cannot nag.
+  //
+  // It used to require a goal and something being worked on. Both are now optional —
+  // the goal can be skipped and nothing is prioritised — so requiring either would
+  // send someone back to a question they deliberately passed on.
+  const resumeArea = states.find((state) => !state.review)?.area ?? areas[0]
 
   const step: Step =
     chosenStep ??
@@ -75,9 +80,13 @@ export default function Home() {
 
   const ackText = ack === 'consent' ? m.consent.ack : ack === 'declined' ? m.declined.ack : null
 
-  /** Moves to the next area, or to the closing screen after the fifth. */
+  /** Moves to the next area, or to the closing screen after the last one. */
   function nextArea() {
     const following = areas[areas.indexOf(area) + 1]
+    // The one place the introduction closes, exactly once per pass — which is why
+    // the fact is written here rather than anywhere it could be inferred.
+    // `AreaManage` passes its own `onDone`, so opening an area later cannot fire it.
+    if (!following) finishIntroduction(person)
     setChosenArea(following ?? null)
     setStep(following ? 'area' : 'complete')
   }
@@ -190,6 +199,11 @@ export default function Home() {
                 label: m.intro.submit,
                 onSelect: () => {
                   setAck(null)
+                  // Fixed here, for the whole walk. An area counts as settled once it
+                  // holds a goal, so leaving this to `resumeArea` would advance the
+                  // walk the instant a goal is written and skip that area's own "what
+                  // could help" question. `nextArea()` carries it from here on.
+                  setChosenArea(resumeArea)
                   setStep('area')
                 },
               },

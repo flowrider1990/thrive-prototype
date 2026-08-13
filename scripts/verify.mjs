@@ -715,7 +715,7 @@ const EN = {
   goalReword: 'Change the wording',
   goalTop: 'Move this to the top',
   goalReached: 'I have reached this',
-  confirmDelete: 'Are you sure?',
+  confirmDelete: 'really want to remove the goal',
   confirmYes: 'Yes',
   confirmNo: 'No',
   goalCloseNote: 'What you were trying for it is set aside with it. Nothing is deleted.',
@@ -1433,8 +1433,15 @@ const beforeDrop = JSON.parse(await raw()).facts.length
 await clickAria('Remove goal: Get hired somewhere I like')
 screen = await text()
 check(
-  '7e0. removing a goal asks once, in place, and has written nothing yet',
+  // Names the goal, and is the only thing on the page: the second goal's card and the
+  // page's own controls come down, so the one moment needing a single answer is not also
+  // the busiest state on the screen.
+  '7e0. removing a goal asks once, names it, and is the only thing on screen',
   screen.includes(EN.confirmDelete) &&
+    screen.includes('Get hired somewhere I like') &&
+    !screen.includes('Finish the portfolio properly') &&
+    !(await visible(EN.goalAdd)) &&
+    !(await visible(EN.manageDone)) &&
     JSON.parse(await raw()).facts.length === beforeDrop &&
     (await visible(EN.confirmNo)),
   screen.replace(NL, ' / ').slice(0, 120),
@@ -1979,7 +1986,7 @@ await clickNav(EN.navAreas)
 screen = await text()
 check(
   '25c. the unfinished area is reachable and says what is missing',
-  screen.includes(LAST_AREA.label) && screen.includes('decide on next steps to reach your goal'),
+  screen.includes(LAST_AREA.label) && screen.includes('ecide on next steps to reach your goal'),
 )
 await clickOption(LAST_AREA.label)
 await waitForText('Draw something every week')
@@ -2130,7 +2137,7 @@ check(
   // is the sentence about there being nothing to try yet — which is the half this check
   // was really about: two screens describing one state in one wording.
   '38g. and the areas list says the same thing in the same words',
-  screen.includes('decide on next steps to reach your goal') && screen.includes(EN.goalsOne),
+  screen.includes('ecide on next steps to reach your goal') && screen.includes(EN.goalsOne),
   screen.replace(/\n/g, ' / ').slice(0, 160),
 )
 
@@ -4407,6 +4414,36 @@ check(
     editPlacement?.named === true,
   JSON.stringify(editPlacement),
 )
+
+/**
+ * One thing open at a time, and a goal's card holds its own entries.
+ *
+ * Editing an entry used to leave the goal's edit and remove controls up, plus
+ * "+ Eintrag hinzufügen" — three more ways to start something else while something was
+ * half-written, two of which discarded it. And the card is what makes a goal and its
+ * entries read as one object; without it they were a run of indented lines.
+ */
+await clickAria('Edit: Write the case study')
+const focused48 = await evaluate(`(() => {
+  const li = document.querySelector('main ol li');
+  const names = [...li.querySelectorAll('button')].map((b) => b.getAttribute('aria-label') || b.innerText.trim());
+  return {
+    field: Boolean(li.querySelector('input, textarea')),
+    goalControls: names.filter((n) => n.startsWith('Change this goal:') || n.startsWith('Remove goal:')).length,
+    addOffered: names.some((n) => n === '+ Add an entry'),
+    carded: getComputedStyle(li).borderTopWidth !== '0px' && li.querySelector('ul') !== null,
+  };
+})()`)
+check(
+  '48i. editing an entry hides the goal’s controls, inside a card that holds both',
+  focused48.field === true &&
+    focused48.goalControls === 0 &&
+    focused48.addOffered === false &&
+    focused48.carded === true,
+  JSON.stringify(focused48),
+)
+// Close it again: the next check needs the row's own controls back.
+await click(EN.cancel)
 
 /**
  * Asking for an action outside the introduction no longer needs to *say* which goal.

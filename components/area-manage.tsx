@@ -94,10 +94,18 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
 
   const back = () => setView({ at: 'overview' })
 
-  // Priority first, then oldest — the order `readArea` already derives.
-  const goals = state.priority
+  /**
+   * While a goal's removal is being confirmed, **only that goal is on the page.**
+   *
+   * The question was one card among others, with two more goals and two page controls
+   * still offering things to do — so the one moment that needs a single answer was the
+   * busiest state on the screen. Filtering the list is enough: the card is already the
+   * question, and everything else simply is not drawn.
+   */
+  const allGoals = state.priority
     ? [state.priority, ...state.activeGoals.filter((goal) => goal.id !== state.priority?.id)]
     : state.activeGoals
+  const goals = deletingGoal ? allGoals.filter((goal) => goal.id === deletingGoal) : allGoals
 
   /**
    * `back`, not `onDone`: finishing here returns to **this area**, not to the list of
@@ -172,8 +180,13 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
       </h1>
 
       <div className="space-y-3">
-        <ol className="space-y-10">
-          {goals.map((goal, index) => {
+        {/* One card per goal, so a goal and its entries read as one object rather than
+            as a run of lines that happen to be indented. `border-line` and not
+            `line-strong`: this is a container, not a control — the edge groups, it does
+            not invite a tap. Nothing inside it changed. */}
+        <ol className="space-y-4">
+          {goals.map((goal) => {
+            const index = allGoals.indexOf(goal)
             /**
              * **Pinning deliberately does not reorder this list**, though it does reorder
              * the start page.
@@ -193,9 +206,27 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
              * than as the start page's rule not having been carried over.
              */
             const trying = state.open.filter((step) => step.goalId === goal.id)
+            /**
+             * Whether this goal already has a field open under it.
+             *
+             * With one open, the goal's own edit and remove controls come down and so does
+             * "+ Eintrag hinzufügen" — one thing at a time. Leaving them up offered three
+             * more ways to start something else while something was half-written, and two
+             * of them would have discarded it.
+             */
+            const entryEditing = editingStep !== null && trying.some((s) => s.id === editingStep)
+            /**
+             * The goal's own controls come down while anything under it is open — editing
+             * an entry *or* adding one. The add block is excluded from its own condition,
+             * since that block is where the new-entry field lives.
+             */
+            const busyHere = entryEditing || addingTo === goal.id
 
             return (
-              <li key={goal.id}>
+              <li
+                key={goal.id}
+                className="rounded-lg border border-line bg-surface px-4 py-4 sm:px-5"
+              >
                 <div className="min-w-0 space-y-4">
                   {/**
                    * Three lines, and together they *are* the hierarchy: the app's label,
@@ -216,7 +247,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                         label and dropping the number answers both halves. */}
                     <p className="flex items-center gap-x-1.5 text-sm text-muted tabular-nums">
                       <GoalIcon />
-                      {goals.length > 1
+                      {allGoals.length > 1
                         ? t(m.manage.goalNumber, { n: String(index + 1) })
                         : m.manage.goalOnly}
                     </p>
@@ -282,7 +313,11 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                          overlay needs focus trapping, and that is a dependency this does
                          not need. */
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                        <p className="text-ink">{m.manage.confirmDelete}</p>
+                        <p className="max-w-prose leading-relaxed text-ink">
+                          {t(m.manage.confirmDelete, {
+                            goal: t(m.manage.goalQuoted, { text: goal.text }),
+                          })}
+                        </p>
                         <button
                           type="button"
                           className="btn btn-sm btn-quiet"
@@ -312,6 +347,8 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                             areas rather than as marks. Each is named after the goal it
                             acts on: three buttons called "Edit" are three identical
                             controls to anyone listening. */}
+                        {!busyHere && (
+                        <>
                         <button
                           type="button"
                           className="pin-toggle"
@@ -334,6 +371,8 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                         >
                           <Cross />
                         </button>
+                        </>
+                        )}
                       </div>
                     )}
                     {/* Only when it is there. There is no longer any way to write one,
@@ -396,6 +435,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                         goal, the other acts on the goal itself. Editing moved up beside the
                         goal, so everything left in this indent operates on one level. */}
                     {!atCap &&
+                      !entryEditing &&
                       (addingTo === goal.id ? (
                         // In place, not on a screen of its own. The whole point of this
                         // pass is that managing a goal and its entries never leaves the
@@ -448,7 +488,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
         {/* An entry belonging to no goal must never be invisible. It can only
             happen through a hand-edited store or one written by an older build, but
             "stored and unshowable" is the one state this page cannot have. */}
-        {loose.length > 0 && (
+        {!deletingGoal && loose.length > 0 && (
           <div className="space-y-1 border-t border-line pt-4">
             <p className="text-sm text-muted">{m.manage.looseLabel}</p>
             <ul className="space-y-1">
@@ -467,17 +507,22 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
           </div>
         )}
 
-        {atCap && <p className="text-sm text-muted">{m.goals.stepsFull}</p>}
+        {!deletingGoal && atCap && <p className="text-sm text-muted">{m.goals.stepsFull}</p>}
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-line pt-6">
-        {goals.length < MAX_GOALS && (
+      {/* No rule above these. It separated the goals from the page's own controls back
+          when the goals were a run of lines; each goal is a bordered card now, so the line
+          was a second edge doing the same job — and it read as a card boundary of its
+          own. */}
+      {!deletingGoal && (
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 pt-2">
+        {allGoals.length < MAX_GOALS && (
           <button
             type="button"
             className="btn btn-quiet"
             onClick={() => setView({ at: 'goalNew' })}
           >
-            {goals.length === 0 ? m.manage.goalAddFirst : m.manage.goalAdd}
+            {allGoals.length === 0 ? m.manage.goalAddFirst : m.manage.goalAdd}
           </button>
         )}
         {/* Quiet, beside the equally quiet "add a goal". Nothing here is the
@@ -486,6 +531,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
           {m.manage.done}
         </button>
       </div>
+      )}
     </section>
   )
 

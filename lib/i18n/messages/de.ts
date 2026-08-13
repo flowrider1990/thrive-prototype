@@ -184,7 +184,7 @@ export const de: Messages = {
     editOn: 'Ändern: {text}',
     deleteOn: 'Entfernen: {text}',
     deleteGoalOn: 'Ziel entfernen: {goal}',
-    confirmDelete: 'Bist du sicher?',
+    confirmDelete: 'Willst du das Ziel {goal} wirklich entfernen?',
     confirmYes: 'Ja',
     confirmNo: 'Nein',
     pin: 'Anpinnen',

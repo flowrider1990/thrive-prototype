@@ -513,7 +513,17 @@ export const en = {
      * destroyed. Append-only has no delete, so "remove" records that an item is no longer
      * current and `/data/stored/` still shows it. A mis-tap costs a re-add.
      */
-    confirmDelete: 'Are you sure?',
+    /**
+     * Names the goal, and names the act.
+     *
+     * "Are you sure?" made the reader supply both from memory — of what they had tapped —
+     * on a page that can hold three goals whose rows look alike. A confirmation that does
+     * not say what it is about is a confirmation of the tap rather than of the outcome.
+     *
+     * The goal comes through `goalQuoted`, so it is the person's sentence in quotes here
+     * exactly as it is in the heading above.
+     */
+    confirmDelete: 'Do you really want to remove the goal {goal}?',
     confirmYes: 'Yes',
     confirmNo: 'No',
     /**

@@ -78,17 +78,40 @@ second.
 The palette is monochrome by intent (`CLAUDE.md` §7): emphasis comes from
 contrast, not hue. Do not introduce an accent hue without asking.
 
-**There is exactly one hue, `--color-pin`, and it was asked for.** It paints an active
-pin and nothing else. It is deliberately not named `danger`, `accent` or `red`: a name
-describing the *colour* invites the next reader to reuse it, and the next reuse is the one
-that ends the monochrome palette by accident. See "Icon-only controls" for why a hue is
-safe there specifically, and the danger-variant note below for what it is still not.
+**There are exactly two hues, and both were asked for.** Neither is named for the colour
+it is, because a name describing the colour invites the next reader to reuse it, and the
+next reuse is the one that ends the monochrome palette by accident.
+
+| token | paints | why it is safe |
+| --- | --- | --- |
+| `--color-pin` | an active pin, and nothing else | the glyph is filled and the accessible name flips, so colour is the third cue |
+| `--color-note` | a hint — something worth noticing that is not a problem | the sentence starts with "Note:" and is italic, so colour is the third cue |
+
+The pattern is the same both times and it is the whole licence: **colour is never the only
+thing carrying the meaning.** Remove the hue and the state still reads. Adding a hue the
+other way round — colour first, then hunting for a second cue — is how a colour-only state
+ships. `--color-note` is gold rather than red on purpose: a hint is not a warning, and see
+the danger-variant note below for what neither of these is.
+
+Contrast floors differ by job, which is not an inconsistency: `--color-pin` clears 3:1
+because it draws a glyph, `--color-note` clears **4.5:1** because it is a sentence at
+`text-sm` that has to be read. §31e and §31g.
 
 ### The dark palette
 
 Defined once as `--dark-*` on `:root`, then mapped twice — once under
 `@media (prefers-color-scheme: dark)` for "the OS asked", once under
-`:root[data-theme='dark']` for "the person chose". A media condition and an
+`:root[data-theme='dark']` for "the person chose".
+
+**Mapping one and forgetting the other is the trap, and it is invisible.** Every contrast
+check in the suite emulates `prefers-color-scheme`, so a token missing from the
+`[data-theme]` block passes all of them — which is exactly how `--color-pin` shipped
+mapped in the media block only, drawing an active pin in the *light* red at 2.48:1 on a
+chosen dark theme. §31f now asserts the shape instead of any one colour: for every
+`--dark-*` on `:root`, the matching `--color-*` must resolve to it under
+`[data-theme='dark']`. Any token added later is covered without anyone remembering to.
+
+A media condition and an
 attribute selector cannot be combined in one rule, so the mapping is repeated
 rather than shared. **Adding a colour token means adding it in three places**;
 the file says so at each one.

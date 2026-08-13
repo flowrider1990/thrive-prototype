@@ -39,11 +39,24 @@ type Sub = 'review' | 'goal' | 'steps'
 export function AreaFlow({
   area,
   progress,
+  straightToGoal = false,
   onDone,
 }: {
   area: AreaId
   /** The progress marks during the introduction; nothing when managing one area. */
   progress?: React.ReactNode
+  /**
+   * Skip the review question and open on "What is your goal?".
+   *
+   * Set when someone **opened this area on purpose** from `/areas/`, where tapping a row
+   * that says "No goals yet" already answers "would you like to change something here".
+   * Asking again is asking them to confirm the tap.
+   *
+   * The introduction leaves it off, and that is not an inconsistency: there, the area
+   * arrives unbidden — six of them in a row — so whether this one is worth a goal at all
+   * is a real question, and "Not right now" is a real answer to it.
+   */
+  straightToGoal?: boolean
   onDone: () => void
 }) {
   const { m } = useI18n()
@@ -51,7 +64,7 @@ export function AreaFlow({
   const state = readArea(person, area)
 
   const [chosenSub, setSub] = useState<Sub | null>(null)
-  const sub = chosenSub ?? resume(state)
+  const sub = chosenSub ?? resume(state, straightToGoal)
 
   // Which goal the entries screen is filling. There can be up to `MAX_GOALS` in one
   // area now, so "the area's goal" is no longer a thing to point at. After a reload
@@ -122,6 +135,20 @@ export function AreaFlow({
               */
              skipLabel={state.activeGoals.length === 0 ? m.goals.goalSkip : m.goals.stepsEnough}
             onSubmit={(value) => {
+              /**
+               * Writing a goal *is* answering "yes, something here".
+               *
+               * The review question used to be the only thing that recorded it, so
+               * skipping that question would have left an area holding a live goal while
+               * its newest review still said "not right now" — the contradiction the
+               * explicit write existed to prevent. Recorded here instead: at the act,
+               * rather than when a row was tapped, which is not a decision about anything.
+               *
+               * Guarded, because append-only means an unguarded write would add a
+               * duplicate 'yes' on every goal added in the introduction, where the
+               * question was already answered.
+               */
+              if (state.review !== 'yes') setReview(area, 'yes')
               setGoalId(addGoal(area, value))
               setSub('steps')
             }}
@@ -188,7 +215,10 @@ export function AreaFlow({
 }
 
 /** Where an interrupted pass through this area left off. */
-function resume(state: AreaState): Sub {
+function resume(state: AreaState, straightToGoal = false): Sub {
+  // Opened on purpose: the tap was the answer to the review question, so the first thing
+  // on screen is the field. Everything after this behaves identically either way.
+  if (straightToGoal && state.activeGoals.length === 0) return 'goal'
   if (!state.review || state.review === 'not_now') return 'review'
   if (state.activeGoals.length === 0) return 'goal'
   return 'steps'

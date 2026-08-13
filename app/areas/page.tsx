@@ -57,12 +57,12 @@ export default function AreasPage() {
          */}
         <ul className="space-y-3">
           {states.map((state) => {
-            const top = state.priority ?? state.activeGoals[0]
+            const goalCount = state.activeGoals.length
             // Nothing being worked on here yet — whether that is "not now" or simply
             // not yet. The row recedes rather than disappearing: at a glance the page
             // should show where you are working on something, while every area stays
             // readable and one tap away. See `.option-recede`.
-            const quiet = top === undefined
+            const quiet = goalCount === 0
             return (
             <li key={state.area}>
               <Link
@@ -73,18 +73,44 @@ export default function AreasPage() {
                 {/* The one put first, or the oldest still standing. A row is a door
                     rather than a summary: six areas listing three goals each would be
                     nineteen lines of someone's ambitions on one screen. */}
-                {top ? (
-                  <span className="block text-sm leading-relaxed text-ink">{top.text}</span>
-                ) : (
-                  <span className="block text-sm text-muted">
-                    {state.review === 'not_now' ? m.manage.notNow : m.manage.noGoal}
-                  </span>
-                )}
-                {/* Only when there is a goal to be working toward: saying what has
-                    not been decided under "no goal yet" would be two ways of saying
-                    the same absence. */}
-                {top && (
-                  <span className="block text-sm leading-relaxed text-muted">
+                {/**
+                 * How many, not which.
+                 *
+                 * This line held the goal itself until it held a status before that. Both
+                 * turned a row into a summary of the area; a row is a door. It says which
+                 * area and how much is behind it, and the sentences someone wrote live on
+                 * the other side of it — which also keeps six areas of somebody's
+                 * ambitions off a single screen. 34b asserts the words stay off this page.
+                 */}
+                <span className="block text-sm text-muted">
+                  {goalCount === 0
+                    ? m.manage.goalsNone
+                    : goalCount === 1
+                      ? m.manage.goalsOne
+                      : t(m.manage.goalsMany, { count: String(goalCount) })}
+                </span>
+                {/* Only where there is a goal to be working toward: saying what has
+                    not been decided beneath "no goals set" would be two ways of
+                    saying the same absence. */}
+                {goalCount > 0 && (
+                  /**
+                   * A goal standing with nothing to try is the one thing on this page
+                   * worth finding among six rows, so it is drawn as a hint: gold, italic,
+                   * and prefixed "Note:".
+                   *
+                   * Three cues, and the colour is the least of them — the words say it is
+                   * a hint, and the slant says it again, so nothing depends on seeing the
+                   * hue. Gold rather than red because it is **not** a warning: nothing is
+                   * wrong, there is just something left to decide.
+                   *
+                   * The other states of this line stay muted. A hint that is always on is
+                   * not a hint.
+                   */
+                  <span
+                    className={`block text-sm leading-relaxed ${
+                      state.open.length === 0 ? 'italic text-note' : 'text-muted'
+                    }`}
+                  >
                     {state.open.length === 0
                       ? m.manage.noStep
                       : state.open.length === 1

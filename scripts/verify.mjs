@@ -715,6 +715,8 @@ const EN = {
   goalDrop: 'Remove from your current goals',
   goalCloseNote: 'What you were trying for it is set aside with it. Nothing is deleted.',
   goalNumber: 'Goal #1:',
+  goalOnly: 'Goal:',
+  goalsOne: '1 goal set',
   editSubmit: 'Save',
   contYes: 'Yes, let us go on',
   navData: 'Data protection',
@@ -1430,13 +1432,18 @@ check(
   screen.replace(/\n/g, ' / ').slice(0, 200),
 )
 check(
-  // Inverted rather than dropped. The old rule hid a bare `1.` marker when only one
-  // goal was left, because it implied a sibling that was not there. The label reads
-  // "Goal #1:" and sits above an "+ Add another goal" that says where #2 would come
-  // from, so it is shown always now — and as visible words rather than an
-  // `aria-hidden` ordinal, which is the better thing to assert anyway.
-  '7f2. and with one goal left the label stays, as words rather than a bare ordinal',
-  (await text()).includes(EN.goalNumber) &&
+  /**
+   * With one goal left the **label** stays and the **number** goes.
+   *
+   * Two earlier rules met here. The first hid a bare `aria-hidden` "1." at one goal,
+   * because a lone ordinal implies a sibling that is not there. The second showed
+   * "Goal #1:" always, as visible words. This keeps what each was right about: the line
+   * still names what the quoted sentence beneath it is, and it stops counting when
+   * there is nothing to count.
+   */
+  '7f2. and with one goal left the label stays but stops numbering',
+  (await text()).includes(EN.goalOnly) &&
+    !(await text()).includes(EN.goalNumber) &&
     !(await evaluate(`!!document.querySelector('main ol li span[aria-hidden]')`)),
   (await text()).replace(NL, ' / ').slice(0, 80),
 )
@@ -2066,8 +2073,11 @@ check(
 await clickNav(EN.navAreas)
 screen = await text()
 check(
+  // The goal's own words are no longer printed here (34b), so what has to match home
+  // is the sentence about there being nothing to try yet — which is the half this check
+  // was really about: two screens describing one state in one wording.
   '38g. and the areas list says the same thing in the same words',
-  screen.includes('Sleep better') && screen.includes('not decided yet what could help'),
+  screen.includes('not decided yet what could help') && screen.includes(EN.goalsOne),
   screen.replace(/\n/g, ' / ').slice(0, 160),
 )
 
@@ -2192,12 +2202,86 @@ for (const scheme of ['light', 'dark']) {
   })()`)
   const onGround = await contrast(pin.colour, pin.ground)
   const onSurface = await contrast(pin.colour, pin.surface)
+  const noteColour = await evaluate(`(() => {
+    const read = (value) => {
+      const el = document.createElement('span');
+      el.style.color = value;
+      document.body.append(el);
+      const out = getComputedStyle(el).color;
+      el.remove();
+      return out;
+    };
+    return {
+      colour: read('var(--color-note)'),
+      ground: read('var(--color-ground)'),
+      surface: read('var(--color-surface)'),
+    };
+  })()`)
+  const noteGround = await contrast(noteColour.colour, noteColour.ground)
+  const noteSurface = await contrast(noteColour.colour, noteColour.surface)
+  check(
+    // **4.5:1, not the 3:1 a border needs.** A control edge only has to be seen; this is
+    // a whole sentence at `text-sm` that has to be read. Gold is also the easiest hue in
+    // the set to pick too light on paper and too dark on ink, so both are measured.
+    `31g. and a hint's colour is readable as body text on both backgrounds (${scheme})`,
+    noteGround >= 4.5 && noteSurface >= 4.5,
+    `${noteGround}:1 on ground, ${noteSurface}:1 on surface (${noteColour.colour})`,
+  )
+
   check(
     `31e. and an active pin's colour is readable on both backgrounds (${scheme})`,
     onGround >= 3 && onSurface >= 3,
     `${onGround}:1 on ground, ${onSurface}:1 on surface (${pin.colour})`,
   )
 }
+
+/**
+ * Every `--dark-*` value has to be mapped in **both** dark blocks.
+ *
+ * The dark palette is defined once and mapped twice — under
+ * `@media (prefers-color-scheme: dark)` for "the OS asked", and under
+ * `:root[data-theme='dark']` for "the person chose". Forgetting the second is invisible
+ * to every other check in this file, because they all emulate the media query. That is
+ * precisely how `--color-pin` shipped mapped in one block and not the other, drawing an
+ * active pin in the light red at 2.48:1 on a chosen dark theme.
+ *
+ * So this asserts the *shape* rather than any single colour, and every token added later
+ * is covered by it without anyone having to remember.
+ */
+const themeMapping = await evaluate(`(() => {
+  const root = document.documentElement;
+  const names = new Set();
+  for (const sheet of document.styleSheets) {
+    let rules;
+    try { rules = sheet.cssRules } catch { continue }
+    for (const rule of rules) {
+      if (!rule.style) continue;
+      for (const prop of rule.style) if (prop.startsWith('--dark-')) names.add(prop);
+    }
+  }
+  const had = root.dataset.theme;
+  root.dataset.theme = 'dark';
+  const cs = getComputedStyle(root);
+  const unmapped = [];
+  for (const dark of names) {
+    const target = '--color-' + dark.slice('--dark-'.length);
+    const want = cs.getPropertyValue(dark).trim();
+    if (!want) continue;
+    const got = cs.getPropertyValue(target).trim();
+    if (got !== want) unmapped.push(target + ' = ' + (got || 'unset') + ', expected ' + want);
+  }
+  if (had) root.dataset.theme = had; else delete root.dataset.theme;
+  return { count: names.size, unmapped };
+})()`)
+check(
+  '31f. every dark token is mapped for a chosen theme, not only for the OS one',
+  // The count guards the sweep against finding nothing and passing vacuously.
+  themeMapping.count >= 8 && themeMapping.unmapped.length === 0,
+  themeMapping.unmapped.length
+    ? themeMapping.unmapped.join(' | ')
+    : `${themeMapping.count} tokens mapped`,
+)
+
 await setScheme('light')
 
 // --- 10. corrupt store ----------------------------------------------------
@@ -2626,28 +2710,43 @@ const rowType = await evaluate(
      if (!row) return null;
      const name = [...row.querySelectorAll('p, span')]
        .find((e) => e.textContent.trim().endsWith(${JSON.stringify(AREAS[0].label)}));
-     const goal = [...row.querySelectorAll('span')]
-       .find((e) => e.textContent.trim() === 'Sleep better');
-     if (!name || !goal) return null;
+     const count = [...row.querySelectorAll('span')]
+       .find((e) => /goals? set$/.test(e.textContent.trim()));
+     if (!name || !count) return null;
      const px = (el) => parseFloat(getComputedStyle(el).fontSize);
-     const ink = getComputedStyle(document.body).color;
      return {
        name: px(name),
-       goal: px(goal),
+       count: px(count),
+       countText: count.textContent.trim(),
        nameWeight: getComputedStyle(name).fontWeight,
-       goalIsInk: getComputedStyle(goal).color === ink,
      };
    })()`,
 )
 check(
-  '34a. the area name is larger than the goal beneath it',
-  rowType !== null && rowType.name > rowType.goal,
-  rowType ? `name ${rowType.name}px / goal ${rowType.goal}px, weight ${rowType.nameWeight}` : 'row not found',
+  '34a. the area name is larger than the line beneath it',
+  rowType !== null && rowType.name > rowType.count,
+  rowType
+    ? `name ${rowType.name}px / count ${rowType.count}px "${rowType.countText}"`
+    : 'row not found',
 )
 check(
-  '34b. and the goal is still the person’s words in full ink, only smaller',
-  rowType?.goalIsInk === true,
-  `goal is ink: ${rowType?.goalIsInk}`,
+  /**
+   * **Replaced rather than deleted**, because the rule it asserted was reversed.
+   *
+   * It used to hold that the goal on this page stays the person's words in full ink —
+   * muting them to make room for a label the app chose would have been the wrong trade.
+   * That defended a goal this page no longer prints: a row now says which area and how
+   * many goals, and the sentences someone wrote live behind it. Which also keeps six
+   * areas of somebody's ambitions off one screen, where a glance reads all of them.
+   *
+   * So it inverts: the words must be **absent** here and the count present. Deleting it
+   * would have left nothing saying this page is an index on purpose.
+   */
+  '34b. and it counts goals rather than printing them — the words stay behind the door',
+  rowType !== null &&
+    /^(No goals yet|1 goal set|\d+ goals set)$/.test(rowType.countText) &&
+    !(await text()).includes('Sleep better'),
+  `"${rowType?.countText}", goal text present: ${(await text()).includes('Sleep better')}`,
 )
 
 // --- 35. every nested page has the same way back ----------------------------
@@ -3282,14 +3381,24 @@ check(
   areaScreen.includes('Write the case study') && !areaScreen.includes('Read the Rust book'),
   areaScreen.replace(/\n/g, ' / ').slice(0, 200),
 )
-// The pointer, not merely the newest goal: `Learn Rust` is newer and reached, and
-// picking it would mean the priority key was being ignored.
-await clickNav(EN.navAreas)
+/**
+ * The pointer, not merely the newest goal: `Learn Rust` is newer and reached, and
+ * surfacing it would mean the priority key was being ignored.
+ *
+ * Moved from `/areas/` to the area's own page, because the list stopped printing goals
+ * (34b) and an assertion about *which* goal it shows had nothing left to read. This is
+ * the surface where the pointer is now visible, and the case is unchanged: one active
+ * goal reached, one still standing, and only one of them may appear.
+ */
+await goto(`/areas/${AREAS[3].id}/`)
 screen = await text()
 check(
-  '41c. the areas list shows the goal put first, not the newest one',
-  screen.includes('Finish the portfolio') && !screen.includes('Learn Rust'),
-  screen.replace(/\n/g, ' / ').slice(0, 200),
+  '41c. the area page shows the goal put first, and a reached one not at all',
+  screen.includes('Finish the portfolio') &&
+    !screen.includes('Learn Rust') &&
+    // One active goal left, so the label carries no number.
+    screen.includes(EN.goalOnly),
+  screen.replace(NL, ' / ').slice(0, 200),
 )
 
 await goto('/data/stored/')
@@ -3591,10 +3700,20 @@ check(
   screen.replace(NL, ' / ').slice(0, 140),
 )
 await goto(`/areas/${AREAS[0].id}/`)
+screen = await text()
 check(
-  '42j. and it stays completable from its own page',
-  (await text()).includes(EN.reconsiderQuestion),
-  (await text()).replace(NL, ' / ').slice(0, 140),
+  /**
+   * Still completable from its own page — and now in one step fewer.
+   *
+   * This asserted that opening a skipped area asks "Would you like to change or explore
+   * something here now?" first. Tapping a row that says "No goals yet" *is* that answer,
+   * so the question was asking someone to confirm their own tap. The page opens on the
+   * field instead, and the assertion follows: the way in is still there, with the
+   * intermediate question gone rather than merely quieter.
+   */
+  '42j. and it stays completable from its own page, without confirming the tap first',
+  screen.includes(EN.goal) && !screen.includes(EN.reconsiderQuestion),
+  screen.replace(NL, ' / ').slice(0, 140),
 )
 
 // --- 43. the start page is a working list, and the action dominates it ---------
@@ -4139,7 +4258,7 @@ const shape48 = await evaluate(`(() => {
 check(
   '48d. a goal reads as label, then the person’s own words quoted, then the question',
   shape48 !== null &&
-    shape48.lines[0].startsWith('Goal #1:') &&
+    shape48.lines[0] === EN.goalOnly &&
     shape48.quoted === true &&
     shape48.goalIsHeading === true &&
     shape48.hasQuestion === true,

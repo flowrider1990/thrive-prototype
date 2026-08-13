@@ -97,7 +97,7 @@ no migration, no change to the consent gate. These are ordinary facts, written
 through the store's `remember()` with `source: 'goals'`.
 
 ```
-area.<a>.review              'yes' | 'not_now'
+area.<a>.review              'yes' | 'not_now'  — also written when a goal is created
 area.<a>.goal                the goal, verbatim   — LEGACY, read but never written
 area.<a>.goal.<gid>.text     the goal, verbatim   — newest wins, history = rewordings
 area.<a>.goal.<gid>.why      why it matters       — READ ONLY, see below
@@ -109,6 +109,22 @@ area.<a>.step.<sid>.goal     <gid>                — absent means "attribute it
 area.<a>.step.<sid>.pinned   'yes' | 'no'         — absent means not pinned
 area.<a>.step_active         <sid>                — LEGACY, read as a pin
 ```
+
+### `review` is written by two acts, not one
+
+`'yes'` used to be recorded only by answering a review question. Opening a life area from
+`/areas/` now goes straight to "What is your goal?" — tapping a row that says "No goals
+yet" already answers "would you like to change something here", and asking again asks
+someone to confirm their own tap.
+
+That left a gap the explicit write existed to close: an area could hold a live goal while
+its newest `review` still said `'not_now'`. So **writing a goal also records `'yes'`**, at
+the act rather than at the navigation. Guarded on the current value, because append-only
+means an unguarded write would add a duplicate on every goal added during the
+introduction, where the question was already answered.
+
+The introduction still asks. There an area arrives unbidden, six in a row, so whether this
+one is worth a goal at all is a real question and "Not right now" is a real answer.
 
 ### `why` is a read path now
 

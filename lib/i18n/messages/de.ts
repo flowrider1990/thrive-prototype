@@ -161,9 +161,10 @@ export const de: Messages = {
     backHome: 'Zurück zur Startseite',
     pickerTitle: 'Deine Lebensbereiche',
     pickerNote: 'Öffne einen, um sein Ziel zu ändern — oder was du ausprobieren willst.',
-    noGoal: 'Noch kein Ziel',
-    notNow: 'Gerade nicht',
-    noStep: 'Du hast noch nicht festgelegt, was dir dabei helfen könnte.',
+    goalsNone: 'Keine Ziele vorhanden',
+    goalsOne: '1 Ziel angegeben',
+    goalsMany: '{count} Ziele angegeben',
+    noStep: 'Hinweis: Du hast noch nicht festgelegt, was dir dabei helfen könnte.',
     tryingOne: 'Eine Sache zum Ausprobieren',
     trying: '{count} Sachen zum Ausprobieren',
 
@@ -172,6 +173,7 @@ export const de: Messages = {
     reconsiderNo: 'Erst einmal so lassen',
 
     goalNumber: 'Ziel #{n}:',
+    goalOnly: 'Ziel:',
     // Tiefe und hohe Anführungszeichen, wie im Deutschen üblich — im Englischen beide
     // oben. Deshalb steht die Zeichensetzung im Katalog und nicht im Bauteil.
     goalQuoted: '„{text}“',

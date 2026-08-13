@@ -344,8 +344,27 @@ export const en = {
     backHome: 'Back to the start page',
     pickerTitle: 'Your life areas',
     pickerNote: 'Open one to change its goal, or what you want to try.',
-    noGoal: 'No goal yet',
-    notNow: 'Not right now',
+    /**
+     * How many goals an area holds, on `/areas/`.
+     *
+     * **The overview counts; it does not quote.** It used to print the goal that comes
+     * first, and before that a status line — "No goal yet" or an echo of the review answer.
+     * Both made a row a small summary of the area. A row is a door: it says which area it
+     * is and how much is behind it, and the words someone wrote are on the other side of
+     * it. That also keeps six areas' worth of someone's ambitions off one screen, where a
+     * glance over a shoulder reads all of them at once.
+     *
+     * Three strings rather than one with a plural rule, matching `trying`/`tryingOne`
+     * directly above: "0 goals set" is the arithmetic, not the sentence.
+     */
+    /**
+     * Not "0 goals set". Zero of something is arithmetic; an absence is a state, and it
+     * reads as one. The verb differs from the counted forms for the same reason — nothing
+     * has been *set* here, so saying so in the same words would be pedantic.
+     */
+    goalsNone: 'No goals yet',
+    goalsOne: '1 goal set',
+    goalsMany: '{count} goals set',
     /**
      * Says what is missing *in relation to the goal*, which "Nothing to try yet"
      * did not — that read as a bare absence and left it unclear whether anything
@@ -356,7 +375,18 @@ export const en = {
      * half of what belongs here. "What could help" is the same phrasing the
      * question uses, so the empty state and the question agree.
      */
-    noStep: 'You have not decided yet what could help.',
+    /**
+     * A hint, and it says so in words before it says so in colour.
+     *
+     * "Note:" is the first cue, `--color-note` the second, italics the third — remove the
+     * hue and the sentence still announces itself as something to notice. That order is
+     * the point: a line that relied on being gold would say nothing at all to anyone who
+     * cannot see gold, which is what §17 rules out.
+     *
+     * Lowercase after the colon on purpose — one sentence with a label on it, not a
+     * heading followed by a second sentence.
+     */
+    noStep: 'Note: you have not decided yet what could help.',
     /** A count rather than one arbitrary entry: with nothing pinned, none is first. */
     tryingOne: 'One thing to try',
     trying: '{count} things to try',
@@ -379,6 +409,18 @@ export const en = {
      * "+ Add another goal" sits directly beneath saying where #2 would come from.
      */
     goalNumber: 'Goal #{n}:',
+    /**
+     * The same label without a number, for an area holding exactly one goal.
+     *
+     * "Goal #1:" against a single goal implies a #2 that is not there — the objection
+     * that once justified hiding the ordinal altogether. Keeping the label and dropping
+     * only the number answers both halves: the line still says what the quoted sentence
+     * beneath it *is*, and it stops counting when there is nothing to count.
+     *
+     * Used on the area page and on `/areas/`, where the row shows the goal that comes
+     * first — so where an area holds several, that one really is #1.
+     */
+    goalOnly: 'Goal:',
     /**
      * The goal in the person's own words, shown as theirs.
      *

@@ -58,9 +58,19 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
   const person = usePerson()
   const state = readArea(person, area)
 
-  // An area with nothing current gets the question again rather than an empty page.
+  /**
+   * An area with nothing current opens on the field, not on a question about opening it.
+   *
+   * It used to land on "Would you like to change or explore something here now?" — which
+   * someone had just answered by tapping a row that said "No goals yet". A confirmation
+   * step for a navigation is the kind of ceremony that teaches people to tap through the
+   * steps that matter.
+   *
+   * `reconsider` is still reachable and still needed: `AreaFlow`'s own review question
+   * covers the introduction, where an area arrives unbidden.
+   */
   const [view, setView] = useState<View>(
-    state.activeGoals.length > 0 ? { at: 'overview' } : { at: 'reconsider' },
+    state.activeGoals.length > 0 ? { at: 'overview' } : { at: 'flow' },
   )
 
   const back = () => setView({ at: 'overview' })
@@ -70,7 +80,8 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
     ? [state.priority, ...state.activeGoals.filter((goal) => goal.id !== state.priority?.id)]
     : state.activeGoals
 
-  if (view.at === 'flow') return <AreaFlow area={area} onDone={onDone} />
+  if (view.at === 'flow')
+    return <AreaFlow area={area} straightToGoal onDone={onDone} />
 
   if (view.at === 'reconsider') {
     return (
@@ -213,8 +224,14 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                    * rather than stored anywhere.
                    */}
                   <div className="space-y-1.5">
+                    {/* Numbered only where a number distinguishes something. With one
+                        goal "Goal #1:" implies a second that is not there, which is the
+                        objection that once justified having no label at all — keeping the
+                        label and dropping the number answers both halves. */}
                     <p className="text-sm text-muted tabular-nums">
-                      {t(m.manage.goalNumber, { n: String(index + 1) })}
+                      {goals.length > 1
+                        ? t(m.manage.goalNumber, { n: String(index + 1) })
+                        : m.manage.goalOnly}
                     </p>
                     {/* Editing belongs to the goal, so its control sits with the goal —
                         not down among the entry controls, which act on a different level
@@ -271,7 +288,12 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                         </ul>
                       </div>
                     ) : (
-                      <p className="text-sm text-muted">{m.manage.noStep}</p>
+                      // The same hint, drawn the same way as on `/areas/`: one
+                      // sentence, one colour, one slant, wherever a goal stands without
+                      // a next step.
+                      <p className="text-sm italic leading-relaxed text-note">
+                        {m.manage.noStep}
+                      </p>
                     )}
 
                     {/* Alone here now. "Add something" and "Change this goal" used to sit

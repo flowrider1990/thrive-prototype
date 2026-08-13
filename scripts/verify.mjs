@@ -4567,6 +4567,18 @@ check(
   '49a. it opens on next steps, with the other view offered',
   (await text()).includes(EN.home) &&
     (await visible(EN.viewGoals)) &&
+    // Above the heading, not beside it: side by side they competed for one line, and the
+    // heading changes length when the toggle is used — so at some widths the control that
+    // had just been pressed wrapped below the words it had changed.
+    (await evaluate(
+      `(() => {
+         const group = document.querySelector('main [role="group"]');
+         const h1 = document.querySelector('main h1');
+         // 4 === DOCUMENT_POSITION_FOLLOWING: the heading comes after the toggle.
+         return Boolean(group && h1 && group.compareDocumentPosition(h1) & 4) &&
+           group.getBoundingClientRect().bottom <= h1.getBoundingClientRect().top;
+       })()`,
+    )) === true &&
     // Pressed rather than colour alone: the label is the state's name, and this is what
     // says which one is current out loud.
     (await evaluate(

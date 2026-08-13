@@ -121,12 +121,20 @@ export function NextSteps() {
 
   return (
     <div className="space-y-6">
-      {/* Heading and toggle on one line: the heading says what is on screen and the toggle
-          is what changed it, so they belong together. `role="group"` with a name rather
-          than a tablist — these swap the contents of one region, and nothing here is a tab
-          panel with its own URL. */}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-        <h1 className="heading">{showing === 'steps' ? m.home.title : m.home.goalsTitle}</h1>
+      {/**
+       * Toggle above the heading, aligned right — **not beside it**.
+       *
+       * Side by side, the two competed for one line: the heading changes length when the
+       * toggle is used ("Deine nächsten Schritte" against "Deine Ziele"), so at some widths
+       * the control that had just been pressed wrapped below the words it had changed. A
+       * row whose contents resize each other has no stable layout. Stacked, the heading can
+       * be any length and the toggle never moves.
+       *
+       * `role="group"` with a name rather than a tablist — these swap the contents of one
+       * region, and nothing here is a tab panel with its own URL.
+       */}
+      <div className="space-y-3">
+        <div className="flex justify-end">
         {/**
          * One bordered track with the selected half filled — a toggle, rather than two
          * buttons that happen to sit together.
@@ -142,7 +150,7 @@ export function NextSteps() {
         <div
           role="group"
           aria-label={m.home.viewLabel}
-          className="inline-flex shrink-0 items-center gap-x-1 rounded-full border border-line-strong p-1"
+            className="inline-flex items-center gap-x-1 rounded-full border border-line-strong p-1"
         >
           {(['steps', 'goals'] as const).map((option) => (
             <button
@@ -159,7 +167,9 @@ export function NextSteps() {
               {option === 'steps' ? m.home.viewSteps : m.home.viewGoals}
             </button>
           ))}
+          </div>
         </div>
+        <h1 className="heading">{showing === 'steps' ? m.home.title : m.home.goalsTitle}</h1>
       </div>
 
       {showing === 'goals' ? (

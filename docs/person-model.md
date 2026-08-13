@@ -12,7 +12,7 @@ type PersonFact = {
 type PersonStore = {
   version: 1
   consentAt: string       // only ever written when consent was given
-  locale: 'de' | 'en'
+  locale?: 'de' | 'en'     // absent = follow the browser
   theme?: 'light' | 'dark' // absent = follow the operating system
   facts: PersonFact[]
 }
@@ -29,11 +29,31 @@ module in the app that *touches* storage.
 when consent was given, session-only when it was not. A theme choice is still
 something written to someone's device.
 
-`theme` is **optional rather than a `version: 2`**. Absent or invalid reads as
-"follow the operating system", so a store written before the theme existed keeps
-loading. Bumping the version would have made `parse()` reject every existing
-store and silently discard real answers — the version number is there for changes
-that genuinely cannot be read the old way, not for additions.
+**Both are optional rather than a `version: 2`**, and absent means *follow the
+environment* — the operating system for `theme`, the browser for `locale`. A store
+written before either field existed keeps loading. Bumping the version would have made
+`parse()` reject every existing store and silently discard real answers; the version
+number is for changes that genuinely cannot be read the old way, not for additions.
+
+"Unset" being a real third state is the whole point, and `locale` did not have it at
+first. It was required, so the *detected* locale was written the moment anything was —
+which made "German because your browser is German" indistinguishable from "German
+because I chose it". Someone who consented on a German browser and later switched that
+browser to English kept getting German, with nothing having ever asked them.
+
+So the snapshot now holds both: `localeChoice` is what the person said (or `null`), and
+`locale` is what is in force, already resolved from it. They are separate fields
+because a single one gets written back on the next commit and quietly becomes a choice
+nobody made. Only `setLocale` — the language switch — makes the choice non-null, and
+only a non-null choice is persisted.
+
+An invalid `locale` in a stored file now reads as unset rather than rejecting the store.
+Rejecting threw away every real answer in it over one bad field, which is the opposite
+of degrading gracefully.
+
+`forgetEverything()` clears both choices while leaving the language *on screen* alone:
+yanking that away mid-sentence would be its own small betrayal, but "delete my data"
+has to include a preference, and a reload then follows the environment again.
 
 ## Append-only
 

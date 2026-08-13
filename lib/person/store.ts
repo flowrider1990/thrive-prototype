@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useSyncExternalStore } from 'react'
-import { detectLocale, isLocale, type Locale } from '@/lib/i18n/locale'
+import { detectLocale, isLocale, type Locale, type LocaleChoice } from '@/lib/i18n/locale'
 import { isTheme, type Theme, type ThemeChoice } from '@/lib/theme'
 import { MEMORY_ONLY_KEYS, STORAGE_KEY, type PersonFact, type PersonStore } from './schema'
 
@@ -33,7 +33,17 @@ type Snapshot = {
   status: Status
   mode: Mode
   consentAt: string | null
+  /**
+   * The locale in force — already resolved, so every screen reads one field and none
+   * of them has to know where it came from.
+   */
   locale: Locale
+  /**
+   * `null` means "follow the browser", and it is what `locale` was resolved *from*.
+   * Kept apart from `locale` because otherwise the resolved value gets written back on
+   * the next commit and silently becomes a choice nobody made.
+   */
+  localeChoice: LocaleChoice
   /** `null` means "follow the operating system" — see `lib/theme.ts`. */
   theme: ThemeChoice
   facts: readonly PersonFact[]
@@ -63,6 +73,7 @@ const EMPTY: Snapshot = {
   mode: 'undecided',
   consentAt: null,
   locale: 'en',
+  localeChoice: null,
   theme: null,
   facts: [],
 }
@@ -115,7 +126,10 @@ function loadOnce(): void {
           status: 'ready',
           mode: 'local',
           consentAt: stored.consentAt,
-          locale: stored.locale,
+          // Absent means nobody ever chose, so the browser still decides — the same
+          // rule as `theme`, and the reason this is resolved here rather than stored.
+          locale: stored.locale ?? detectLocale(),
+          localeChoice: stored.locale ?? null,
           theme: stored.theme ?? null,
           facts: stored.facts,
         }
@@ -127,6 +141,7 @@ function loadOnce(): void {
           mode: 'undecided',
           consentAt: null,
           locale: detectLocale(),
+          localeChoice: null,
           theme: null,
           facts: [],
         },
@@ -173,12 +188,14 @@ function parse(raw: string | null): PersonStore | null {
     const stored = data as Record<string, unknown>
     if (stored.version !== 1) return null
     if (typeof stored.consentAt !== 'string') return null
-    if (!isLocale(stored.locale)) return null
     if (!Array.isArray(stored.facts)) return null
     return {
       version: 1,
       consentAt: stored.consentAt,
-      locale: stored.locale,
+      // Absent or nonsense reads as "follow the browser". Nonsense used to reject the
+      // whole store, which threw away every real answer in it over one bad field —
+      // the opposite of degrading gracefully.
+      ...(isLocale(stored.locale) ? { locale: stored.locale } : {}),
       // Absent or nonsense reads as "follow the operating system". A store
       // written before the theme existed must keep loading — this is the whole
       // reason the field is optional instead of a version bump.
@@ -197,7 +214,10 @@ function write(state: Snapshot): void {
   const stored: PersonStore = {
     version: 1,
     consentAt: state.consentAt,
-    locale: state.locale,
+    // Omitted while unset, so following the browser leaves no trace — exactly as an
+    // unset theme leaves none. This is the field that makes detection keep applying
+    // after consent instead of being frozen by it.
+    ...(state.localeChoice ? { locale: state.localeChoice } : {}),
     // Omitted while unset, so following the OS leaves no trace in the store.
     ...(state.theme ? { theme: state.theme } : {}),
     // Memory-only keys are dropped **here**, at the one function that touches the
@@ -258,9 +278,14 @@ export function remember(key: string, value: string, source = 'onboarding'): voi
   }))
 }
 
-/** The chosen locale is data too: persisted when consented, session-only when not. */
+/**
+ * The chosen locale is data too: persisted when consented, session-only when not.
+ *
+ * This is the **only** way `localeChoice` becomes non-null, which is what makes it mean
+ * "the person said so" rather than "this is what we happened to render".
+ */
 export function setLocale(locale: Locale): void {
-  commit((previous) => ({ ...previous, locale }))
+  commit((previous) => ({ ...previous, locale, localeChoice: locale }))
 }
 
 /**
@@ -286,7 +311,12 @@ export function forgetEverything(): void {
     status: 'ready',
     mode: 'undecided',
     consentAt: null,
+    // The language on screen is left alone — yanking that away mid-sentence would be
+    // its own small betrayal — but the *choice* goes, exactly like the theme choice, so
+    // a reload follows the browser again. Deleting everything has to include this, or
+    // "delete my data" leaves a preference behind.
     locale: snapshot.locale,
+    localeChoice: null,
     theme: null,
     facts: [],
   })

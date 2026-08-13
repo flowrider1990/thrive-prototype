@@ -336,12 +336,6 @@ export const en = {
     outcomeAside: 'This does not fit me anymore',
     cancel: 'Cancel',
     done: 'Noted.',
-    /**
-     * Only rendered when both groups exist. With everything pinned, or nothing, one
-     * unlabelled list says more than two headings over an obvious split.
-     */
-    pinnedLabel: 'Pinned',
-    restLabel: 'Everything else',
     newStepQuestion: 'What could help you move toward this goal?',
     newStepPlaceholder: 'Something small and concrete',
     /**

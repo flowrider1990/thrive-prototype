@@ -146,8 +146,6 @@ export const de: Messages = {
     outcomeAside: 'Das passt für mich nicht mehr',
     cancel: 'Abbrechen',
     done: 'Notiert.',
-    pinnedLabel: 'Angepinnt',
-    restLabel: 'Alles andere',
     newStepQuestion: 'Was könnte dir helfen, diesem Ziel näherzukommen?',
     newStepPlaceholder: 'Etwas Kleines und Konkretes',
     savedNote: 'Was du mir erzählt hast, liegt aktuell nur auf diesem Gerät.',

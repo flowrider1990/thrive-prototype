@@ -131,7 +131,20 @@ export function Cross({ className = '' }: { className?: string }) {
   )
 }
 
-export function Pin({ filled = false, className = '' }: { filled?: boolean; className?: string }) {
+/**
+ * A star, for an entry kept in view.
+ *
+ * **The action is still pinning** — `pinStep`, `unpinStep`, and an accessible name of
+ * "Pin: …" — so this is named for what it draws rather than what it does. A star says
+ * "one of the few I care about", which is what the control means; a pushpin said "fixed
+ * in place", which was a promise about ordering the model does not make (pinning does not
+ * reorder a goal's own list).
+ *
+ * Filled when pinned, outlined when not, at identical box size — and drawn in
+ * `--color-note` when active. Three cues, none of them alone: remove the colour and the
+ * fill and the flipped name still carry the state.
+ */
+export function Star({ filled = false, className = '' }: { filled?: boolean; className?: string }) {
   return (
     <svg
       viewBox="0 0 12 12"
@@ -139,24 +152,11 @@ export function Pin({ filled = false, className = '' }: { filled?: boolean; clas
       className={`size-3.5 shrink-0 ${className}`}
       fill={filled ? 'currentColor' : 'none'}
       stroke="currentColor"
-      /* 1 rather than the 1.2 the other icons share, and the exception is deliberate:
-         this is the only glyph here with interior detail, and at 1.2 the stroke closed
-         the waist up into a solid sliver — the shape lost the one feature that makes it
-         read as a pushpin. */
-      strokeWidth="1"
+      strokeWidth="1.2"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      {/* An office pushpin seen from the side, straight down: the flat grip on top, the
-          waist under it, the flange it flares out to, and the needle.
-
-          The waist carries the recognition, so it is drawn wide enough to survive at
-          14px instead of being a detail that disappears. A round head on a stem — the
-          first attempt — read as a map marker, which is a different promise: "where this
-          is" rather than "keep this in front of me". `linejoin` rounds the corners, so
-          the outline needs no curves of its own. */}
-      <path d="M4.3 1H7.7v.6L7.2 3.1 8.5 7.7H3.5l1.3-4.6L4.3 1.6z" />
-      <path d="M6 7.7v3.3" fill="none" />
+      <path d="M6 1.3l1.45 3.15 3.45.5-2.45 2.45.6 3.4L6 9.2l-3.05 1.6.6-3.4L1.1 4.95l3.45-.5z" />
     </svg>
   )
 }

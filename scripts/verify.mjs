@@ -3637,9 +3637,12 @@ const order = await evaluate(
   `[...document.querySelectorAll('main li')].map((li) => li.textContent.trim().slice(0, 30))`,
 )
 check(
-  '42b. pinning one moves it to the top, labels both groups, and writes one fact',
+  // The headings are gone: a filled star against an outlined one already says which
+  // group a row is in, and "Everything else" labelled a group by what it is not. So the
+  // claim is the *order*, which is what mattered all along.
+  '42b. starring one moves it to the top, with no heading needed, and writes one fact',
   order[0].startsWith('Read before bed') &&
-    screen.includes(EN.pinnedLabel) &&
+    !screen.includes(EN.pinnedLabel) &&
     afterPin.facts.length === beforePin + 1 &&
     afterPin.facts.some((f) => f.key.endsWith('.pinned') && f.value === 'yes'),
   `${JSON.stringify(order)} | ${afterPin.facts.length} vs ${beforePin}`,
@@ -3661,7 +3664,7 @@ await clickAria('Unpin: Walk after dinner')
 check(
   '42d. unpinning is one more fact, and never a deletion',
   JSON.parse(await raw()).facts.filter((f) => f.key.endsWith('.pinned')).length === 3 &&
-    (await text()).includes(EN.pinnedLabel),
+    !(await text()).includes(EN.pinnedLabel),
   JSON.parse(await raw())
     .facts.filter((f) => f.key.endsWith('.pinned'))
     .map((f) => f.value)
@@ -3699,8 +3702,10 @@ const pinColours = await evaluate(`(() => {
   return { on: getComputedStyle(on).color, off: getComputedStyle(off).color };
 })()`)
 check(
-  '42d3. an active pin is drawn in the pin colour and an inactive one is not',
-  pinColours !== null && pinColours.on !== pinColours.off && pinColours.on === 'rgb(180, 38, 42)',
+  '42d3. an active star is drawn in the hint colour and an inactive one is not',
+  // The hint colour now, not a red of its own: red on a control meaning "keep this in
+  // view" read as a warning about the thing it was marking.
+  pinColours !== null && pinColours.on !== pinColours.off && pinColours.on === 'rgb(180, 83, 9)',
   JSON.stringify(pinColours),
 )
 
@@ -3713,7 +3718,7 @@ const legacyOrder = await evaluate(
 check(
   '42e. a retired pointer reads as a pin, with nothing written to convert it',
   legacyOrder[0].startsWith('Walk after dinner') &&
-    (await text()).includes(EN.pinnedLabel) &&
+    !(await text()).includes(EN.pinnedLabel) &&
     JSON.parse(await raw()).facts.every((f) => !f.key.endsWith('.pinned')),
   JSON.stringify(legacyOrder),
 )

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { AreaFlow } from '@/components/area-flow'
 import { AreaIcon } from '@/components/area-icon'
 import { Choice } from '@/components/choice'
-import { Cross, Pencil, Pin } from '@/components/icons'
+import { Cross, Pencil, Star } from '@/components/icons'
 import { QuestionCard } from '@/components/question-card'
 import { TextAnswer } from '@/components/text-answer'
 import type { AreaId } from '@/lib/areas'
@@ -530,7 +530,7 @@ function Entry({
         aria-label={t(step.pinned ? m.manage.unpinOn : m.manage.pinOn, { text: step.text })}
         onClick={() => (step.pinned ? unpinStep(area, step.id) : pinStep(area, step.id))}
       >
-        <Pin filled={step.pinned} />
+        <Star filled={step.pinned} />
       </button>
       {/* The same circle as the pin beside it, and named after the entry's own words —
           three buttons reading "Edit" are three identical controls out loud. */}

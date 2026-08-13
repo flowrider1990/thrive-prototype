@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { AreaIcon } from '@/components/area-icon'
 import { Choice } from '@/components/choice'
-import { Pin } from '@/components/icons'
+import { Star } from '@/components/icons'
 import { OptionList } from '@/components/option-list'
 import { TextAnswer } from '@/components/text-answer'
 import { areas } from '@/lib/areas'
@@ -83,7 +83,15 @@ export function NextSteps() {
   })
   const pinned = rows.filter((row) => row.step.pinned)
   const rest = rows.filter((row) => !row.step.pinned)
-  const grouped = pinned.length > 0 && rest.length > 0
+  /**
+   * Starred entries come first and carry **no label**.
+   *
+   * "Angepinnt" over one group and "Alles andere" over the other named a distinction the
+   * rows already make: a filled star against an outlined one, in the hue nothing else on
+   * the page uses. Two headings to explain two icons is the explanation costing more than
+   * the thing explained — and "Alles andere" in particular labelled a group by what it is
+   * not.
+   */
 
   // An area holding a goal that never got a single entry — interrupted setup, not a
   // pause someone chose. The first one only: naming every area at once would be a
@@ -112,12 +120,6 @@ export function NextSteps() {
       {[pinned, rest].map((group, index) =>
         group.length === 0 ? null : (
           <div key={index} className="space-y-3">
-            {/* Only when there is a distinction to draw. */}
-            {grouped && (
-              <p className="text-sm text-muted">
-                {index === 0 ? m.home.pinnedLabel : m.home.restLabel}
-              </p>
-            )}
             <ul className="space-y-5">
               {group.map((row) => (
                 <li key={row.step.id}>
@@ -290,7 +292,7 @@ function EntryRow({
           step.pinned ? unpinStep(state.area, step.id) : pinStep(state.area, step.id)
         }
       >
-        <Pin filled={step.pinned} />
+        <Star filled={step.pinned} />
       </button>
 
       <div className="min-w-0 flex-1 space-y-0.5">

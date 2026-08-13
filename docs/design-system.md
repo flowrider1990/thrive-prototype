@@ -78,14 +78,13 @@ second.
 The palette is monochrome by intent (`CLAUDE.md` §7): emphasis comes from
 contrast, not hue. Do not introduce an accent hue without asking.
 
-**There are exactly two hues, and both were asked for.** Neither is named for the colour
-it is, because a name describing the colour invites the next reader to reuse it, and the
+**There is exactly one hue, and it was asked for.** It is not named for the colour it
+is, because a name describing the colour invites the next reader to reuse it, and the
 next reuse is the one that ends the monochrome palette by accident.
 
 | token | paints | why it is safe |
 | --- | --- | --- |
-| `--color-pin` | an active pin, and nothing else | the glyph is filled and the accessible name flips, so colour is the third cue |
-| `--color-note` | a hint — something worth noticing that is not a problem | the sentence starts with "Note:" and is italic, so colour is the third cue |
+| `--color-note` | a hint, and an active star | a hint starts with "Note:" and is italic; a star is filled and its accessible name flips — colour is the third cue either way |
 
 The pattern is the same both times and it is the whole licence: **colour is never the only
 thing carrying the meaning.** Remove the hue and the state still reads. Adding a hue the
@@ -93,9 +92,13 @@ other way round — colour first, then hunting for a second cue — is how a col
 ships. `--color-note` is gold rather than red on purpose: a hint is not a warning, and see
 the danger-variant note below for what neither of these is.
 
-Contrast floors differ by job, which is not an inconsistency: `--color-pin` clears 3:1
-because it draws a glyph, `--color-note` clears **4.5:1** because it is a sentence at
-`text-sm` that has to be read. §31e and §31g.
+It clears **4.5:1** on both backgrounds in both themes, not the 3:1 a border needs,
+because its harder job is a sentence at `text-sm` that has to be read (§31g).
+
+It briefly had a sibling. An active star was drawn in a red of its own until red on a
+control meaning "keep this in view" read as a warning about the thing it was marking — and
+the light value of the gold was an olive-brown that read as neither gold nor deliberate.
+One warmer amber does both jobs, which is how the palette came back to a single hue.
 
 ### The dark palette
 

@@ -48,42 +48,28 @@
      meant tuning emphasis silently retuned focus. */
   --color-focus: #1f1e1c;
 
-  /**
-   * The one hue in the palette, and it is scoped to exactly one thing: a pin that is
-   * active.
-   *
-   * This is deliberately **not** a general danger or accent token. `docs/design-system.md`
-   * records adding one of those as an unmade decision, and it stays unmade — a red
-   * pushpin is a real-world object, not a warning, and naming the token `pin` keeps a
-   * later reader from reaching for it as "the error colour".
-   *
-   * It is a *third* cue, never the only one: the glyph is filled when pinned and
-   * outlined when not, and the button's accessible name flips. §17 is satisfied without
-   * it, which is the only reason a hue is safe to add here at all.
-   *
-   * Both values clear 3:1 against `ground` and `surface` in their own theme — measured,
-   * and asserted by §31e.
-   */
-  --color-pin: #b4262a;
 
   /**
    * The second hue, and the last one that gets in without a fight.
    *
-   * It paints a *hint* — something worth noticing that is not a problem: an area holding
-   * a goal nobody has decided a next step for. Explicitly **not** a warning and not an
-   * error, which is why it is gold rather than red and why it is named for the role it
-   * plays rather than for the colour it is. A token called `warning` would be reached for
-   * by the next person with something merely urgent to say.
+   * It paints a *hint* — something worth noticing that is not a problem — and an active
+   * star. Explicitly **not** a warning and not an error, which is why it is gold and why
+   * it is named for the role it plays rather than for the colour it is. A token called
+   * `warning` would be reached for by the next person with something merely urgent.
+   *
+   * It replaced a red used for the star alone, which brought the palette back to one hue:
+   * red on a control meaning "keep this in view" read as a warning about the thing it was
+   * marking.
    *
    * Colour is never what carries it. The sentence begins with "Note:" — so the hint reads
    * as a hint in plain text, and the hue only makes it easier to find. That is the same
-   * arrangement `--color-pin` has, and the reason a hue is admissible at all here.
+   * the reason a hue is admissible here at all.
    *
    * Both values clear **4.5:1** against ground and surface in their own theme, not the
    * 3:1 a border needs: this is body text at `text-sm`, and it has to be read rather than
    * merely seen. Asserted by §31f.
    */
-  --color-note: #8a5a00;
+  --color-note: #b45309;
 
   --text-base: 1.0625rem;
 
@@ -121,7 +107,6 @@
   --dark-line-strong: #6b6b75;
   --dark-accent: #e5e2dd;
   --dark-focus: #eae7e2;
-  --dark-pin: #f08a86;
   --dark-note: #e8b04b;
 }
 
@@ -140,7 +125,6 @@
     --color-line-strong: var(--dark-line-strong);
     --color-accent: var(--dark-accent);
     --color-focus: var(--dark-focus);
-    --color-pin: var(--dark-pin);
     --color-note: var(--dark-note);
     color-scheme: dark;
   }
@@ -165,11 +149,10 @@
   --color-line-strong: var(--dark-line-strong);
   --color-accent: var(--dark-accent);
   --color-focus: var(--dark-focus);
-  /* Both hues were mapped in the media block above and **missing here**, so a theme
-     chosen explicitly drew an active pin in the light red — 2.48:1 on the dark surface,
-     well under the floor. Nothing caught it because §31 emulates `prefers-color-scheme`,
-     which takes the other path. §31f now asserts every `--dark-*` is mapped in both. */
-  --color-pin: var(--dark-pin);
+  /* `--color-note` was mapped in the media block above and **missing here**, as
+     an earlier token was before it — so a theme chosen explicitly took the light value on a
+     dark ground, 2.48:1. Nothing caught it, because §31 emulates `prefers-color-scheme`
+     and takes the other path. §31f now asserts every `--dark-*` is mapped in both. */
   --color-note: var(--dark-note);
   color-scheme: dark;
 }
@@ -490,7 +473,7 @@
     @apply border-muted;
     /* The icon inherits it through `currentColor`. Listed with `:hover` because
        `.pin-toggle:hover` is the same specificity and would otherwise win. */
-    color: var(--color-pin);
+    color: var(--color-note);
   }
 
   .link-inline {

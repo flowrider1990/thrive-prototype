@@ -135,6 +135,11 @@ export const de: Messages = {
 
   home: {
     title: 'Deine nächsten Schritte',
+    viewLabel: 'Was anzeigen',
+    viewSteps: 'Meine nächsten Schritte',
+    viewGoals: 'Meine Ziele',
+    goalsTitle: 'Deine Ziele',
+    goalsEmpty: 'Noch keine Ziele.',
     empty: 'Gerade ist nichts aktiv. Auch das ist ein guter Ort.',
     unfinished:
       'Hinweis: es gibt Ziele ohne konkrete Schritte. Trage sie ein, damit sie hier auftauchen.',

@@ -274,6 +274,19 @@ export const en = {
      * contents, which is a claim about the page and always true.
      */
     title: 'Your next steps',
+    /**
+     * The start page answers one of two questions, and the toggle says which.
+     *
+     * Steps first and by default, because the page exists to lead to action; goals are the
+     * longer view, and seeing them plainly is what makes it obvious when one of them has no
+     * steps under it. `goalsTitle` replaces the heading rather than sitting under it — the
+     * heading names what is on screen, so it has to change with it.
+     */
+    viewLabel: 'What to show',
+    viewSteps: 'My next steps',
+    viewGoals: 'My goals',
+    goalsTitle: 'Your goals',
+    goalsEmpty: 'No goals yet.',
     empty: 'Nothing is active right now. That is a fine place to be.',
     /**
      * Shown only when an area holds a goal that never got a next step — that is,

@@ -251,7 +251,9 @@ export default function Home() {
           being a form, a task list and a settings page at once. */}
       {step === 'home' && (
         <section className="space-y-10">
-          <h1 className="heading">{m.home.title}</h1>
+          {/* The heading lives in `NextSteps` now: the toggle there decides which of two
+              things the page is showing, and a heading that named only one of them would be
+              wrong half the time. */}
           <NextSteps />
 
           {/* The note stays; the buttons that used to sit with it are gone. A

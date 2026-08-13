@@ -102,6 +102,7 @@ area.<a>.goal                the goal, verbatim   — LEGACY, read but never wri
 area.<a>.goal.<gid>.text     the goal, verbatim   — newest wins, history = rewordings
 area.<a>.goal.<gid>.why      why it matters       — READ ONLY, see below
 area.<a>.goal.<gid>.state    'done' | 'retired'   — absent means active
+area.<a>.goal.<gid>.pinned   'yes' | 'no'         — absent means not starred
 area.<a>.goal_priority       <gid>
 area.<a>.step.<sid>.text     the entry, verbatim  — newest wins, history = rewordings
 area.<a>.step.<sid>.state    'done' | 'retired'   — absent means open
@@ -109,6 +110,16 @@ area.<a>.step.<sid>.goal     <gid>                — absent means "attribute it
 area.<a>.step.<sid>.pinned   'yes' | 'no'         — absent means not pinned
 area.<a>.step_active         <sid>                — LEGACY, read as a pin
 ```
+
+### A starred goal is not a prioritised one
+
+`goal_priority` orders goals **within one area** and there is one of it. `goal.<gid>.pinned`
+is a per-goal flag, several may be set, and it exists to order the start page's list of
+goals — which crosses areas, where "first in its own area" says nothing about what to show
+first overall. Same shape and same reasoning as a step's `pinned`.
+
+It is deliberately **not** in `GOAL_KEY`. That pattern is what discovers which goals exist,
+so a star on its own — from a hand-edited store — must not conjure a goal with no words.
 
 ### `review` is written by two acts, not one
 

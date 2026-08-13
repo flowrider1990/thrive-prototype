@@ -741,6 +741,9 @@ const EN = {
   storedBack: 'Back to data protection',
   delRestart: 'Start again',
   emptyNote: 'There is nothing to see here yet.',
+  viewSteps: 'My next steps',
+  viewGoals: 'My goals',
+  goalsTitle: 'Your goals',
   goalCreate: 'Create a goal',
   pin: 'Pin',
   unpin: 'Unpin',
@@ -4547,6 +4550,76 @@ check(
   '48f. opening a goal opens the field, prefilled, with no menu of peers in front of it',
   editing.value === 'Finish the portfolio' && editing.options === 0,
   JSON.stringify(editing),
+)
+
+// --- 49. the start page answers one of two questions ------------------------
+//
+// A toggle swaps the list of next steps for a list of goals. Both are the same page, so
+// the heading has to change with it — a heading naming one of them would be wrong half
+// the time.
+
+await seedGoals()
+await goto('/')
+check(
+  '49a. it opens on next steps, with the other view offered',
+  (await text()).includes(EN.home) &&
+    (await visible(EN.viewGoals)) &&
+    // Pressed rather than colour alone: the label is the state's name, and this is what
+    // says which one is current out loud.
+    (await evaluate(
+      `[...document.querySelectorAll('main button')]
+         .find((b) => b.textContent.trim() === ${JSON.stringify('My next steps')})
+         ?.getAttribute('aria-pressed')`,
+    )) === 'true',
+  (await text()).replace(NL, ' / ').slice(0, 90),
+)
+
+await click(EN.viewGoals)
+screen = await text()
+check(
+  '49b. switching shows the goals themselves, and renames the page with them',
+  screen.includes(EN.goalsTitle) &&
+    !screen.includes(EN.home) &&
+    screen.includes('Sleep better') &&
+    // The goals and nothing else: no area, no counts, no state. Anything more would make
+    // this a second areas page.
+    !screen.includes(EN.check),
+  screen.replace(NL, ' / ').slice(0, 120),
+)
+
+/**
+ * Starring a goal is its own fact, and it sorts this list.
+ *
+ * Deliberately not `goal_priority`: that orders goals *within* one area and there is one
+ * of it, which says nothing about what to show first in a list that crosses areas. So the
+ * write has to land on the goal's own key, and the order has to follow it.
+ */
+const beforeStar = JSON.parse(await raw()).facts.length
+const secondGoal49 = await evaluate(
+  `document.querySelectorAll('main ul li p')[1].textContent.trim()`,
+)
+await clickAria(`Pin: ${secondGoal49}`)
+await sleep(250)
+const starred = JSON.parse(await raw())
+const goalOrderNow = await evaluate(
+  `[...document.querySelectorAll('main ul li p')].map((p) => p.textContent.trim())`,
+)
+check(
+  '49c. starring a goal moves it first and writes one fact on the goal itself',
+  goalOrderNow[0] === secondGoal49 &&
+    starred.facts.length === beforeStar + 1 &&
+    starred.facts.some((f) => /\.goal\.[^.]+\.pinned$/.test(f.key) && f.value === 'yes'),
+  `${JSON.stringify(goalOrderNow.slice(0, 2))} | ${starred.facts.length} vs ${beforeStar}`,
+)
+
+// And back, without the toggle having written anything of its own: which view you are
+// looking at is a way of reading the page, not a fact about the person.
+await click(EN.viewSteps)
+check(
+  '49d. and the toggle itself stores nothing — it is a view, not an answer',
+  (await text()).includes(EN.home) &&
+    JSON.parse(await raw()).facts.length === starred.facts.length,
+  `${JSON.parse(await raw()).facts.length} facts`,
 )
 
 check(

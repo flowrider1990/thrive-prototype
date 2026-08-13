@@ -14,10 +14,12 @@ import {
   type AreaState,
   completeStep,
   type Goal,
+  pinGoal,
   pinStep,
   readArea,
   retireStep,
   type Step,
+  unpinGoal,
   unpinStep,
 } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
@@ -57,9 +59,21 @@ type Busy = { stepId: string; phase: 'check' | 'add' }
  * answers cover both kinds, and none of them counts, scores or congratulates.
  */
 export function NextSteps() {
-  const { m } = useI18n()
+  const { m, t } = useI18n()
   const person = usePerson()
   const [busy, setBusy] = useState<Busy | null>(null)
+  /**
+   * Which of the two questions this page is answering.
+   *
+   * Steps by default, because the page exists to lead to action. Goals are the longer view,
+   * and seeing them plainly is what makes it obvious when one has nothing under it — the
+   * same thing the hint says in words.
+   *
+   * Component state, not a stored fact: it is a way of looking at the page, not something
+   * true about the person. It resets on reload, which is right — the default is the useful
+   * one to come back to.
+   */
+  const [showing, setShowing] = useState<'steps' | 'goals'>('steps')
 
   const states = areas.map((area) => readArea(person, area))
 
@@ -100,8 +114,73 @@ export function NextSteps() {
     (state) => state.activeGoals.length > 0 && state.steps.length === 0,
   )
 
+  // Every active goal, starred first, then the order `readArea` already derives.
+  const goals = states.flatMap((state) => state.activeGoals.map((goal) => ({ goal, state })))
+  const goalRows = [...goals.filter((g) => g.goal.pinned), ...goals.filter((g) => !g.goal.pinned)]
+
   return (
     <div className="space-y-6">
+      {/* Heading and toggle on one line: the heading says what is on screen and the toggle
+          is what changed it, so they belong together. `role="group"` with a name rather
+          than a tablist — these swap the contents of one region, and nothing here is a tab
+          panel with its own URL. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <h1 className="heading">{showing === 'steps' ? m.home.title : m.home.goalsTitle}</h1>
+        <div role="group" aria-label={m.home.viewLabel} className="flex items-center gap-x-2">
+          {(['steps', 'goals'] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              // Pressed rather than a colour alone: the label is the state's name, and
+              // `aria-pressed` is what says which one is current out loud.
+              aria-pressed={showing === option}
+              className={`btn btn-sm ${showing === option ? 'btn-primary' : 'btn-quiet'}`}
+              onClick={() => setShowing(option)}
+            >
+              {option === 'steps' ? m.home.viewSteps : m.home.viewGoals}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {showing === 'goals' ? (
+        goalRows.length === 0 ? (
+          <p className="text-sm text-muted">{m.home.goalsEmpty}</p>
+        ) : (
+          /* The goals themselves and nothing else: no area, no counts, no state. Seeing
+             them as a plain list is the point — anything more would make this a second
+             areas page. */
+          <ul className="space-y-4">
+            {goalRows.map(({ goal, state }) => (
+              <li key={`${state.area}-${goal.id}`} className="flex items-start gap-x-2.5">
+                <span aria-hidden="true" className="mt-1 shrink-0 text-lg leading-none text-muted">
+                  &bull;
+                </span>
+                <p
+                  className={`min-w-0 flex-1 leading-relaxed text-ink ${
+                    goal.pinned ? 'font-semibold' : ''
+                  }`}
+                >
+                  {goal.text}
+                </p>
+                <button
+                  type="button"
+                  className={`pin-toggle shrink-0 ${goal.pinned ? 'pin-toggle-on' : ''}`}
+                  aria-label={t(goal.pinned ? m.manage.unpinOn : m.manage.pinOn, {
+                    text: goal.text,
+                  })}
+                  onClick={() =>
+                    goal.pinned ? unpinGoal(state.area, goal.id) : pinGoal(state.area, goal.id)
+                  }
+                >
+                  <Star filled={goal.pinned} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : (
+        <>
       {/*
        * Mounted once, above the list, and never unmounted — with up to eighteen rows
        * that placement matters more, not less. A `role="status"` element inserted
@@ -157,6 +236,8 @@ export function NextSteps() {
           on a page whose point is the steps — a note about what is missing, ahead of what
           is there. Underneath, it reads as what to do next once the list runs out. */}
       <UnfinishedNote show={unfinished !== undefined} />
+        </>
+      )}
     </div>
   )
 }

@@ -70,6 +70,16 @@ export type Goal = {
   /** Why it matters, in the person's own words. Empty reads as absent. */
   why: string | undefined
   state: GoalState
+  /**
+   * Starred, so the start page leads with it.
+   *
+   * **Not `goal_priority`.** That pointer orders goals *within* one area and there is one
+   * of it; this is a per-goal flag, several may be set, and it exists to order a list that
+   * crosses areas — where "first in its own area" says nothing about what to show first
+   * overall. Same shape and same reasoning as a step's `pinned`, so `/data/stored/` reads
+   * them the same way.
+   */
+  pinned: boolean
   /** `learnedAt` of its first wording. */
   createdAt: string
 }
@@ -125,6 +135,7 @@ export const LEGACY_GID = 'legacy'
 
 const reviewKey = (area: AreaId) => `area.${area}.review`
 const pinnedKey = (area: AreaId, step: string) => `area.${area}.step.${step}.pinned`
+const goalPinnedKey = (area: AreaId, goal: string) => `area.${area}.goal.${goal}.pinned`
 
 /**
  * **Legacy, read-only.** The single pointer that used to mean "the one being worked
@@ -158,6 +169,8 @@ const STEP_KEY = /^area\.([^.]+)\.step\.([^.]+)\.(text|state|goal|pinned)$/
  * without ambiguity. That is what makes the migration a read rather than a rewrite.
  */
 const GOAL_KEY = /^area\.([^.]+)\.goal\.([^.]+)\.(text|why|state)$/
+// Deliberately **not** in `GOAL_KEY`: that pattern is what discovers which goals exist, and
+// a star on its own — from a hand-edited store — must not conjure a goal with no words.
 
 /** Everything this module owns, so `/you` can tell it apart from the rest. */
 export function isAreaKey(key: string): boolean {
@@ -214,6 +227,7 @@ function readGoals(person: Person, area: AreaId): Goal[] {
       text: text.value,
       why: why || undefined,
       state: toGoalState(person.current(goalStateKey(area, id))?.value),
+      pinned: person.current(goalPinnedKey(area, id))?.value === 'yes',
       createdAt: wordings[0].learnedAt,
     })
   }
@@ -513,6 +527,15 @@ export function pinStep(area: AreaId, step: string): void {
 /** Explicitly not pinned — which is also how a legacy pointer is taken back. */
 export function unpinStep(area: AreaId, step: string): void {
   remember(pinnedKey(area, step), 'no', SOURCE)
+}
+
+/** Starred, so the start page's list of goals leads with it. */
+export function pinGoal(area: AreaId, goal: string): void {
+  remember(goalPinnedKey(area, goal), 'yes', SOURCE)
+}
+
+export function unpinGoal(area: AreaId, goal: string): void {
+  remember(goalPinnedKey(area, goal), 'no', SOURCE)
 }
 
 export function completeStep(area: AreaId, step: string): void {

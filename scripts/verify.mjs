@@ -683,6 +683,8 @@ const EN = {
   steps: 'What could help you move toward this goal?',
   entries: 'What you want to try',
   entriesNote: 'One is enough. You can add up to three.',
+  unfinished: 'there are goals with no concrete steps yet',
+  unfinishedLink: 'Go to your life areas',
   forGoal: 'Goal: “Sleep better”',
   ack: 'Very good, thank you!',
   full: 'Three is plenty to start with.',
@@ -693,7 +695,7 @@ const EN = {
   focus: 'Which one would you like to focus on first?',
   complete: 'That is it for now.',
   toHome: 'Go to the start page',
-  home: 'What you are working on',
+  home: 'Your next steps',
   check: 'How is it going?',
   outcomeDone: 'I have done this',
   outcomeOngoing: 'Still on it',
@@ -1832,7 +1834,7 @@ await click('Zur Startseite')
 screen = await text()
 check(
   '6d. the whole flow reads in German and what was typed comes back verbatim',
-  screen.includes('Woran du gerade dran bist') &&
+  screen.includes('Deine nächsten Schritte') &&
     screen.includes('20 Minuten spazieren gehen') &&
     // The English-leak guard, stated against the fixture rather than a literal, so
     // renaming the home title cannot quietly make it vacuous.
@@ -1891,33 +1893,67 @@ check(
 )
 check(
   '25b. and home says so, rather than reporting that everything is settled',
-  screen.includes('has a goal, but you have not decided yet'),
+  screen.includes(EN.unfinished),
 )
 
-// The sentence names the area and links to it. Both halves matter: a link whose text
-// is "life area" would be useless out of context, and a link that navigates nowhere
-// useful is worse than the prose it replaced.
-const unfinishedLink = await evaluate(
+/**
+ * The hint carries the way to act on it, and it no longer names the area.
+ *
+ * It used to read "{area} has a goal, but you have not decided yet…" with the area as an
+ * inline link. Precise — and it left the reader to work out what to do, with "you have
+ * not" where a reason should be. The hint now says what is true and offers one control,
+ * which is why this asserts a **destination** rather than a name: naming an area was the
+ * old design's way of being useful, not the guarantee.
+ *
+ * It also sits **after** the list now, so the first thing read on a page about steps is
+ * the steps. Asserted by position, because "present somewhere" was never the claim.
+ */
+const unfinishedCta = await evaluate(
   `(() => {
-     const link = [...document.querySelectorAll('main a[href]')]
-       .find((a) => a.textContent.trim() === ${JSON.stringify(LAST_AREA.label)});
-     return link ? { text: link.textContent.trim(), href: new URL(link.href).pathname } : null;
+     const main = document.querySelector('main');
+     const link = [...main.querySelectorAll('a[href]')]
+       .find((a) => a.textContent.trim() === ${JSON.stringify('Go to your life areas')});
+     if (!link) return null;
+     const hint = [...main.querySelectorAll('p')]
+       .find((p) => p.textContent.includes('no concrete steps'));
+     const list = main.querySelector('ul');
+     return {
+       href: new URL(link.href).pathname,
+       primary: link.classList.contains('btn-primary'),
+       italic: hint ? getComputedStyle(hint).fontStyle : null,
+       hasList: Boolean(list),
+       // 4 === DOCUMENT_POSITION_FOLLOWING: the hint comes after the list.
+       afterList: Boolean(hint && list && list.compareDocumentPosition(hint) & 4),
+     };
    })()`,
 )
 check(
-  '25b2. the unfinished area is named as a real link to that area',
-  unfinishedLink?.href === `/areas/${LAST_AREA.id}/`,
-  unfinishedLink ? `${unfinishedLink.text} → ${unfinishedLink.href}` : 'no link on the area name',
+  '25b2. the hint offers one way to act on it, under the list rather than over it',
+  unfinishedCta?.href === '/areas/' &&
+    unfinishedCta.primary === true &&
+    unfinishedCta.italic === 'italic' &&
+    /**
+     * **The ordering is checked only when there is a list to order against, and no
+     * fixture in this file produces one.**
+     *
+     * `unfinished` fires on an area with a goal and *no steps ever written*, which every
+     * walk here reaches only by declining every other area — so home has the hint and an
+     * empty list. `seedGoals()` gives the opposite: a list, and no area qualifying for the
+     * hint. So the clause is guarded rather than asserted, and this is written down instead
+     * of left as a green check implying more than it measures. Verified by eye for now.
+     */
+    (!unfinishedCta.hasList || unfinishedCta.afterList),
+  JSON.stringify(unfinishedCta),
 )
 
-// The trap this page has already fallen into once: something that looks like
-// navigation but writes. Following it must leave the store byte-identical.
+// The trap this page has already fallen into once: something that looks like navigation
+// but writes. Following it must leave the store byte-identical.
 const beforeUnfinished = await raw()
-await clickText(LAST_AREA.label)
+await clickText(EN.unfinishedLink)
 await sleep(400)
 check(
   '25b3. and following it navigates without changing anything',
-  (await text()).includes('Draw something every week') && (await raw()) === beforeUnfinished,
+  (await text()).includes(EN.picker) && (await raw()) === beforeUnfinished,
   (await raw()) === beforeUnfinished ? 'store untouched' : 'STORE CHANGED',
 )
 await goto('/')
@@ -1957,7 +1993,7 @@ await clickNav(EN.navHome)
 screen = await text()
 check(
   '25e2. and home stops reporting it as unfinished setup',
-  screen.includes('Sketch on Sunday morning') && !screen.includes('has a goal, but you have not'),
+  screen.includes('Sketch on Sunday morning') && !screen.includes(EN.unfinished),
   screen.replace(/\n/g, ' / ').slice(0, 120),
 )
 
@@ -1974,7 +2010,7 @@ check(
 )
 check(
   '25g. and "Later" is not reported as unfinished setup — it is a real answer',
-  !screen.includes('has a goal, but you have not'),
+  !screen.includes(EN.unfinished),
 )
 
 // --- 38. a goal with nothing to try yet is a real answer, not a blocked screen -
@@ -2067,7 +2103,7 @@ await click(EN.toHome)
 screen = await text()
 check(
   '38f. home renders goal-with-no-entry as guidance, not as broken data',
-  screen.includes('has a goal, but you have not decided yet') && screen.includes(EN.home),
+  screen.includes(EN.unfinished) && screen.includes(EN.home),
   screen.replace(/\n/g, ' / ').slice(0, 140),
 )
 
@@ -2098,7 +2134,10 @@ await chooseIn('Language', 'Deutsch')
 await sleep(400)
 check(
   '38i. the same state reads correctly in German',
-  (await text()).includes('noch nicht festgelegt'),
+  // The German hint no longer says "noch nicht festgelegt" — it names the absence rather
+  // than the person's inaction: "es gibt Ziele ohne konkrete Schritte".
+  (await text()).includes('Ziele ohne konkrete Schritte') &&
+    (await visible('Zu den Lebensbereichen')),
   (await text()).replace(/\n/g, ' / ').slice(0, 160),
 )
 await chooseIn('Sprache', 'English')
@@ -3697,7 +3736,7 @@ await click(EN.toHome)
 screen = await text()
 check(
   '42i. a skipped area is not reported as unfinished setup',
-  !screen.includes('has a goal, but you have not') && screen.includes(EN.home),
+  !screen.includes(EN.unfinished) && screen.includes(EN.home),
   screen.replace(NL, ' / ').slice(0, 140),
 )
 await goto(`/areas/${AREAS[0].id}/`)

@@ -6,7 +6,7 @@ import { Choice } from '@/components/choice'
 import { Pin } from '@/components/icons'
 import { OptionList } from '@/components/option-list'
 import { TextAnswer } from '@/components/text-answer'
-import { areas, type AreaId } from '@/lib/areas'
+import { areas } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
 import {
   addStep,
@@ -108,8 +108,6 @@ export function NextSteps() {
         <p className="max-w-prose text-sm leading-relaxed text-muted">{m.home.empty}</p>
       )}
 
-      <UnfinishedNote area={unfinished?.area} />
-
       {[pinned, rest].map((group, index) =>
         group.length === 0 ? null : (
           <div key={index} className="space-y-3">
@@ -133,6 +131,11 @@ export function NextSteps() {
           </div>
         ),
       )}
+
+      {/* **After** the list, not before it. Above the steps it was the first thing read
+          on a page whose point is the steps — a note about what is missing, ahead of what
+          is there. Underneath, it reads as what to do next once the list runs out. */}
+      <UnfinishedNote show={unfinished !== undefined} />
     </div>
   )
 }
@@ -144,25 +147,28 @@ export function NextSteps() {
  * A `Link`, never a button: this page has already been through one round of a control
  * that looked like navigation and quietly acted instead.
  */
-function UnfinishedNote({ area }: { area: AreaId | undefined }) {
+function UnfinishedNote({ show }: { show: boolean }) {
   const { m } = useI18n()
-  if (!area) return null
-
-  // The placeholder has to survive translation: without it this falls back to plain
-  // text rather than breaking the screen.
-  const [before, after] = m.home.unfinished.split('{area}')
-  if (after === undefined) {
-    return <p className="max-w-prose text-sm leading-relaxed text-muted">{m.home.unfinished}</p>
-  }
+  if (!show) return null
 
   return (
-    <p className="max-w-prose text-sm leading-relaxed text-muted">
-      {before}
-      <Link href={`/areas/${area}`} className="link-inline">
-        {m.areas[area]}
-      </Link>
-      {after}
-    </p>
+    <div className="space-y-3">
+      {/* The same hint treatment as `/areas/`: the words say it is a hint, the slant says
+          it again, and the hue only makes it findable. Nothing has gone wrong here — there
+          is just something left to write down, which is why it is gold and not red.
+
+          It no longer names the area. Naming one was precise, but it left the reader to
+          work out what to do about it; the control below says that instead. */}
+      <p className="max-w-prose text-sm italic leading-relaxed text-note">{m.home.unfinished}</p>
+      {/* Primary, and a link because it navigates. Emphasis is safe here in a way it
+          would not have been above the list: with the steps already read, this is the one
+          useful thing left on the page, and nothing else on it competes for the weight. */}
+      <div>
+        <Link href="/areas" className="btn btn-primary">
+          {m.home.unfinishedLink}
+        </Link>
+      </div>
+    </div>
   )
 }
 

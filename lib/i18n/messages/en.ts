@@ -266,7 +266,14 @@ export const en = {
   },
 
   home: {
-    title: 'What you are working on',
+    /**
+     * "Your next steps", not "What you are working on".
+     *
+     * The page lists steps, so it says so. The old title described a *state* the person
+     * was in, which reads as a judgement about them when the list is empty; this names the
+     * contents, which is a claim about the page and always true.
+     */
+    title: 'Your next steps',
     empty: 'Nothing is active right now. That is a fine place to be.',
     /**
      * Shown only when an area holds a goal that never got a next step — that is,
@@ -283,7 +290,22 @@ export const en = {
      * Second half matches `manage.noStep` word for word. The two describe the same
      * gap from different pages, and saying it differently would imply a difference.
      */
-    unfinished: '{area} has a goal, but you have not decided yet what could help.',
+    /**
+     * A goal exists with nothing to try for it, so it can never appear on this page.
+     *
+     * **No longer names the area.** It used to read "{area} has a goal, but you have not
+     * decided yet what could help", with the area as an inline link — precise, and it
+     * still left the reader to work out what to do and left "you have not" sitting where
+     * a reason should be. This says what is true, why it matters *for this page*, and
+     * offers the one control that fixes it.
+     *
+     * Formatted as a hint, like the one on `/areas/`: "Note:" first, italic second, gold
+     * third. Nothing wrong has happened — there is just something left to write down.
+     */
+    unfinished:
+      'Note: there are goals with no concrete steps yet. Write some down and they will show up here.',
+    /** The way to act on the hint. Secondary: the list above it is the point of the page. */
+    unfinishedLink: 'Go to your life areas',
     /**
      * The control that opens the outcomes, and the question *is* the control.
      *

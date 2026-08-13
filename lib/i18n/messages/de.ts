@@ -166,6 +166,8 @@ export const de: Messages = {
     pickerTitle: 'Deine Lebensbereiche',
     pickerNote: 'Öffne einen, um sein Ziel zu ändern — oder was du ausprobieren willst.',
     goalsNone: 'Keine Ziele vorhanden',
+    stepsOne: '(1 nächster Schritt)',
+    stepsMany: '({count} nächste Schritte)',
     goalsOne: '1 Ziel angegeben',
     goalsMany: '{count} Ziele angegeben',
     noStepOne: 'Lege nächste Schritte fest, um dein Ziel zu erreichen.',

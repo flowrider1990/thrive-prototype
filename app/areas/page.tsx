@@ -71,57 +71,43 @@ export default function AreasPage() {
                 className={`option block space-y-1.5 ${quiet ? 'option-recede' : ''}`}
               >
                 <AreaLabel area={state.area} size="card" />
-                {/* The one put first, or the oldest still standing. A row is a door
-                    rather than a summary: six areas listing three goals each would be
-                    nineteen lines of someone's ambitions on one screen. */}
                 {/**
-                 * How many, not which.
+                 * **Each goal by name, with what is under it.** The row counted them for a
+                 * while — "2 Ziele angegeben" — which kept someone's sentences off a screen
+                 * that shows six areas at once, but it also meant the only way to learn what
+                 * you had written was to open every area in turn. Naming them costs the
+                 * privacy of a glance and buys the page its purpose back.
                  *
-                 * This line held the goal itself until it held a status before that. Both
-                 * turned a row into a summary of the area; a row is a door. It says which
-                 * area and how much is behind it, and the sentences someone wrote live on
-                 * the other side of it — which also keeps six areas of somebody's
-                 * ambitions off a single screen. 34b asserts the words stay off this page.
+                 * Numbered only where a number distinguishes something, exactly as on the
+                 * area's own page, and the per-goal counts replace the area-wide one: three
+                 * goals with their own totals say everything "3 Aktivitäten geplant" said,
+                 * and say which goal they belong to.
                  */}
-                <span className="flex items-center gap-x-1.5 text-sm text-muted">
-                  {/* One flag per goal, so how many is legible before the number is read.
-                      Bounded by MAX_GOALS at the source, so it cannot grow past three. */}
-                  <GoalIcon count={goalCount} />
-                  {goalCount === 0
-                    ? m.manage.goalsNone
-                    : goalCount === 1
-                      ? m.manage.goalsOne
-                      : t(m.manage.goalsMany, { count: String(goalCount) })}
-                </span>
-                {/* Only where there is a goal to be working toward: saying what has
-                    not been decided beneath "no goals set" would be two ways of
-                    saying the same absence. */}
-                {goalCount > 0 && (
-                  /**
-                   * A goal standing with nothing to try is the one thing on this page
-                   * worth finding among six rows, so it is drawn as a hint: gold, italic,
-                   * and prefixed "Note:".
-                   *
-                   * Three cues, and the colour is the least of them — the words say it is
-                   * a hint, and the slant says it again, so nothing depends on seeing the
-                   * hue. Gold rather than red because it is **not** a warning: nothing is
-                   * wrong, there is just something left to decide.
-                   *
-                   * The other states of this line stay muted. A hint that is always on is
-                   * not a hint.
-                   */
-                  <span
-                    className={`block text-sm leading-relaxed ${
-                      state.open.length === 0 ? 'font-semibold italic text-note' : 'text-muted'
-                    }`}
-                  >
-                    {state.open.length === 0
-                      ? goalCount === 1
-                        ? m.manage.noStepOne
-                        : m.manage.noStepMany
-                      : state.open.length === 1
-                        ? m.manage.tryingOne
-                        : t(m.manage.trying, { count: String(state.open.length) })}
+                {goalCount === 0 ? (
+                  <span className="block text-sm text-muted">{m.manage.goalsNone}</span>
+                ) : (
+                  state.activeGoals.map((goal, index) => {
+                    const steps = state.open.filter((step) => step.goalId === goal.id).length
+                    return (
+                      <span key={goal.id} className="block text-sm leading-relaxed text-muted">
+                        <GoalIcon />{' '}
+                        {goalCount > 1
+                          ? t(m.manage.goalNumber, { n: String(index + 1) })
+                          : m.manage.goalOnly}{' '}
+                        <span className="text-ink">{goal.text}</span>{' '}
+                        {steps === 1
+                          ? m.manage.stepsOne
+                          : t(m.manage.stepsMany, { count: String(steps) })}
+                      </span>
+                    )
+                  })
+                )}
+                {/* The hint stays: a goal with nothing under it is the one thing on this
+                    page worth finding among six rows, and "(0 nächste Schritte)" states it
+                    without drawing the eye. Gold, italic, and it says what to do. */}
+                {goalCount > 0 && state.open.length === 0 && (
+                  <span className="block text-sm font-semibold italic leading-relaxed text-note">
+                    {goalCount === 1 ? m.manage.noStepOne : m.manage.noStepMany}
                   </span>
                 )}
               </Link>

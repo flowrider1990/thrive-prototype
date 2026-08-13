@@ -404,6 +404,14 @@ export const en = {
      * has been *set* here, so saying so in the same words would be pedantic.
      */
     goalsNone: 'No goals yet',
+    /**
+     * What is under one goal, in brackets after it on `/areas/`.
+     *
+     * Per goal rather than per area: three goals with their own totals say everything one
+     * area-wide number said, and say which goal each belongs to.
+     */
+    stepsOne: '(1 next step)',
+    stepsMany: '({count} next steps)',
     goalsOne: '1 goal set',
     goalsMany: '{count} goals set',
     /**

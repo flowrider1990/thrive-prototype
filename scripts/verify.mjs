@@ -2034,10 +2034,8 @@ await sleep(400)
 screen = await text()
 check(
   '25e. adding the missing entry lists it, with nothing else asked',
-  // The areas list counts what is there rather than naming one of them: with nothing
-  // pinned, no entry is first, and picking one to show would be arbitrary. Home is
-  // where the words themselves live, which 25e2 checks.
-  screen.includes(EN.tryingOne) && screen.includes(EN.picker),
+  // The count is per goal now, in brackets after the goal it belongs to.
+  screen.includes('(1 next step)') && screen.includes(EN.picker),
   screen.replace(/\n/g, ' / ').slice(0, 120),
 )
 
@@ -2166,7 +2164,7 @@ check(
   // is the sentence about there being nothing to try yet — which is the half this check
   // was really about: two screens describing one state in one wording.
   '38g. and the areas list says the same thing in the same words',
-  screen.includes('ecide on next steps to reach your goal') && screen.includes(EN.goalsOne),
+  screen.includes('ecide on next steps to reach your goal') && screen.includes('Sleep better'),
   screen.replace(/\n/g, ' / ').slice(0, 160),
 )
 
@@ -2806,8 +2804,12 @@ const rowType = await evaluate(
      if (!row) return null;
      const name = [...row.querySelectorAll('p, span')]
        .find((e) => e.textContent.trim().endsWith(${JSON.stringify(AREAS[0].label)}));
+     // The goal's own line now: named, numbered where it helps, and ending in what is
+     // under it.
      const count = [...row.querySelectorAll('span')]
-       .find((e) => /goals? set$/.test(e.textContent.trim()));
+     // A character class, not an escape: this lives inside a template literal, which
+     // eats the backslash before the regex is ever parsed.
+       .find((e) => /next steps?[)]$/.test(e.textContent.trim()));
      if (!name || !count) return null;
      const px = (el) => parseFloat(getComputedStyle(el).fontSize);
      return {
@@ -2838,14 +2840,19 @@ check(
    * So it inverts: the words must be **absent** here and the count present. Deleting it
    * would have left nothing saying this page is an index on purpose.
    */
-  '34b. and it counts goals rather than printing them — the words stay behind the door',
+  /**
+   * **Inverted back**, and the reason is worth keeping.
+   *
+   * This page counted goals for a while — "2 Ziele angegeben" — which kept someone's
+   * sentences off a screen showing six areas at once. It also meant the only way to learn
+   * what you had written was to open every area in turn, so the page could not do the job
+   * it exists for. Naming them costs the privacy of a glance and buys that back.
+   */
+  '34b. and it names each goal with what is under it, rather than counting them',
   rowType !== null &&
-    // One mark per goal precedes the words now.
-    /^(No goals yet|1 goal set|\d+ goals set)$/.test(
-      rowType.countText.replace(/[^\x20-\x7e]/g, '').trim(),
-    ) &&
-    !(await text()).includes('Sleep better'),
-  `"${rowType?.countText}", goal text present: ${(await text()).includes('Sleep better')}`,
+    rowType.countText.includes('Sleep better') &&
+    /[(][0-9]+ next steps?[)]$/.test(rowType.countText),
+  `"${rowType?.countText}"`,
 )
 
 // --- 35. every nested page has the same way back ----------------------------

@@ -3645,9 +3645,14 @@ check(
   // The headings are gone: a filled star against an outlined one already says which
   // group a row is in, and "Everything else" labelled a group by what it is not. So the
   // claim is the *order*, which is what mattered all along.
-  '42b. starring one moves it to the top, with no heading needed, and writes one fact',
+  // Also that the rows keep their spacing: starring used to move a row across the seam
+  // between two containers, where the gap was 24px instead of 20px, so the list shifted
+  // under the control that acted on it.
+  '42b. starring one moves it to the top of one list, without shifting the others',
   order[0].startsWith('Read before bed') &&
     !screen.includes(EN.pinnedLabel) &&
+    // One list: two would put a different gap on either side of the boundary.
+    (await count('main ul')) === 1 &&
     afterPin.facts.length === beforePin + 1 &&
     afterPin.facts.some((f) => f.key.endsWith('.pinned') && f.value === 'yes'),
   `${JSON.stringify(order)} | ${afterPin.facts.length} vs ${beforePin}`,

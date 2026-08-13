@@ -117,23 +117,28 @@ export function NextSteps() {
         <p className="max-w-prose text-sm leading-relaxed text-muted">{m.home.empty}</p>
       )}
 
-      {[pinned, rest].map((group, index) =>
-        group.length === 0 ? null : (
-          <div key={index} className="space-y-3">
-            <ul className="space-y-5">
-              {group.map((row) => (
-                <li key={row.step.id}>
-                  <EntryRow
-                    row={row}
-                    busy={busy?.stepId === row.step.id ? busy : null}
-                    onBusy={setBusy}
-                  />
-                </li>
-              ))}
-            </ul>
-          </div>
-        ),
-      )}
+      {/**
+       * **One list, not two.** Starred rows come first inside it.
+       *
+       * They used to be two containers, which was right while each carried a heading.
+       * With the headings gone the split had no visible purpose left and one invisible
+       * effect: the two groups sat in the outer `space-y-6` stack, so rows were 20px
+       * apart *within* a group and 24px apart across the seam between them. Starring an
+       * entry moved it across that seam, so the list shifted slightly — a control
+       * changing the metrics of the thing it acts on, which is the one thing the design
+       * system says a state change must never do.
+       */}
+      <ul className="space-y-5">
+        {[...pinned, ...rest].map((row) => (
+          <li key={row.step.id}>
+            <EntryRow
+              row={row}
+              busy={busy?.stepId === row.step.id ? busy : null}
+              onBusy={setBusy}
+            />
+          </li>
+        ))}
+      </ul>
 
       {/* **After** the list, not before it. Above the steps it was the first thing read
           on a page whose point is the steps — a note about what is missing, ahead of what

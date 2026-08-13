@@ -109,7 +109,7 @@ export const en = {
     mind: 'Mental Wellbeing',
     relationships: 'Relationships & Social Life',
     work: 'Work & Career',
-    finances: 'Finances',
+    finances: 'Money & Finances',
     creativity: 'Hobbies & Creativity',
   },
 

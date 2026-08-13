@@ -8,14 +8,13 @@ import type { AreaId } from '@/lib/areas'
  * announcing "person walking" before "Body & Health" adds noise, not meaning.
  */
 const icons: Record<AreaId, string> = {
-  body: '🚶',
-  // Weather as mood, and deliberately not 🧠 or 🧘: the first is anatomical and pulls
-  // the area toward the clinical, the second prescribes one practice. The rest of the
-  // set is concrete and unbranded, and this has to sit beside them.
-  mind: '🌤️',
-  relationships: '🤝',
+  body: '🩺',
+  // A face rather than 🧠 or 🧘: the first is anatomical and pulls the area toward the
+  // clinical, which the app makes no claim to, and the second prescribes one practice.
+  mind: '😌',
+  relationships: '🫂',
   work: '💼',
-  finances: '🪙',
+  finances: '💵',
   creativity: '🎨',
 }
 

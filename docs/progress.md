@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 281/281** (25 at the
+the two the plan singles out. **The current count is 286/286** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework, 181 after the Supabase foundation, 248 after the less-friction
 iteration); the script itself is the only authority on that number, so treat any count
@@ -1575,6 +1575,30 @@ checking first rather than last.
 introduction still opens on the first area — because a refactor that sorted `areas` itself
 would change who gets asked what first, silently, and only for people who had starred
 something.
+
+## Switching Home views resets the view being left (branch `fix/home-view-resets`)
+
+A reported defect: opening "How is it going?", switching to the goals view and switching
+back left it still expanded. The same held for a half-picked goal rating. **286/286 pass.**
+
+The two halves swap the contents of one region, so anything left open in the hidden half is a
+screen nobody can see and nobody dismissed — and coming back to it hands someone a state they
+did not ask for. `switchTo()` clears `busy`, `evaluating` and `reached` before writing the
+new view.
+
+**In the handler, not an effect keyed on `showing`.** That is the idiomatic place to adjust
+state in response to an event, and an effect would trip `react-hooks/set-state-in-effect` —
+the same rule that shaped the congratulation emoji earlier in this branch.
+
+**Only on an actual change**, which is the half of the rule that is easy to lose. Resetting on
+every tap would take a question away from someone who pressed the tab they were already on,
+which is a stray tap rather than a decision to leave. §49h asserts that case; §49f and §49g
+assert the two flows in the two directions, because one fix could easily have reached only the
+half it was written for.
+
+**The three checks were confirmed by reverting the fix**: 49f and 49g both fail without it and
+49h still passes, so none of them is passing for an unrelated reason. Worth doing every time —
+several checks in this branch initially passed while guarding nothing.
 
 ## The repository
 

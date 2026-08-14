@@ -4821,6 +4821,65 @@ check(
   `homeView ${JSON.stringify(JSON.parse(await raw()).homeView)}`,
 )
 
+/**
+ * **Each view opens in its resting state.**
+ *
+ * The two halves swap the contents of one region, so anything left open in the hidden half is
+ * a screen nobody can see and nobody dismissed — and coming back to it hands someone a state
+ * they did not ask for. This was a real defect: "How is it going?" stayed expanded across a
+ * round trip through the goals view, and so did a half-picked rating.
+ *
+ * Both directions are covered, because the two flows live in different halves and one fix
+ * could easily have reached only the half it was written for.
+ */
+await clickAria('How is it going with: Walk after dinner')
+await sleep(250)
+const openedCheck = await visible(EN.outcomeDone)
+await click(EN.viewGoals)
+await sleep(250)
+await click(EN.viewSteps)
+await sleep(250)
+check(
+  '49f. an unfinished "how is it going" does not survive a round trip through the other view',
+  openedCheck === true && (await visible(EN.outcomeDone)) === false,
+  `opened ${openedCheck}, still open after the round trip ${await visible(EN.outcomeDone)}`,
+)
+
+// The same again from the goals half, where the open thing is the rating panel.
+await click(EN.viewGoals)
+await sleep(250)
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+const openedScale = (await text()).includes(EN.progressQuestion)
+await click(EN.viewSteps)
+await sleep(250)
+await click(EN.viewGoals)
+await sleep(300)
+check(
+  '49g. and neither does a half-answered rating',
+  openedScale === true && !(await text()).includes(EN.progressQuestion),
+  `opened ${openedScale}, still open ${(await text()).includes(EN.progressQuestion)}`,
+)
+
+/**
+ * Tapping the half that is **already** current is not a switch, and must not close anything.
+ *
+ * The obvious implementation — reset on every tap — would take a question away from someone
+ * who pressed the tab they were already on, which is a stray tap rather than a decision to
+ * leave. Asserted because it is the half of the rule that is easy to lose.
+ */
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+await click(EN.viewGoals)
+await sleep(300)
+check(
+  '49h. and tapping the current view leaves an open question alone',
+  (await text()).includes(EN.progressQuestion),
+  'still open, as it should be',
+)
+await click(EN.viewSteps)
+await sleep(250)
+
 // --- 50. how close a goal feels, and the fifth point that closes it ------
 
 /**

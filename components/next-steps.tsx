@@ -87,6 +87,29 @@ export function NextSteps() {
    */
   const showing = person.homeView
 
+  /**
+   * Switching view **closes whatever was open in the one being left.**
+   *
+   * The two halves swap the contents of one region, so an unfinished question in the hidden
+   * half is a screen nobody can see and nobody dismissed. Coming back to it — "How is it
+   * going?" still expanded, or a rating half-picked — is being handed a state you did not
+   * ask for and would not have expected to survive. Each view opens in its resting state.
+   *
+   * Done in the handler rather than in an effect keyed on `showing`. That is the idiomatic
+   * place to adjust state in response to an event, and an effect would trip
+   * `react-hooks/set-state-in-effect`, which exists because it costs a second render pass.
+   *
+   * Only on an actual change: tapping the half that is already current is not a switch, and
+   * treating it as one would close a question someone is in the middle of answering.
+   */
+  function switchTo(option: 'steps' | 'goals') {
+    if (option === showing) return
+    setBusy(null)
+    setEvaluating(null)
+    setReached(null)
+    setHomeView(option)
+  }
+
   const states = areas.map((area) => readArea(person, area))
 
   // Flat, in area order then the model's own deterministic order within an area.
@@ -173,7 +196,7 @@ export function NextSteps() {
                   ? 'bg-ink font-medium text-ground'
                   : 'text-muted hover:text-ink'
               }`}
-              onClick={() => setHomeView(option)}
+              onClick={() => switchTo(option)}
             >
               {option === 'steps' ? m.home.viewSteps : m.home.viewGoals}
             </button>

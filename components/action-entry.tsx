@@ -35,6 +35,7 @@ export function ActionEntry({
   entries,
   atCap,
   onEnough,
+  autoContinue = false,
 }: {
   area: AreaId
   /** The goal these serve. Every entry belongs to exactly one. */
@@ -52,6 +53,20 @@ export function ActionEntry({
   atCap?: boolean
   /** Offered once there is at least one; absent means the caller wants none. */
   onEnough?: () => void
+  /**
+   * Saving the first action ends the screen, instead of showing what you have.
+   *
+   * Set only by the **introduction**, where the point is to walk six areas once and come
+   * out understanding the shape of the thing — not to fill one area up. One goal and one
+   * action per area is enough to teach that, and the list, the cap notice, the per-entry
+   * Edit and the offer of a second are all answers to questions someone has only after
+   * they have used the app at all.
+   *
+   * None of that becomes dead code: the area page enters this same flow after a goal is
+   * added there, without this flag, and everything is reachable from that side. Which is
+   * also where the capability now lives — inline, on the page that draws the hierarchy.
+   */
+  autoContinue?: boolean
 }) {
   const { m, t } = useI18n()
   const [editing, setEditing] = useState<string | null>(null)
@@ -211,7 +226,13 @@ export function ActionEntry({
             onSubmit={(value) => {
               addStep(area, value, goalId)
               // Saving ends here. What happens next is the person's choice, offered
-              // above rather than assumed by leaving an empty field open.
+              // above rather than assumed by leaving an empty field open — except in the
+              // introduction, where one action is the whole of what this area is for and
+              // the choice on offer would be "do more of this" six times over.
+              if (autoContinue) {
+                onEnough?.()
+                return
+              }
               setAdding(false)
             }}
             onSkip={onEnough}

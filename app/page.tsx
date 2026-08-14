@@ -227,6 +227,9 @@ export default function Home() {
               })}
             />
           }
+          // One goal and one action, then the next area. Six areas is enough of a walk
+          // without each one also being an invitation to fill it.
+          guided
           onDone={nextArea}
         />
       )}
@@ -240,7 +243,34 @@ export default function Home() {
         // an acknowledgement riding above what comes next, so there is nothing extra to
         // tap through. Opening with "That is it for now." landed as a dismissal right
         // after someone had answered questions about six areas of their life.
-        <QuestionCard ack={m.complete.ack} question={m.complete.title} note={m.complete.body}>
+        <QuestionCard
+          ack={m.complete.ack}
+          question={m.complete.title}
+          /**
+           * Two sentences: where what you wrote is, and where the rest of it is done.
+           *
+           * The second one earns its place because the introduction deliberately stops at
+           * one goal and one action per area. Without it the ceiling reads as the product,
+           * and the one page that lifts it is never mentioned.
+           *
+           * Split on `{link}` so the destination can sit wherever the language puts it.
+           */
+          note={
+            <>
+              {m.complete.body}{' '}
+              {m.complete.manage.split('{link}').flatMap((part, index) =>
+                index === 0
+                  ? [part]
+                  : [
+                      <Link key="areas" href="/areas" className="link-inline">
+                        {m.complete.manageLink}
+                      </Link>,
+                      part,
+                    ],
+              )}
+            </>
+          }
+        >
           <Choice options={[{ label: m.complete.submit, onSelect: toHome }]} />
         </QuestionCard>
       )}

@@ -133,9 +133,10 @@ Existing foundation:
 
 First product loop (see `docs/goals-and-areas.md`):
 - six fixed life areas, reviewed one per screen during onboarding,
-- up to three goals per area, where the person wants them — one asked for during
+- up to three goals per area, where the person wants them — **one** asked for during
   onboarding, more added from the area's own page,
-- up to three prepared next steps, at most one active,
+- up to three prepared next steps per area — again **one** during onboarding, where
+  saving it carries straight on to the next area,
 - completing a step, then choosing another or not,
 - a small per-area view for changing the goal and the steps,
 - an optional five-point answer to "how close are you to reaching this goal?", offered on

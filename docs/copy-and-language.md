@@ -92,6 +92,16 @@ later one. It used to relabel itself "Add another" from the second on, which nam
 the person had not decided to take, while an empty field sat open as though a second were
 expected. Saving now closes the field; adding another is the choice that follows.
 
+That is the **area page's** flow. In the introduction there is no choice that follows —
+saving one action carries straight on to the next area — so the same word covers both: in
+one case it saves and shows you what you have, in the other it saves and moves on. Neither
+reading makes "Save" wrong, which is why the label did not have to split.
+
+Because the walk stops at one goal and one action, its closing screen carries a second
+sentence saying where the rest is done, with a link to `/areas/`. Without it the ceiling
+reads as the product. The link **names its destination** — "your life areas", not "here" —
+since a link listed out of context has to say where it goes.
+
 `stepsNote` ("One is enough. You can add up to three.") moved with it — from above the
 field, where it answered a question nobody had asked yet, to under the list, where there
 is a first entry to add to.

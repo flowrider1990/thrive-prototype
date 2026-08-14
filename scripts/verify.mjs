@@ -910,38 +910,28 @@ async function seedLegacyOnboarded() {
 }
 
 /**
- * Walks one life area: yes, a goal, and some things to try.
+ * Walks one life area in the introduction: yes, a goal, and **one** thing to try.
  *
- * The last click differs by count on purpose: at three the field gives way to a
- * plain Continue. There used to be a fourth step choosing which entry to start
- * with — the introduction no longer asks, so nothing is prioritised here either.
+ * One, not a list, and the signature says so — it used to take an array. Saving an action
+ * during the introduction now carries straight on to the next area, so there is no second
+ * field to type into and no Continue to press afterwards. Passing `null` means answering
+ * "I do not know yet", which writes nothing and is the only honest way past an empty field.
+ *
+ * Everything the list shape used to exercise — the numbered entries, the cap notice, the
+ * per-entry Edit, the offer of another — still exists on the **area page's** flow, and §29
+ * exercises it there. This helper is not the place it disappeared from; it is the place it
+ * never belonged.
  */
-async function runArea(goal, steps) {
+async function runArea(goal, step) {
   await click(EN.reviewYes)
   await type(goal)
   await click(EN.confirm)
-  await enterEntries(steps)
-  // One way on from both states that can follow the entries: the cap notice and the
-  // saved-something list both offer Continue. With nothing written the field is still
-  // open, and the only honest way past is saying so.
-  await click(steps.length === 0 ? EN.stepsUnknown : EN.cont)
-}
-
-/**
- * Types the entries in, one at a time. Extracted from `runArea` so §29 can stop
- * part-way through the list and exercise editing.
- *
- * **Two steps per entry after the first**, which is the shape of the flow rather than an
- * artefact of the test: saving closes the field, and opening it again is a separate
- * choice. The button says "Save" every time — it used to say "Add another" from the
- * second entry on, naming a thing the person had not yet decided to do.
- */
-async function enterEntries(steps) {
-  for (const [index, step] of steps.entries()) {
-    if (index > 0) await click(EN.addStep)
-    await type(step)
-    await click(EN.save)
+  if (step === null) {
+    await click(EN.stepsUnknown)
+    return
   }
+  await type(step)
+  await click(EN.save)
 }
 
 /**
@@ -1027,7 +1017,7 @@ check(
   `current=${marks.marks[0].paint} upcoming=${marks.marks[1].paint}`,
 )
 
-await runArea('Sleep better', ['Walk for 20 minutes', 'Read before bed'])
+await runArea('Sleep better', 'Walk for 20 minutes')
 marks = await progress()
 check(
   '4f. answering an area fills its mark and moves to the next',
@@ -1052,7 +1042,7 @@ check(
 // a real observation rather than an assumption about when the write happens.
 const doneMidway = JSON.parse(await raw()).facts.filter((f) => f.key === 'introduction_done')
 
-await runArea('Get the portfolio finished', ['Finish the case study'])
+await runArea('Get the portfolio finished', 'Finish the case study')
 // Three areas are answered by now — two walked, one declined — so the rest is the
 // remainder. Asserting the count keeps this check falsifiable: without it, the
 // helper's own success would be the only thing 4h could fail on.
@@ -1072,7 +1062,41 @@ check(
   screen.replace(NL, ' / ').slice(0, 110),
 )
 
+/**
+ * The closing screen says where the rest of it is done, and links there.
+ *
+ * It has to, now that the introduction stops at one goal and one action per area:
+ * without this the ceiling reads as the product, and the page that lifts it is never
+ * mentioned. The link names its destination rather than saying "here" — out of context,
+ * "here" says nothing at all.
+ */
+const closingLink = await evaluate(`(() => {
+  const link = [...document.querySelectorAll('main a[href]')]
+    .find((a) => a.textContent.trim() === ${JSON.stringify('your life areas')});
+  return link ? new URL(link.href).pathname : null;
+})()`)
+check(
+  '4h3. and it says where goals and next steps are changed, with a way there',
+  screen.includes('To change goals and next steps') && closingLink === '/areas/',
+  `link → ${closingLink}`,
+)
+
 await click(EN.toHome)
+
+/**
+ * The second entry for this area is added **where the app now puts that ability**.
+ *
+ * The introduction writes one action per area, so two open in one area can no longer come
+ * out of the walk. §24 needs exactly that — "finishing one with others still open asks
+ * nothing" is a claim about an *area*, not about a list — so it is set up through the area
+ * page's own inline field, which is a real path a person takes rather than a seeded store.
+ */
+await goto(`/areas/${AREAS[0].id}/`)
+await waitForText('Sleep better')
+await click(EN.addEntry)
+await type('Read before bed')
+await click(EN.save)
+await goto('/')
 screen = await text()
 check(
   '4i. home lists everything open across areas, each with the goal it serves',
@@ -1612,12 +1636,22 @@ check('8e. after a reload it starts over', (await text()).includes(EN.consent))
 // Three things were not obvious on the old screen: that more than one is allowed,
 // that the cap is three, and that what you typed can be changed. Each has its own
 // assertion, because each was its own complaint.
+//
+// **Re-based, not weakened.** This section used to run inside the introduction, where
+// saving an action now carries straight on to the next area — one goal and one action is
+// the whole of what the walk asks for. Everything it asserts still exists, on the flow the
+// area page enters after a goal is added there, so the section moved to where the behaviour
+// lives rather than being deleted along with the path it happened to use.
+//
+// That is also the check that the introduction's ceiling is a property of the introduction
+// and not of `ActionEntry`: if saving ever auto-continued here too, every assertion below
+// would fail at once.
 
-await clearStorage()
-await goto('/')
-await click(EN.yes)
-await click(EN.introOk)
-await click(EN.reviewYes)
+await seedOnboarded()
+await goto(`/areas/${AREAS[1].id}/`)
+await waitForText(EN.emptyNote)
+await click(EN.goalCreate)
+await waitForText(EN.goal)
 await type('Sleep better')
 await click(EN.confirm)
 
@@ -1722,7 +1756,7 @@ check('5b. the reason is acknowledged and going on is offered', screen.includes(
 
 await click(EN.contYes)
 await click(EN.introOk)
-await runArea('Move more', ['Walk after lunch'])
+await runArea('Move more', 'Walk after lunch')
 await declineRest()
 await click(EN.toHome)
 screen = await text()
@@ -1801,7 +1835,7 @@ await type(CONCERN)
 await click(EN.cont)
 await click(EN.contYes)
 await click(EN.introOk)
-await runArea('Move more', ['Walk after lunch'])
+await runArea('Move more', 'Walk after lunch')
 await declineRest()
 await click(EN.toHome)
 
@@ -1889,10 +1923,10 @@ await click('Ja')
 await type('Besser schlafen')
 await click('Bestätigen')
 await type('20 Minuten spazieren gehen')
+// Saving is the way on now — there is no "Weiter" to press afterwards, because during the
+// introduction one action per area is the whole of what is asked for. The German walk
+// exercises that in its own language rather than trusting the English one.
 await click('Speichern')
-// "Weiter" now, not "Das reicht": with something saved the field has closed and the way
-// on is the primary. "Das reicht" is the quiet skip beside an *open* field.
-await click('Weiter')
 await declineRest({ no: 'Gerade nicht', done: 'Das war’s für den Anfang.' })
 await click('Zur Startseite')
 screen = await text()
@@ -4059,11 +4093,35 @@ check(
   screen.replace(NL, ' / ').slice(0, 160),
 )
 
-// One entry, then out. Nothing along the way ranks anything: pinning and priority are both
-// decisions for later, on a page that shows what there is to decide between.
+// One entry, and that *is* out — saving carries straight on to the next area. Nothing along
+// the way ranks anything either: pinning and priority are both decisions for later, on a
+// page that shows what there is to decide between.
 await type('Walk after dinner')
 await click(EN.save)
-await click(EN.cont)
+await sleep(300)
+screen = await text()
+/**
+ * **Saving one action ends the area.**
+ *
+ * Six areas is enough of a walk without each one also being an invitation to fill it: one
+ * goal and one action is enough to learn what the app is, and everything the ceiling holds
+ * back is a tap away on the area's own page afterwards.
+ *
+ * Asserted from the other side as well — that nothing offers to keep going here. The list,
+ * the cap notice, "Add something" and "That is enough" all still exist, and §29 exercises
+ * every one of them on the flow the area page enters. If they ever reappeared *here*, this
+ * is what would say so.
+ */
+check(
+  '45i. saving one action carries straight on to the next area',
+  screen.includes(AREAS[1].label) &&
+    screen.includes(EN.review) &&
+    !screen.includes(EN.steps) &&
+    !(await visible(EN.addStep)) &&
+    !(await visible(EN.enough)) &&
+    !(await visible(EN.cont)),
+  screen.replace(NL, ' / ').slice(0, 110),
+)
 await declineRest()
 const noRank = JSON.parse(await raw()).facts
 check(
@@ -5113,7 +5171,7 @@ await type('Not for me.')
 await click(EN.cont)
 await click(EN.contYes)
 await click(EN.introOk)
-await runArea('Sleep before midnight', ['Phone out of the bedroom'])
+await runArea('Sleep before midnight', 'Phone out of the bedroom')
 await declineRest()
 await click(EN.toHome)
 await click(EN.viewGoals)

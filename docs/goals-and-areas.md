@@ -426,10 +426,30 @@ one area, which is the task manager this is not.
 tried across all of them — three goals holding three each would be nine open entries in
 one area, which is the task manager this is not.
 
-**Onboarding offers up to three, and demands none.** The first goal is optional — "Not
-sure yet" writes nothing — and once a goal has its entries screen, a quiet "Add another
-goal" appears there and disappears at the cap. Nothing states that an area should have
-three; three is what is allowed, not what is expected.
+### The introduction asks for one of each, and demands neither
+
+**Up to three is what the model allows, not what the walk asks for.** The introduction
+writes **one goal and one action per area**, and then moves on: saving the action *is* the
+way to the next area. Both are optional — "Not sure yet" and "I do not know yet" each write
+nothing at all.
+
+The reason is what a first pass is for. Six areas is enough of a walk without each one also
+being an invitation to fill it, and everything the ceiling holds back — a second goal, a
+second action, the numbered list, the cap notice, editing what you just wrote — are answers
+to questions someone only has once they have used the app. Learning the shape is the job;
+setting things up properly is what the area page is for, and the closing screen says so and
+links there.
+
+**None of it became dead code**, which is the thing to check before narrowing a flow. The
+area page enters the same `AreaFlow` after a goal is added there, without the `guided` flag,
+and every one of those affordances is reachable from that side. `scripts/verify.mjs` §29 was
+*re-based* onto that path rather than deleted — it now proves the same three complaints are
+still answered, and, by construction, that the introduction's ceiling belongs to the
+introduction rather than to `ActionEntry`. §45i asserts the ceiling itself.
+
+`guided` is deliberately its own prop rather than `!straightToGoal`, though they are
+opposites today: one decides which question opens the flow, the other when it ends, and
+collapsing them would make "open on the goal, but allow three" impossible to express.
 
 Two things that shape it:
 

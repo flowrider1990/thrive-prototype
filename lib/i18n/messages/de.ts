@@ -129,6 +129,8 @@ export const de: Messages = {
     ack: 'Sehr gut, vielen Dank!',
     title: 'Das war’s für den Anfang.',
     body: 'Was du ausprobieren willst, findest du auf der Startseite.',
+    manage: 'Ziele und nächste Schritte bearbeitest du in {link}.',
+    manageLink: 'deinen Lebensbereichen',
     submit: 'Zur Startseite',
   },
 

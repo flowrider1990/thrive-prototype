@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 270/270** (25 at the
+the two the plan singles out. **The current count is 272/272** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework, 181 after the Supabase foundation, 248 after the less-friction
 iteration); the script itself is the only authority on that number, so treat any count
@@ -1452,6 +1452,52 @@ The established habit here is to **invert** a check that defends a reversed rule
 delete it. There was nothing to invert: progress is new, so no existing assertion claimed the
 top of the scale leaves a goal open. §50 says so in a comment, because "no check changed" is
 otherwise indistinguishable from "we forgot to look".
+
+## The introduction stops at one of each (branch `feature/verify-area-agnostic`)
+
+Saving an action during the introduction now carries straight on to the next area. One goal
+and one action per area, and the closing screen says where the rest is done and links there.
+**272/272 checks pass.**
+
+### The change is one flag, and the risk was dead code
+
+`ActionEntry` gained `autoContinue`, `AreaFlow` gained `guided`, and `app/page.tsx` sets it.
+The thing worth checking before narrowing a flow is what stops being reachable — here the
+numbered list, the cap notice, the per-entry Edit and the offer of a second action. **None of
+it died**, because the area page enters the same `AreaFlow` after a goal is added there,
+without the flag. That is also where the user deliberately put this capability during the
+inline-CRUD pass, so the two decisions agree rather than colliding.
+
+`guided` is its own prop rather than `!straightToGoal`, even though they are opposites today.
+One decides which question opens the flow; the other decides when it ends. Collapsing them
+would make "open on the goal, but allow three" inexpressible without unpicking it.
+
+### §29 moved rather than being deleted
+
+It asserted three complaints about the entries screen — that more than one is allowed, that
+the cap is three, that what you typed can be changed — and it ran inside the introduction,
+which is now the one place none of that happens. Deleting it would have retired three real
+guarantees along with the path they happened to use, so it was **re-based** onto the area
+page's flow, which is where the behaviour lives.
+
+That turned out to be worth more than the original: because §29 runs on the unguided flow and
+§45i asserts the guided one auto-continues, the pair proves the ceiling is a property of the
+*introduction* rather than of `ActionEntry`. If saving ever auto-continued everywhere, §29
+fails at once.
+
+### §4 needed two entries in one area, and gets them the way a person would
+
+§24's claim is about an *area* — "finishing one with others still open asks nothing further"
+— so spreading the two entries across areas would have made it pass while testing something
+else. The second entry is now added through the area page's inline field after the
+introduction, which is a real path rather than a seeded store. `runArea` lost its array and
+takes one action, or `null` for "I do not know yet".
+
+### The German walk had its own line to fix
+
+§6 clicked "Weiter" after saving, which no longer exists. Fixed in German rather than by
+routing through the English needles — that section exists precisely to catch what only breaks
+in one language.
 
 ## The repository
 

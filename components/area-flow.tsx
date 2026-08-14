@@ -40,6 +40,7 @@ export function AreaFlow({
   area,
   progress,
   straightToGoal = false,
+  guided = false,
   onDone,
 }: {
   area: AreaId
@@ -57,6 +58,15 @@ export function AreaFlow({
    * is a real question, and "Not right now" is a real answer to it.
    */
   straightToGoal?: boolean
+  /**
+   * The guided pass: one goal, one action, then the next area.
+   *
+   * Set only by the introduction. It is the inverse of `straightToGoal` today and still
+   * its own prop, because the two say different things — one is about which question opens
+   * the flow, the other about when it ends — and collapsing them would make a later
+   * "open on the goal, but let them add three" impossible to express without unpicking it.
+   */
+  guided?: boolean
   onDone: () => void
 }) {
   const { m } = useI18n()
@@ -199,6 +209,8 @@ export function AreaFlow({
             // ended here once nothing is made active — including the "I do not know
             // yet" case, which still writes nothing at all.
             onEnough={onDone}
+            // In the introduction, saving the first action *is* the way on.
+            autoContinue={guided}
           />
 
         </QuestionCard>

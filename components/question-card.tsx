@@ -59,7 +59,13 @@ export function QuestionCard({
    */
   mark?: ReactNode
   question: string
-  note?: string | null
+  /**
+   * A node rather than a string, so a note can carry a link inside its sentence — which
+   * the closing screen needs, and which splitting the sentence across two keys would have
+   * made untranslatable. Still rendered as one `<p>`; this widens what may go in it, not
+   * how it is laid out.
+   */
+  note?: ReactNode
   children?: ReactNode
 }) {
   const { m } = useI18n()

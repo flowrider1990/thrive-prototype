@@ -261,6 +261,22 @@ export const en = {
     ack: 'Very good, thank you!',
     title: 'That is it for now.',
     body: 'What you want to try is on the start page.',
+    /**
+     * Where the rest of it lives, said once, at the only moment someone has the whole
+     * shape in mind.
+     *
+     * The introduction now writes **one goal and one action per area** — enough to learn
+     * what the app is, and deliberately not enough to set anything up properly. So the
+     * screen that closes it has to say where the rest is, or the ceiling reads as the
+     * product rather than as a starting point.
+     *
+     * `{link}` is split out in JSX so word order stays free: German puts the destination
+     * in a different place, and a sentence chopped into two keys cannot be translated.
+     * The link **names where it goes** rather than saying "here" — out of context, and to
+     * anyone listing the links on a page, "here" says nothing at all.
+     */
+    manage: 'To change goals and next steps, go to {link}.',
+    manageLink: 'your life areas',
     submit: 'Go to the start page',
   },
 

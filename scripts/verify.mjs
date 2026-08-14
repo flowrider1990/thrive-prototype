@@ -5187,6 +5187,73 @@ check(
   `${(await keys()).length} localStorage keys`,
 )
 
+// --- 51. structural edges are one weight, and it is not a hairline --------
+
+/**
+ * `--edge` reaches everything that draws a control or a card, and separators are left alone.
+ *
+ * This exists because of how the first attempt failed. `--edge: 1.5px` was correct in the
+ * stylesheet, shipped in the built CSS, and rendered as **1px** — Chrome floors a border to
+ * whole device pixels, so it only showed on a retina screen. Everything looked right on the
+ * machine it was written on and nothing had changed anywhere else. Asserting a *number*
+ * rather than "the declaration is present" is the whole point: the used value is the only
+ * thing that says whether the change happened.
+ *
+ * The second half matters as much as the first. The reason a control edge is thicker is to
+ * stop it reading as the same kind of line as a rule between paragraphs — so if separators
+ * were ever swept along with it, the distinction this token exists to create would be gone
+ * while every "is it thicker" check still passed.
+ */
+await seedGoals()
+await goto(`/areas/${AREAS[3].id}/`)
+await waitForText('Finish the portfolio')
+// Rated first, so the marks have both states to compare. Unrated they are five identical
+// empty circles, and 51c would have been measuring nothing.
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+await pick(3)
+await click(EN.progressSave)
+await sleep(300)
+const edges = await evaluate(`(() => {
+  const width = (sel) => {
+    const el = document.querySelector(sel);
+    return el ? getComputedStyle(el).borderTopWidth : null;
+  };
+  const dots = [...document.querySelectorAll('main .scale-toggle span')]
+    .map((el) => getComputedStyle(el).borderTopWidth);
+  return {
+    card: width('main ol > li'),
+    button: width('main .btn'),
+    pin: width('main .pin-toggle'),
+    scale: width('main .scale-toggle'),
+    // A decorative rule, which must stay a hairline.
+    rule: getComputedStyle(document.querySelector('footer')).borderTopWidth,
+    dots: [...new Set(dots)].sort(),
+  };
+})()`)
+const structural = [edges?.card, edges?.button, edges?.pin, edges?.scale]
+check(
+  '51a. every control and card edge is drawn at the same weight, thicker than a hairline',
+  new Set(structural).size === 1 && parseFloat(structural[0]) >= 2,
+  structural.join(' / '),
+)
+check(
+  '51b. and a separator is still a hairline, which is the distinction the token buys',
+  edges?.rule === '1px' && parseFloat(structural[0]) > parseFloat(edges.rule),
+  `rule ${edges?.rule} vs edge ${structural[0]}`,
+)
+/**
+ * The scale's marks are **not** on `--edge`, and must not be swept onto it: their 1px/2px
+ * difference is the second, non-colour cue that says which are filled. §17 forbids carrying
+ * meaning by colour alone, so equalising these would break an accessibility rule while
+ * looking like tidying up.
+ */
+check(
+  '51c. the scale marks keep their own two widths, which is how filled is readable',
+  edges?.dots.length === 2,
+  edges?.dots.join(' / '),
+)
+
 check(
   '9. no request went anywhere but the app’s own assets',
   external.length === 0,

@@ -287,7 +287,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
             return (
               <li
                 key={goal.id}
-                className="rounded-lg border border-line bg-surface px-4 py-4 sm:px-5"
+                className="card"
               >
                 <div className="min-w-0 space-y-4">
                   {/**

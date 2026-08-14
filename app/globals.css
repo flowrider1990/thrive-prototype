@@ -48,6 +48,33 @@
      meant tuning emphasis silently retuned focus. */
   --color-focus: #1f1e1c;
 
+  /**
+   * How thick a structural edge is drawn: the outline of a control, and the border of a
+   * card. One value, so "the app looks fragile" is a single change rather than a sweep.
+   *
+   * 2px, and **1.5px was tried first and rejected on measurement rather than on taste.**
+   * Chrome floors a border to whole device pixels, so 1.5px renders as 1px at DPR 1 and as
+   * 1.5px on a retina screen — a change that shows up on the machine it was designed on and
+   * nowhere else. Half a fix that looks like a whole one is worse than either choice.
+   *
+   * At 1px the edges read as hairlines, the same weight as a decorative separator, so a
+   * button and a rule between paragraphs were the same kind of line — which is what made
+   * the controls feel provisional.
+   *
+   * **What deliberately does not use it:**
+   * - `--color-line` separators. They *are* hairlines, and thickening them would undo the
+   *   distinction this token exists to create.
+   * - `.nav-link`'s `border-y-2` and the progress marks' 1px/2px pair. Both carry *state*
+   *   in their width — the marks' second non-colour cue is the width difference, and the
+   *   nav's border is on both edges so marking the current page moves nothing. Tuning
+   *   either from here would quietly retune a state indicator.
+   *
+   * Declared as a width rather than folded into the `@apply` lines because Tailwind's
+   * `border` utility hardcodes 1px; the colour utilities (`border-line-strong`,
+   * `border-transparent`) set only `border-color`, so they compose with this cleanly.
+   */
+  --edge: 2px;
+
 
   /**
    * The second hue, and the last one that gets in without a fight.
@@ -267,7 +294,9 @@
      thing saying "you can type here", so it is a control boundary and carries the
      3:1 floor. Separators elsewhere stay on `--color-line`. */
   .field {
-    @apply w-full rounded-md border border-line-strong bg-surface px-4 py-3 text-ink;
+    @apply w-full rounded-md border-line-strong bg-surface px-4 py-3 text-ink;
+    border-width: var(--edge);
+    border-style: solid;
     @apply leading-relaxed shadow-none transition-colors;
   }
 
@@ -279,7 +308,9 @@
     @apply inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm;
     /* A transparent border on every button so the disabled and quiet variants
        can take a visible one without shifting the layout by a pixel. */
-    @apply border border-transparent transition-colors disabled:cursor-not-allowed;
+    @apply border-transparent transition-colors disabled:cursor-not-allowed;
+    border-width: var(--edge);
+    border-style: solid;
   }
 
   .btn-primary {
@@ -336,7 +367,9 @@
    * this, selecting it chooses something; it never spends anything.
    */
   .option {
-    @apply w-full rounded-md border border-line-strong bg-surface px-4 py-3 text-start;
+    @apply w-full rounded-md border-line-strong bg-surface px-4 py-3 text-start;
+    border-width: var(--edge);
+    border-style: solid;
     @apply leading-relaxed text-ink transition-colors;
   }
 
@@ -423,7 +456,9 @@
 
   .switch-track {
     @apply relative inline-flex h-5 w-9 shrink-0 items-center rounded-full;
-    @apply border border-line-strong transition-colors;
+    @apply border-line-strong transition-colors;
+    border-width: var(--edge);
+    border-style: solid;
   }
   .switch:hover:not(:disabled) .switch-track {
     border-color: var(--color-muted);
@@ -458,8 +493,10 @@
    */
   .pin-toggle {
     @apply inline-flex shrink-0 items-center justify-center rounded-full p-1.5;
-    @apply border border-line-strong text-muted transition-colors;
+    @apply border-line-strong text-muted transition-colors;
     @apply hover:border-muted hover:text-ink;
+    border-width: var(--edge);
+    border-style: solid;
   }
   /**
    * A class rather than an attribute selector, because the obvious hooks are both
@@ -493,8 +530,10 @@
    */
   .scale-toggle {
     @apply inline-flex shrink-0 items-center gap-x-1 rounded-full px-2.5 py-1.5;
-    @apply border border-line-strong transition-colors;
+    @apply border-line-strong transition-colors;
     @apply hover:border-muted;
+    border-width: var(--edge);
+    border-style: solid;
   }
 
   /**
@@ -520,6 +559,23 @@
   .scale-option:has(input:focus-visible) {
     outline: 2px solid var(--color-focus);
     outline-offset: 2px;
+  }
+
+  /**
+   * A container that groups its contents, rather than a control that invites a tap.
+   *
+   * `--color-line` and not `line-strong`: the edge is here to say "these things belong
+   * together", and a control-strength edge around a group would compete with the controls
+   * inside it. The **width** is the shared `--edge` all the same — the distinction a card
+   * needs to make is against a hairline separator, not against a button.
+   *
+   * Was two literals in JSX. One class instead, because "the cards look fragile" should be
+   * one edit and because the next card should not have to guess the recipe.
+   */
+  .card {
+    @apply rounded-lg border-line bg-surface px-4 py-4 sm:px-5;
+    border-width: var(--edge);
+    border-style: solid;
   }
 
   .link-inline {

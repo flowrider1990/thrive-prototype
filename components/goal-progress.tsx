@@ -36,14 +36,6 @@ import { usePerson } from '@/lib/person/store'
 
 const POINTS = [1, 2, 3, 4, 5] as const
 
-/**
- * One of these marks a goal that was reached, chosen at random each time.
- *
- * The variation is the whole point: a fixed mark becomes furniture after the third goal,
- * where a different one each time reads as a reaction rather than a template. It is the
- * *only* flourish here — no animation, no sound, no score — and it is `aria-hidden`, because
- * the sentence beside it already says what happened and "party popper" adds nothing to it.
- */
 const CHEERS = ['🎉', '🎯', '👏', '💯', '🤩']
 
 /**
@@ -371,7 +363,7 @@ export function GoalReached({ goalText, onClose }: { goalText: string | null; on
         {said}
       </p>
       {goalText !== null && (
-        <div className="space-y-4 rounded-lg border border-line bg-surface px-4 py-4 sm:px-5">
+        <div className="card space-y-4">
           <p className="max-w-prose leading-relaxed text-ink">
             <span aria-hidden="true">{cheerFor(goalText)}</span>{' '}
             <span className="font-medium">{m.manage.congrats}</span> {m.manage.congratsAny}

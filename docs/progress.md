@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 272/272** (25 at the
+the two the plan singles out. **The current count is 275/275** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework, 181 after the Supabase foundation, 248 after the less-friction
 iteration); the script itself is the only authority on that number, so treat any count
@@ -1498,6 +1498,44 @@ takes one action, or `null` for "I do not know yet".
 §6 clicked "Weiter" after saving, which no longer exists. Fixed in German rather than by
 routing through the English needles — that section exists precisely to catch what only breaks
 in one language.
+
+## Line weight (branch `feature/verify-area-agnostic`)
+
+Controls and cards are drawn at `2px` through a new `--edge` token; separators stay at 1px.
+**275/275 checks pass.**
+
+### The earlier diagnosis was wrong, and worth correcting in writing
+
+A previous attempt was reverted with the finding recorded as *"the `globals.css` additions
+were not reaching the built CSS at all"*. That is false. `.scale-toggle`, added this week,
+appears in the built stylesheet with every declaration intact — checked by grepping
+`out/_next/static/chunks/*.css` rather than by inference. Nothing about the build was broken,
+and the task was never blocked.
+
+What was true is the smaller half of the note: **a `border-width` after an `@apply` in the
+same rule competes with the utility's own width.** The fix is not to fight it but to stop
+asking for it — `@apply border-line-strong` sets only `border-color`, so dropping the bare
+`border` from the `@apply` and declaring `border-width: var(--edge)` beside it composes
+cleanly.
+
+### 1.5px was a change that only existed on the machine it was written on
+
+The first value shipped correctly and rendered as 1px. Chrome floors a border to whole device
+pixels, so `1.5px` is 1.5px at DPR 2 and 1px at DPR 1 — visible on the retina screen it was
+designed on, invisible everywhere else. It was caught by measuring `getComputedStyle` at DPR
+1, not by looking.
+
+§51a asserts the **used** width rather than the presence of a declaration, which is the only
+form of the check that would have failed. §51b asserts separators are still hairlines, since
+sweeping them along would erase the distinction the token exists to create, and §51c that the
+progress marks keep their 1px/2px pair — that difference is the second, non-colour cue for
+*filled*, so equalising it would break §17 while looking like cleanup.
+
+### `.card` replaced two literals
+
+`rounded-lg border border-line bg-surface px-4 py-4 sm:px-5` appeared twice in JSX. It is one
+class now, so the next card does not have to guess the recipe and "the cards look fragile" is
+one edit.
 
 ## The repository
 

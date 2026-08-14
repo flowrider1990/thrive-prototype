@@ -23,6 +23,35 @@ a colour.** That is what makes a new theme or skin a change to one file.
 | `--color-accent` | emphasis: the filled button's background |
 | `--color-focus` | the focus ring, and nothing else |
 
+### `--edge`: how thick a structural line is
+
+One value, `2px`, for everything that draws a **control** or a **card** — `.btn`, `.field`,
+`.option`, `.switch-track`, `.pin-toggle`, `.scale-toggle`, `.card`. So "the app looks
+fragile" is one edit rather than a sweep.
+
+At 1px those edges were the same weight as a decorative rule, which is what made controls
+feel provisional: a button and a line between paragraphs were the same kind of mark.
+
+**1.5px was tried first and rejected on measurement.** It was correct in the stylesheet and
+present in the built CSS, and it rendered as **1px** — Chrome floors a border to whole device
+pixels, so it showed on a retina screen and nowhere else. §51a therefore asserts the *used*
+width rather than the presence of a declaration; a check that the rule exists would have
+passed throughout.
+
+Declared as `border-width: var(--edge)` beside the `@apply`, not inside it: Tailwind's
+`border` utility hardcodes 1px, while the colour utilities (`border-line-strong`,
+`border-transparent`) set only `border-color` and compose cleanly.
+
+**Three things deliberately stay off it**, and §51b/§51c guard two of them:
+
+- `--color-line` separators, which *are* hairlines. Thickening them would erase the very
+  distinction the token exists to create.
+- `.nav-link`'s `border-y-2`, which carries the current page and sits on both edges so
+  marking one moves nothing.
+- the progress marks' 1px/2px pair — in both `ProgressMarks` and the goal scale. That width
+  difference is the second, non-colour cue for *filled*, so equalising it would break §17
+  while looking like tidying up.
+
 ### Why there are two border tokens
 
 `--color-line-strong` is the only colour token pinned to a **number** rather than to

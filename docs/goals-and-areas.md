@@ -209,7 +209,7 @@ guard being loosened.
 
 Choosing *I am there* writes nothing on its own. It turns the save into "Mark this goal as
 reached?", and confirming appends two facts in causal order — the `5`, then `state = 'done'`
-through the same `completeGoal` the "I have reached this" control uses. So an **active goal
+through `completeGoal`, which is now the only writer of `done` reachable from the UI. So an **active goal
 never rests at 5**: the fifth point is a door, not a state.
 
 The scale stays on screen while it asks, which is why the question is not a screen of its
@@ -554,6 +554,17 @@ Entries belong to a goal, which changes what each of these costs.
   With nothing being tried for it there is no consequence to state, so there is no
   confirmation either. A confirmation with nothing to say is a step that teaches
   people to tap through steps.
+
+  **Each has exactly one door.** *Reached* is the fifth point of the scale; *set aside* is
+  the remove control on the goal's row. There used to be a second way to reach the first —
+  "I have reached this", inside the panel for changing a goal's **wording** — and it is
+  gone. It made sense while nothing else expressed the distinction, but with the scale it
+  became a duplicate offered from the wrong screen and without the consequence stated.
+
+  The distinction itself is untouched: `completeGoal` writes `done`, `retireGoal` writes
+  `retired`, and `/data/stored/` still tells them apart. What went was one route, not one
+  meaning. §48f2 asserts the edit panel offers no way to close a goal, because "add a quiet
+  way to finish it here" is a natural thing to reach for again.
 
 **This replaced a walk**, and the replacement is worth recording. Changing a goal used
 to review every open entry one screen at a time, because entries belonged to the

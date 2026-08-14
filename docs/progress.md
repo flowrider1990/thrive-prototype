@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 280/280** (25 at the
+the two the plan singles out. **The current count is 281/281** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework, 181 after the Supabase foundation, 248 after the less-friction
 iteration); the script itself is the only authority on that number, so treat any count

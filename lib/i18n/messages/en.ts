@@ -637,12 +637,20 @@ export const en = {
      * the storage toggle's "off" copy went rather than being kept.
      */
     goalTop: 'Move this to the top',
-    goalTopNote: 'The one at the top is what this area is about right now.',
-
-    goalReached: 'I have reached this',
-    goalReachedQuestion: 'Have you reached this goal?',
-    goalDrop: 'Remove from your current goals',
-    goalDropQuestion: 'Is this no longer a goal for you?',
+    /**
+     * **Five keys went from here**, all of them copy for controls that no longer exist:
+     * `goalTopNote`, `goalReached`, `goalReachedQuestion`, `goalDrop` and `goalDropQuestion`.
+     *
+     * The last four described a closing flow that the goal scale replaced — its fifth point
+     * makes the *reached* / *given up on* distinction now, with a confirmation that states
+     * what closing takes with it. Keeping the strings would have left the next reader a
+     * screen to look for.
+     *
+     * Deleted rather than parked, which is the rule this section already applies to the goal
+     * menu's copy directly above: **copy for a control that no longer exists reads as a
+     * regression to whoever finds it.** Parking is for answers someone already gave —
+     * `stored.areas.goalReached` stays, because it labels a goal that really was reached.
+     */
     /**
      * The consequence, stated before it happens rather than discovered afterwards.
      * Nothing is deleted — what was being tried leaves the list because the goal it

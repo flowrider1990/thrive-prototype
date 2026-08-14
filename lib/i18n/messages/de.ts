@@ -211,12 +211,6 @@ export const de: Messages = {
 
 
     goalTop: 'Nach oben setzen',
-    goalTopNote: 'Ganz oben steht, worum es in diesem Bereich gerade geht.',
-
-    goalReached: 'Das habe ich erreicht',
-    goalReachedQuestion: 'Hast du dieses Ziel erreicht?',
-    goalDrop: 'Aus deinen aktuellen Zielen entfernen',
-    goalDropQuestion: 'Ist das kein Ziel mehr für dich?',
     goalCloseNote:
       'Was du dafür ausprobieren wolltest, wird mit beiseitegelegt. Gelöscht wird nichts.',
     goalCloseCancel: 'Noch nicht',

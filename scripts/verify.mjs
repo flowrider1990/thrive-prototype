@@ -715,7 +715,6 @@ const EN = {
   goalChange: 'Edit',
   goalReword: 'Change the wording',
   goalTop: 'Move this to the top',
-  goalReached: 'I have reached this',
   confirmDelete: 'really want to remove the goal',
   confirmYes: 'Yes',
   confirmNo: 'No',
@@ -4607,8 +4606,27 @@ const editing = await evaluate(`(() => {
   return {
     value: field ? field.value : null,
     options: document.querySelectorAll('main button.option').length,
+    buttons: [...document.querySelectorAll('main button')].map((b) => b.innerText.trim()).filter(Boolean),
   };
 })()`)
+/**
+ * **Closing a goal is not offered from the screen about its wording.**
+ *
+ * "I have reached this" used to sit here, and it was reasonable while nothing else made the
+ * *reached* / *given up on* distinction. The goal scale's fifth point makes it now, with a
+ * confirmation that states what closing takes with it — so this was a second door to one
+ * outcome, opened from a screen about rewording, with no consequence stated.
+ *
+ * Asserted rather than left to the diff, because "add a quiet way to finish it here" is a
+ * natural thing to reach for again. The distinction itself is untouched: `completeGoal` and
+ * `retireGoal` both still exist and are both still reachable, from the scale and from the
+ * remove control.
+ */
+check(
+  '48f2. and it offers no way to close the goal — that lives with the scale now',
+  !editing?.buttons.some((label) => /reached|erreicht/i.test(label)),
+  (editing?.buttons ?? []).join(' / '),
+)
 check(
   '48f. opening a goal opens the field, prefilled, with no menu of peers in front of it',
   editing.value === 'Finish the portfolio' && editing.options === 0,

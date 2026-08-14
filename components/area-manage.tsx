@@ -10,7 +10,6 @@ import type { AreaId } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
 import {
   addStep,
-  completeGoal,
   editGoal,
   editStep,
   MAX_GOALS,
@@ -326,10 +325,18 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                        * field takes the heading's place, so what is being edited is where
                        * it was being read.
                        *
-                       * "I have reached this" lives inside this state rather than on the
-                       * row: the record distinguishes *reached* from *given up on*, and
-                       * that distinction is worth keeping — but not worth a third icon on
-                       * every goal.
+                       * **"I have reached this" is gone from here**, and the scale is why.
+                       *
+                       * It used to live in this state — the record distinguishes *reached*
+                       * from *given up on*, and that distinction was worth a quiet control
+                       * even if not a third icon on the row. The fifth point of "how close
+                       * are you?" now makes exactly that distinction, with a confirmation
+                       * that states what closing the goal takes with it, so this was a
+                       * second door to one outcome reached from a screen about *wording*.
+                       *
+                       * The distinction itself is untouched: `completeGoal` still writes
+                       * `done` and `retireGoal` still writes `retired`, and both are still
+                       * reachable — one from the scale, one from the remove control.
                        */
                       <div className="space-y-3">
                         <TextAnswer
@@ -343,24 +350,11 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                           }}
                           onSkip={() => setEditingGoal(null)}
                         />
-                        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-quiet"
-                            onClick={() => {
-                              completeGoal(area, goal.id)
-                              setEditingGoal(null)
-                              // The same congratulation the fifth point produces. Two ways to
-                              // reach one outcome behaving differently is exactly the
-                              // divergence this page removed when it deleted its duplicated
-                              // goal screen.
-                              setReached(goal.text)
-                            }}
-                          >
-                            {m.manage.goalReached}
-                          </button>
-                          {/* Only where there is something to be first among. */}
-                          {state.activeGoals.length > 1 && state.priority?.id !== goal.id && (
+                        {/* Only where there is something to be first among. The row holds one
+                            control now, so it is rendered only when that control exists —
+                            an empty flex row is a gap nobody asked for. */}
+                        {state.activeGoals.length > 1 && state.priority?.id !== goal.id && (
+                          <div>
                             <button
                               type="button"
                               className="btn btn-sm btn-quiet"
@@ -371,8 +365,8 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                             >
                               {m.manage.goalTop}
                             </button>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     ) : deletingGoal === goal.id ? (
                       /* One question, in place of the row it is about, so the thing being

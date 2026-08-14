@@ -227,6 +227,9 @@ export default function Home() {
               })}
             />
           }
+          // One goal and one action, then the next area. Six areas is enough of a walk
+          // without each one also being an invitation to fill it.
+          guided
           onDone={nextArea}
         />
       )}
@@ -236,7 +239,38 @@ export default function Home() {
           has just finished answering questions and wants to leave. It now says the
           introduction is over and where to go. */}
       {step === 'complete' && (
-        <QuestionCard question={m.complete.title} note={m.complete.body}>
+        // `ack` rather than a screen of its own: that slot exists for exactly this —
+        // an acknowledgement riding above what comes next, so there is nothing extra to
+        // tap through. Opening with "That is it for now." landed as a dismissal right
+        // after someone had answered questions about six areas of their life.
+        <QuestionCard
+          ack={m.complete.ack}
+          question={m.complete.title}
+          /**
+           * Two sentences: where what you wrote is, and where the rest of it is done.
+           *
+           * The second one earns its place because the introduction deliberately stops at
+           * one goal and one action per area. Without it the ceiling reads as the product,
+           * and the one page that lifts it is never mentioned.
+           *
+           * Split on `{link}` so the destination can sit wherever the language puts it.
+           */
+          note={
+            <>
+              {m.complete.body}{' '}
+              {m.complete.manage.split('{link}').flatMap((part, index) =>
+                index === 0
+                  ? [part]
+                  : [
+                      <Link key="areas" href="/areas" className="link-inline">
+                        {m.complete.manageLink}
+                      </Link>,
+                      part,
+                    ],
+              )}
+            </>
+          }
+        >
           <Choice options={[{ label: m.complete.submit, onSelect: toHome }]} />
         </QuestionCard>
       )}
@@ -247,7 +281,9 @@ export default function Home() {
           being a form, a task list and a settings page at once. */}
       {step === 'home' && (
         <section className="space-y-10">
-          <h1 className="heading">{m.home.title}</h1>
+          {/* The heading lives in `NextSteps` now: the toggle there decides which of two
+              things the page is showing, and a heading that named only one of them would be
+              wrong half the time. */}
           <NextSteps />
 
           {/* The note stays; the buttons that used to sit with it are gone. A

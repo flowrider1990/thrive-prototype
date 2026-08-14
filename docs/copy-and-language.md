@@ -69,6 +69,77 @@ thank people for objecting. The two replies now land the right way round.
 - The language a person *answers* in is not detected and not recorded. Their words
   are stored verbatim, whatever language they are in.
 
+## One act, one word — across onboarding and everyday use
+
+The same action must read the same wherever it is offered, or the introduction teaches a
+vocabulary the rest of the app then contradicts. Three keys carry that:
+
+- **`goals.stepsSave`** — saving an action, used by the introduction, the area page and
+  the start page. It replaced `home.newStepSubmit`, which said the right word from the
+  wrong namespace while two other screens borrowed it.
+- **`manage.addStep`** — adding an action to a goal, used by the area page *and* by the
+  introduction's "one more?" choice. Deliberately not "Add another" there: during the
+  introduction it sits beside "Add another goal", and two near-identical labels for acts
+  on two different levels of the hierarchy is exactly the confusion the hierarchy work
+  set out to remove.
+- **`goals.forGoal`** — the goal an action is being written for, rendered by `GoalLine` at
+  both places that ask. Always shown, including when an area holds one goal: "this goal"
+  needs a *this*, and it used to be hidden precisely where nothing else on the screen
+  named it.
+
+**Saving is not adding another.** The submit says "Save" for the first action and every
+later one. It used to relabel itself "Add another" from the second on, which named an act
+the person had not decided to take, while an empty field sat open as though a second were
+expected. Saving now closes the field; adding another is the choice that follows.
+
+That is the **area page's** flow. In the introduction there is no choice that follows —
+saving one action carries straight on to the next area — so the same word covers both: in
+one case it saves and shows you what you have, in the other it saves and moves on. Neither
+reading makes "Save" wrong, which is why the label did not have to split.
+
+Because the walk stops at one goal and one action, its closing screen carries a second
+sentence saying where the rest is done, with a link to `/areas/`. Without it the ceiling
+reads as the product. The link **names its destination** — "your life areas", not "here" —
+since a link listed out of context has to say where it goes.
+
+`stepsNote` ("One is enough. You can add up to three.") moved with it — from above the
+field, where it answered a question nobody had asked yet, to under the list, where there
+is a first entry to add to.
+
+## A question and its answers are written as a pair
+
+`CLAUDE.md` §3 sets the standard — inside a flow, aim for an exchange that reads as dynamic
+and organic, using both questions and answers. This is what that looks like in the catalogs.
+
+The worked example is the goal check-in. The question is `manage.progressQuestion` ("How
+close are you to reaching this goal?") and the five replies are `manage.progress1`…`5`. They
+were first written as *Feels far away · Still some way to go · Getting closer · Almost there ·
+Reached* — descriptions of a state, which is the app narrating your situation back at you.
+They are now *Not at all · A little bit · Kind of · Very close · I am there*: what a person
+says when someone asks them that.
+
+Three things follow, and they generalise:
+
+- **An answer is short.** A label has to explain itself; a reply does not, because the
+  question just did. Every word an option can drop is one the question already carried.
+- **The answer set decides how the question has to be worded**, not the other way round. Write
+  them together or one will end up carrying both jobs.
+- **What comes afterwards should sound like it heard the answer.** `manage.progress5` is "I am
+  there", and what follows is "Mark this goal as reached?" — the question the answer implies,
+  not a generic confirmation.
+
+One thing this does *not* mean: echoing the person's words back at them. `manage.congratsAny`
+says "You have reached one of your goals" rather than quoting the goal, because a
+congratulation that repeats a half-typed sentence is proving the app was listening rather than
+saying the thing worth saying. Generic and true beats specific and brittle.
+
+The same pair shows up in the accessible name: `manage.progressOn` renders as *„Sleep
+better": how close are you to reaching it? Kind of* — question and answer in one string,
+because out loud there is no layout to carry the relationship.
+
+**This is a wording rule, not licence to ask more.** `CLAUDE.md` §2 and §5 still decide
+whether a question exists at all; this governs the ones that already do.
+
 ## Rules for adding copy
 
 1. Add the key to `en.ts` first, then `de.ts` — the build will not let you forget.

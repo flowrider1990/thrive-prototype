@@ -1,11 +1,13 @@
 'use client'
 
 import Link from 'next/link'
+import { GoalIcon } from '@/components/area-icon'
 import { AreaLabel } from '@/components/area-label'
+import { Star } from '@/components/icons'
 import { PageShell } from '@/components/page-shell'
 import { areas } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
-import { readArea } from '@/lib/person/goals'
+import { pinArea, readArea, unpinArea } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
 /**
@@ -31,7 +33,19 @@ export default function AreasPage() {
 
   if (status !== 'ready') return <PageShell>{null}</PageShell>
 
-  const states = areas.map((area) => readArea(person, area))
+  /**
+   * Starred areas first, each group keeping the fixed order `lib/areas.ts` defines.
+   *
+   * The same rule the start page uses for goals and entries, and the same meaning: not a
+   * ranking, not a limit, and nothing behaves differently for being starred. It orders one
+   * list, and that is all it does.
+   *
+   * The order it overrides is presentation rather than data — `docs/goals-and-areas.md` is
+   * explicit that the area order drives the introduction's sequence and nothing else — so
+   * re-ordering here costs nothing elsewhere.
+   */
+  const all = areas.map((area) => readArea(person, area))
+  const states = [...all.filter((state) => state.pinned), ...all.filter((state) => !state.pinned)]
 
   return (
     <PageShell>
@@ -57,31 +71,78 @@ export default function AreasPage() {
          */}
         <ul className="space-y-3">
           {states.map((state) => {
-            const top = state.priority ?? state.activeGoals[0]
+            const goalCount = state.activeGoals.length
+            // Nothing being worked on here yet — whether that is "not now" or simply
+            // not yet. The row recedes rather than disappearing: at a glance the page
+            // should show where you are working on something, while every area stays
+            // readable and one tap away. See `.option-recede`.
+            const quiet = goalCount === 0
             return (
-            <li key={state.area}>
-              <Link href={`/areas/${state.area}`} className="option block space-y-1.5">
+            <li key={state.area} className="relative">
+              {/**
+               * The star sits **over** the row rather than inside it.
+               *
+               * The whole card is the link — that is the page's central affordance, and
+               * splitting it into a link plus a spare strip to make room for a button would
+               * cost more than the star is worth. A `<button>` inside an `<a>` is also
+               * invalid and would navigate on press, which is what check 37a guards.
+               *
+               * So: positioned against the `<li>`, a real sibling of the link in the DOM, and
+               * therefore its own tab stop after it. `pe-14` on the link keeps the area name
+               * from running under it.
+               */}
+              <button
+                type="button"
+                className={`pin-toggle absolute end-3 top-3 z-10 ${state.pinned ? 'pin-toggle-on' : ''}`}
+                aria-label={t(state.pinned ? m.manage.unpinAreaOn : m.manage.pinAreaOn, {
+                  area: m.areas[state.area],
+                })}
+                onClick={() => (state.pinned ? unpinArea(state.area) : pinArea(state.area))}
+              >
+                <Star filled={state.pinned} />
+              </button>
+              <Link
+                href={`/areas/${state.area}`}
+                className={`option block space-y-1.5 pe-14 ${quiet ? 'option-recede' : ''}`}
+              >
                 <AreaLabel area={state.area} size="card" />
-                {/* The one put first, or the oldest still standing. A row is a door
-                    rather than a summary: six areas listing three goals each would be
-                    nineteen lines of someone's ambitions on one screen. */}
-                {top ? (
-                  <span className="block text-sm leading-relaxed text-ink">{top.text}</span>
+                {/**
+                 * **Each goal by name, with what is under it.** The row counted them for a
+                 * while — "2 Ziele angegeben" — which kept someone's sentences off a screen
+                 * that shows six areas at once, but it also meant the only way to learn what
+                 * you had written was to open every area in turn. Naming them costs the
+                 * privacy of a glance and buys the page its purpose back.
+                 *
+                 * Numbered only where a number distinguishes something, exactly as on the
+                 * area's own page, and the per-goal counts replace the area-wide one: three
+                 * goals with their own totals say everything "3 Aktivitäten geplant" said,
+                 * and say which goal they belong to.
+                 */}
+                {goalCount === 0 ? (
+                  <span className="block text-sm text-muted">{m.manage.goalsNone}</span>
                 ) : (
-                  <span className="block text-sm text-muted">
-                    {state.review === 'not_now' ? m.manage.notNow : m.manage.noGoal}
-                  </span>
+                  state.activeGoals.map((goal, index) => {
+                    const steps = state.open.filter((step) => step.goalId === goal.id).length
+                    return (
+                      <span key={goal.id} className="block text-sm leading-relaxed text-muted">
+                        <GoalIcon />{' '}
+                        {goalCount > 1
+                          ? t(m.manage.goalNumber, { n: String(index + 1) })
+                          : m.manage.goalOnly}{' '}
+                        <span className="text-ink">{goal.text}</span>{' '}
+                        {steps === 1
+                          ? m.manage.stepsOne
+                          : t(m.manage.stepsMany, { count: String(steps) })}
+                      </span>
+                    )
+                  })
                 )}
-                {/* Only when there is a goal to be working toward: saying what has
-                    not been decided under "no goal yet" would be two ways of saying
-                    the same absence. */}
-                {top && (
-                  <span className="block text-sm leading-relaxed text-muted">
-                    {state.open.length === 0
-                      ? m.manage.noStep
-                      : state.open.length === 1
-                        ? m.manage.tryingOne
-                        : t(m.manage.trying, { count: String(state.open.length) })}
+                {/* The hint stays: a goal with nothing under it is the one thing on this
+                    page worth finding among six rows, and "(0 nächste Schritte)" states it
+                    without drawing the eye. Gold, italic, and it says what to do. */}
+                {goalCount > 0 && state.open.length === 0 && (
+                  <span className="block text-sm font-semibold italic leading-relaxed text-note">
+                    {goalCount === 1 ? m.manage.noStepOne : m.manage.noStepMany}
                   </span>
                 )}
               </Link>

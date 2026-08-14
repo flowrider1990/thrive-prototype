@@ -93,6 +93,42 @@ the hosted schema is never edited by hand in the dashboard.
 
 ## 3. Authentication
 
+### Sign-up is closed, server-side, as of 2026-08-14
+
+`[auth] enable_signup = false` in `supabase/config.toml`, pushed to the linked project with
+`supabase config push`. Verified twice, and the verification is the point:
+
+- `GET /auth/v1/settings` → `disable_signup: true`
+- `POST /auth/v1/signup` with nothing but the publishable key → `422 signup_disabled`
+
+**It was open, and that was measured rather than assumed.** The same probe, run before the
+change, created a *confirmed* account — `mailer_autoconfirm` is on — using only the
+publishable key. That key is a browser key, not a secret: it ships in the bundle by design
+(§18). So "no UI offers sign-up" was never a gate, and this is what a gate looks like.
+
+Nothing in `app/` or `components/` imports Supabase yet, so no product behaviour depended on
+this in either direction. The exposure was on the project, not in the deploy.
+
+Two things worth knowing before this is turned back on:
+
+- **`[auth.email] enable_signup` stays `true`, and the distinction is easy to get wrong.**
+  That flag is the email *provider*, not the gate. Setting it to `false` removed email from
+  the project's enabled providers altogether — which would stop an invited user signing
+  **in**, not just stop a stranger signing **up**. The master switch closes sign-up on its
+  own; the probe confirms it with the provider left enabled.
+- **`config push` sends the whole auth block**, so it is not a scalpel. Pushing it wrote the
+  CLI's stock local defaults over two settings that had to be put back — `max_frequency`
+  (1m → 1s, a loosened email rate limit) and `otp_length` (8 → 6). `site_url` and
+  `additional_redirect_urls` were pointed at the real Pages origin in the same change, rather
+  than pushing `127.0.0.1` onto a hosted project. Anyone pushing this file again should read
+  the diff the CLI prints, not just approve it.
+
+Turning sign-up back on is part of the cloud-sync work, and it needs an invite or allow-list
+decision made at the same time — an open endpoint with `mailer_autoconfirm` on means anyone
+with the URL has an account.
+
+### The method
+
 **Decided (D4): email one-time code (OTP), no password, no OAuth initially.**
 
 Why, specifically for a static site on a subpath:

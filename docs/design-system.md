@@ -23,6 +23,35 @@ a colour.** That is what makes a new theme or skin a change to one file.
 | `--color-accent` | emphasis: the filled button's background |
 | `--color-focus` | the focus ring, and nothing else |
 
+### `--edge`: how thick a structural line is
+
+One value, `2px`, for everything that draws a **control** or a **card** — `.btn`, `.field`,
+`.option`, `.switch-track`, `.pin-toggle`, `.scale-toggle`, `.card`. So "the app looks
+fragile" is one edit rather than a sweep.
+
+At 1px those edges were the same weight as a decorative rule, which is what made controls
+feel provisional: a button and a line between paragraphs were the same kind of mark.
+
+**1.5px was tried first and rejected on measurement.** It was correct in the stylesheet and
+present in the built CSS, and it rendered as **1px** — Chrome floors a border to whole device
+pixels, so it showed on a retina screen and nowhere else. §51a therefore asserts the *used*
+width rather than the presence of a declaration; a check that the rule exists would have
+passed throughout.
+
+Declared as `border-width: var(--edge)` beside the `@apply`, not inside it: Tailwind's
+`border` utility hardcodes 1px, while the colour utilities (`border-line-strong`,
+`border-transparent`) set only `border-color` and compose cleanly.
+
+**Three things deliberately stay off it**, and §51b/§51c guard two of them:
+
+- `--color-line` separators, which *are* hairlines. Thickening them would erase the very
+  distinction the token exists to create.
+- `.nav-link`'s `border-y-2`, which carries the current page and sits on both edges so
+  marking one moves nothing.
+- the progress marks' 1px/2px pair — in both `ProgressMarks` and the goal scale. That width
+  difference is the second, non-colour cue for *filled*, so equalising it would break §17
+  while looking like tidying up.
+
 ### Why there are two border tokens
 
 `--color-line-strong` is the only colour token pinned to a **number** rather than to
@@ -78,17 +107,43 @@ second.
 The palette is monochrome by intent (`CLAUDE.md` §7): emphasis comes from
 contrast, not hue. Do not introduce an accent hue without asking.
 
-**There is exactly one hue, `--color-pin`, and it was asked for.** It paints an active
-pin and nothing else. It is deliberately not named `danger`, `accent` or `red`: a name
-describing the *colour* invites the next reader to reuse it, and the next reuse is the one
-that ends the monochrome palette by accident. See "Icon-only controls" for why a hue is
-safe there specifically, and the danger-variant note below for what it is still not.
+**There is exactly one hue, and it was asked for.** It is not named for the colour it
+is, because a name describing the colour invites the next reader to reuse it, and the
+next reuse is the one that ends the monochrome palette by accident.
+
+| token | paints | why it is safe |
+| --- | --- | --- |
+| `--color-note` | a hint, and an active star | a hint starts with "Note:" and is italic; a star is filled and its accessible name flips — colour is the third cue either way |
+
+The pattern is the same both times and it is the whole licence: **colour is never the only
+thing carrying the meaning.** Remove the hue and the state still reads. Adding a hue the
+other way round — colour first, then hunting for a second cue — is how a colour-only state
+ships. `--color-note` is gold rather than red on purpose: a hint is not a warning, and see
+the danger-variant note below for what neither of these is.
+
+It clears **4.5:1** on both backgrounds in both themes, not the 3:1 a border needs,
+because its harder job is a sentence at `text-sm` that has to be read (§31g).
+
+It briefly had a sibling. An active star was drawn in a red of its own until red on a
+control meaning "keep this in view" read as a warning about the thing it was marking — and
+the light value of the gold was an olive-brown that read as neither gold nor deliberate.
+One warmer amber does both jobs, which is how the palette came back to a single hue.
 
 ### The dark palette
 
 Defined once as `--dark-*` on `:root`, then mapped twice — once under
 `@media (prefers-color-scheme: dark)` for "the OS asked", once under
-`:root[data-theme='dark']` for "the person chose". A media condition and an
+`:root[data-theme='dark']` for "the person chose".
+
+**Mapping one and forgetting the other is the trap, and it is invisible.** Every contrast
+check in the suite emulates `prefers-color-scheme`, so a token missing from the
+`[data-theme]` block passes all of them — which is exactly how `--color-pin` shipped
+mapped in the media block only, drawing an active pin in the *light* red at 2.48:1 on a
+chosen dark theme. §31f now asserts the shape instead of any one colour: for every
+`--dark-*` on `:root`, the matching `--color-*` must resolve to it under
+`[data-theme='dark']`. Any token added later is covered without anyone remembering to.
+
+A media condition and an
 attribute selector cannot be combined in one rule, so the mapping is repeated
 rather than shared. **Adding a colour token means adding it in three places**;
 the file says so at each one.
@@ -213,6 +268,33 @@ the weight instead is *where* emphasis sits and how many steps there are, which 
 pattern above. If a danger token is ever added it needs the same treatment `--color-pin`
 got, which is the treatment `--color-line-strong` got: a contrast floor against both
 backgrounds, in both themes, asserted — §31e.
+
+## A row that recedes
+
+`.option-recede` is an `.option` for a life area with nothing being worked on. Two dials,
+both already in the token set: the edge drops from `line-strong` to `line`, and the text
+from ink to muted. Both restore on hover **and** focus, so a keyboard reaches the state a
+pointer does.
+
+**Not `opacity`.** Opacity multiplies against the background, so it would walk the text
+under the contrast floor the rest of this file defends — and dim the focus ring with it.
+`muted` is a measured token; 40% of ink is a guess.
+
+**Nothing about it says disabled.** It keeps its border, its padding, its cursor, its
+focus ring and its full hit area, and `aria-disabled` appears nowhere near it. §48b
+asserts the frame — same padding, same border width, opacity 1, live pointer events, a
+real `href` — because "de-emphasised" shipping as "switched off" is the whole risk of
+this pattern.
+
+**It works by inheritance, and that is not a preference.** A `text-ink` utility on the
+label inside could not be overridden from a component class at all: Tailwind's
+`utilities` layer wins over `components` regardless of specificity. So `AreaLabel
+size="card"` sets no colour and takes the row's. Ink is the inherited value everywhere
+else, so nothing changed for its other uses.
+
+The hover border is deliberately left to `.option:hover`, which follows it in the file
+and therefore wins — a receding row hovers into exactly the state every other row hovers
+into, rather than into a third appearance of its own.
 
 ## Icon-only controls
 
@@ -367,6 +449,38 @@ It is a real `role="progressbar"` with `aria-valuenow` and a translated
 `aria-valuetext` ("Area 2 of 6"), because a row of dots says nothing out loud. What it
 measures is **areas looked at** — "not right now" advances it exactly as much as
 setting a goal does.
+
+### The same marks, on a goal
+
+`components/goal-progress.tsx` draws how close a goal feels, and reuses this vocabulary
+exactly — `border-2 border-accent bg-accent` filled, `border border-line-strong` empty, 12px
+in both. Two states rather than three, so the *current* ring does not appear.
+
+**`ProgressMarks` itself is not reused, and the reason is a trap rather than a preference.**
+It is a `role="progressbar"`, and `__progress()` in `scripts/verify.mjs` reads *the*
+progressbar on a page as `[...el.children]`. A second one inside a button would not fail §31;
+it would make §31 measure the wrong element, which is the kind of breakage nothing reports.
+Each file carries a comment pointing at the other so the pair stays in step by hand.
+
+Two other rules land the same way here. §50s asserts the filled and empty marks have
+identical rects and differ in fill *and* border width, not colour alone. And the row of five
+is `aria-hidden` inside a named button — the icon-only rule below, since the glyphs are the
+control's whole content.
+
+### The fourth icon-only control
+
+`.scale-toggle` joins the theme toggle, the collapsed-nav trigger and `.pin-toggle`: same
+`border border-line-strong … hover:border-muted` at rest, because a control edge is what says
+"this is pressable". Wider padding, since the content is five glyphs on a row rather than one.
+It sets no colour of its own — unlike `.pin-toggle-on` it has no on/off state to mark, and
+what it shows is *how many* are filled.
+
+`.scale-option` is one point inside the open panel: a `sr-only` radio and a visible dot. The
+radio stays a real `<input>` so the browser supplies arrow-key navigation, group semantics and
+"3 of 5" — the parts that are expensive to hand-roll, and the same argument `.disclosure`
+makes for native `<details>`. The cost is that the global `:focus-visible` outline lands on a
+1px clipped input and is invisible, so the label takes it through `:has(input:focus-visible)`.
+Padding, not size, makes the target big enough: the dot stays 12px in every state.
 
 ## Disclosure
 

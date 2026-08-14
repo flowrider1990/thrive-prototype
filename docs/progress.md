@@ -37,10 +37,11 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 219/219** (25 at the
+the two the plan singles out. **The current count is 281/281** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
-the UX/UI rework, 181 after the Supabase foundation); the script itself is the only
-authority on that number, so treat any count written in prose as a snapshot.
+the UX/UI rework, 181 after the Supabase foundation, 248 after the less-friction
+iteration); the script itself is the only authority on that number, so treat any count
+written in prose as a snapshot.
 
 **Pass the base URL explicitly.** The default is `http://localhost:4321`, which is
 not safe on a machine running a second worktree — a stale or foreign server there
@@ -1362,6 +1363,218 @@ made that guarantee unreachable rather than merely untested.
 stacked on a phone — the layout being undone. It now measures what the new row claims: one
 block with the action larger than its metadata, the control attached to the right edge and
 level with the action's first line, and a row under 2.8 line-heights on a phone.
+
+## Goal progress (branch `feature/verify-area-agnostic`)
+
+An optional self-report on one goal — *How close are you to reaching this goal?* on five
+points — on the goal cards on `/areas/<id>/` and in the start page's "My goals" view. One
+new fact key, one new component shared by both hosts, no schema change, no `version` bump.
+**270/270 checks pass**; §50 is twenty-two of them.
+
+`docs/goals-and-areas.md` holds the model and `docs/design-system.md` the visual side. What
+belongs here is what was learned.
+
+### The `GOAL_KEY` trap has teeth, and now has a check
+
+`/^area\.([^.]+)\.goal\.([^.]+)\.(text|why|state)$/` is what *discovers which goals exist*.
+Adding `progress` to it would have let a store holding a rating and no text render a goal
+with no words — silently, and only for stores that got into that state. `pinned` was already
+excluded with a comment saying so; the comment is now a check (§50j) that seeds exactly that
+store and asserts one card renders, not two.
+
+The general form, worth stating once: **every field added under a goal id has to answer
+whether it is, on its own, enough to mean a goal is there.** For `text`, yes. For everything
+else so far, no.
+
+### The page that promises to show everything would have hidden this
+
+`isAreaKey()` keeps every `area.*` fact out of the generic list on `/data/stored/`, because
+those keys carry internal ids; life-area facts render through `readAreaDetail()` instead. So
+a new key that is not explicitly rendered there is **stored and invisible** — on the one page
+whose entire job is to make the privacy promise checkable. Rendering it was part of the
+change rather than a follow-up, and `GoalDetail` grew `progressAt` so it could be dated the
+way a goal's state already is.
+
+### Confirm-to-save changed the element, and simplified the hard case
+
+The requirement arrived mid-build: no value saves without a confirm. That settled a question
+that had been open on style grounds — native `<input type="radio">` in a `<fieldset>` is
+*correct* here rather than merely convenient, because a radio is a held selection waiting to
+be committed and `OptionList` fires on tap. It also made the fifth point simpler: the plan
+had *Reached* swapping the scale for its own confirmation screen, and with a confirm button
+already present the question just changes what that button says, with the scale still on
+screen. Picking a lower point now undoes the choice in one tap, where a separate screen would
+have hidden the control that undoes it.
+
+§50b asserts the store is **byte-identical** while a point is selected. "No new fact" would
+have been the weaker form, satisfied by a rewrite that happened to keep the count.
+
+### Three checks failed for reasons that had nothing to do with the product
+
+All three are the same family — an assertion that would have passed while guarding nothing:
+
+- **`EN.manageDone` is `'Back'`,** and every nested page's back link reads "Back to your life
+  areas". A `screen.includes` test for the footer therefore passes whatever the footer does.
+  Rewritten to read button *text*, plus a card count.
+- **"no stars at all" was the wrong claim.** Rating one goal takes down *that* row's star; the
+  other goals are still listed and still starrable. The check now asserts the count drops by
+  exactly one, which is the actual rule.
+- **The filter caught the fixture.** `key.includes('goal.<gid>.')` matched the seeded `text`
+  and `why` alongside the two facts the act produces, so a count over it would have been
+  right for the wrong reason.
+
+One more turned out to be a *better* test than intended: the first goal on the start page is
+the **legacy** one, whose words live at the old bare `area.<a>.goal` key. Its rating lands
+under the reserved gid like any other goal's, which is exactly the claim that putting the id
+in the key buys — a goal can grow a field without its text having to move. §50r now asserts
+that deliberately.
+
+### Saying the same thing twice writes nothing
+
+The write guard lives in `setGoalProgress` rather than at the two call sites, so it cannot
+drift between the area page and the start page. `finishIntroduction(person)` already had the
+shape for a guarded write.
+
+The cost is recorded rather than discovered later: the log now holds *changes*, not
+check-ins, so "when did they last confirm this was still a 3" has no answer. A periodic
+check-in wants the opposite and should get its own key.
+
+### Two lint rules were right
+
+`Math.random()` for the congratulation's emoji is a hydration mismatch in a render body, and
+picking one in an effect trips `react-hooks/set-state-in-effect` — which exists because it
+costs a second render pass. Deriving it from the goal's own words is pure, needs no effect,
+and is just as unguessable from the reader's side, which is all "random" was asking for.
+
+### Nothing had to be inverted
+
+The established habit here is to **invert** a check that defends a reversed rule rather than
+delete it. There was nothing to invert: progress is new, so no existing assertion claimed the
+top of the scale leaves a goal open. §50 says so in a comment, because "no check changed" is
+otherwise indistinguishable from "we forgot to look".
+
+## The introduction stops at one of each (branch `feature/verify-area-agnostic`)
+
+Saving an action during the introduction now carries straight on to the next area. One goal
+and one action per area, and the closing screen says where the rest is done and links there.
+**272/272 checks pass.**
+
+### The change is one flag, and the risk was dead code
+
+`ActionEntry` gained `autoContinue`, `AreaFlow` gained `guided`, and `app/page.tsx` sets it.
+The thing worth checking before narrowing a flow is what stops being reachable — here the
+numbered list, the cap notice, the per-entry Edit and the offer of a second action. **None of
+it died**, because the area page enters the same `AreaFlow` after a goal is added there,
+without the flag. That is also where the user deliberately put this capability during the
+inline-CRUD pass, so the two decisions agree rather than colliding.
+
+`guided` is its own prop rather than `!straightToGoal`, even though they are opposites today.
+One decides which question opens the flow; the other decides when it ends. Collapsing them
+would make "open on the goal, but allow three" inexpressible without unpicking it.
+
+### §29 moved rather than being deleted
+
+It asserted three complaints about the entries screen — that more than one is allowed, that
+the cap is three, that what you typed can be changed — and it ran inside the introduction,
+which is now the one place none of that happens. Deleting it would have retired three real
+guarantees along with the path they happened to use, so it was **re-based** onto the area
+page's flow, which is where the behaviour lives.
+
+That turned out to be worth more than the original: because §29 runs on the unguided flow and
+§45i asserts the guided one auto-continues, the pair proves the ceiling is a property of the
+*introduction* rather than of `ActionEntry`. If saving ever auto-continued everywhere, §29
+fails at once.
+
+### §4 needed two entries in one area, and gets them the way a person would
+
+§24's claim is about an *area* — "finishing one with others still open asks nothing further"
+— so spreading the two entries across areas would have made it pass while testing something
+else. The second entry is now added through the area page's inline field after the
+introduction, which is a real path rather than a seeded store. `runArea` lost its array and
+takes one action, or `null` for "I do not know yet".
+
+### The German walk had its own line to fix
+
+§6 clicked "Weiter" after saving, which no longer exists. Fixed in German rather than by
+routing through the English needles — that section exists precisely to catch what only breaks
+in one language.
+
+## Line weight (branch `feature/verify-area-agnostic`)
+
+Controls and cards are drawn at `2px` through a new `--edge` token; separators stay at 1px.
+**275/275 checks pass.**
+
+### The earlier diagnosis was wrong, and worth correcting in writing
+
+A previous attempt was reverted with the finding recorded as *"the `globals.css` additions
+were not reaching the built CSS at all"*. That is false. `.scale-toggle`, added this week,
+appears in the built stylesheet with every declaration intact — checked by grepping
+`out/_next/static/chunks/*.css` rather than by inference. Nothing about the build was broken,
+and the task was never blocked.
+
+What was true is the smaller half of the note: **a `border-width` after an `@apply` in the
+same rule competes with the utility's own width.** The fix is not to fight it but to stop
+asking for it — `@apply border-line-strong` sets only `border-color`, so dropping the bare
+`border` from the `@apply` and declaring `border-width: var(--edge)` beside it composes
+cleanly.
+
+### 1.5px was a change that only existed on the machine it was written on
+
+The first value shipped correctly and rendered as 1px. Chrome floors a border to whole device
+pixels, so `1.5px` is 1.5px at DPR 2 and 1px at DPR 1 — visible on the retina screen it was
+designed on, invisible everywhere else. It was caught by measuring `getComputedStyle` at DPR
+1, not by looking.
+
+§51a asserts the **used** width rather than the presence of a declaration, which is the only
+form of the check that would have failed. §51b asserts separators are still hairlines, since
+sweeping them along would erase the distinction the token exists to create, and §51c that the
+progress marks keep their 1px/2px pair — that difference is the second, non-colour cue for
+*filled*, so equalising it would break §17 while looking like cleanup.
+
+### `.card` replaced two literals
+
+`rounded-lg border border-line bg-surface px-4 py-4 sm:px-5` appeared twice in JSX. It is one
+class now, so the next card does not have to guess the recipe and "the cards look fragile" is
+one edit.
+
+## Starring a life area (branch `feature/verify-area-agnostic`)
+
+`/areas/` can be starred, and starred areas lead the list. **280/280 checks pass.**
+
+### The blocker was structural, and the answer was to stop trying to nest
+
+This was flagged and skipped once, on the grounds that "each row is a single `<Link>`, so a
+button cannot live inside it". True — a `<button>` inside an `<a>` is invalid and would
+navigate on press — but it was the wrong conclusion. The button does not have to be inside
+the row; it has to be **over** it. Positioned against the `<li>`, a real sibling of the link,
+its own tab stop after it, with `pe-14` keeping the area name clear.
+
+That preserves what made the objection worth raising: the whole card stays the link, which is
+the page's central affordance. Splitting the row into a link plus a strip for a button would
+have cost more than the star is worth.
+
+### Check 27c was inverted, and half of it was kept
+
+It read *"the rows are links, not buttons — this page changes nothing"* and asserted zero
+buttons on the page. Starring makes the second clause false. The first clause is the part that
+was ever load-bearing — a row navigates, so a row is an `<a>` — and it survives, now joined by
+the structural rule that made the star possible: sibling, never nested. Inverted rather than
+deleted, like 36c, 7f, 29a, 34b, 41g, 42j and 46b before it.
+
+### The same `/data/stored/` trap as goal progress, caught the same way
+
+`isAreaKey()` keeps `area.<a>.pinned` out of the generic list, so an area whose only fact is
+a star would have been held and never shown. `AreaDetail` gained `pinned`, `detail.any`
+counts it, and the summary line says "kept at the top". Two features in a row have hit this;
+it is the standing cost of routing life-area facts through the domain layer, and worth
+checking first rather than last.
+
+### Presentation order and walk order come from one array
+
+`/areas/` sorts a copy. §52c seeds a store holding nothing but a star and asserts the
+introduction still opens on the first area — because a refactor that sorted `areas` itself
+would change who gets asked what first, silently, and only for people who had starred
+something.
 
 ## The repository
 

@@ -76,6 +76,28 @@ Personalize based on the person's stated goals, behavior, feedback, and outcomes
 ### Warm, not sentimental
 The UI and copy should be humane, clear, calm, modern, and minimal. Avoid corporate wellness language, forced positivity, excessive praise, or pseudo-therapy.
 
+### The product speaks in dialogue, not in labels
+Communication with the person is held to a high standard. Inside a flow or a process, aim
+for an exchange that reads as **dynamic and organic** — a question, and something that
+reads like an answer to it.
+
+Concretely, this means the two halves have to be written **as a pair**:
+
+- a question earns its place when it says what the thing under it is *for*; a heading that
+  merely names the field does not,
+- the options offered in reply should read as things a person would say, not as states the
+  app is asserting about them. "How close are you to reaching this goal?" is answered with
+  *Kind of*, not with *Getting closer* — the second is the app narrating your situation back
+  at you,
+- an answer is short. A label explains itself; a reply does not have to,
+- what is shown afterwards should sound like it heard the answer.
+
+This is a writing rule, not an instruction to add prompts. Asking more often is not more
+dialogue — §2 and §5 still govern whether a question exists at all. It governs the wording of
+the exchanges that are already there.
+
+`docs/copy-and-language.md` holds the mechanics; this is the standard they serve.
+
 ### Evidence over folklore
 Where product behavior depends on psychology, health, behavioral science, or safety:
 - distinguish evidence from hypothesis,
@@ -111,11 +133,16 @@ Existing foundation:
 
 First product loop (see `docs/goals-and-areas.md`):
 - six fixed life areas, reviewed one per screen during onboarding,
-- up to three goals per area, where the person wants them — one asked for during
+- up to three goals per area, where the person wants them — **one** asked for during
   onboarding, more added from the area's own page,
-- up to three prepared next steps, at most one active,
+- up to three prepared next steps per area — again **one** during onboarding, where
+  saving it carries straight on to the next area,
 - completing a step, then choosing another or not,
-- a small per-area view for changing the goal and the steps.
+- a small per-area view for changing the goal and the steps,
+- starring an entry, a goal or a life area, which orders the list it appears in,
+- an optional five-point answer to "how close are you to reaching this goal?", offered on
+  the area page and the start page, never asked for — and where the top of the scale asks
+  whether to mark the goal reached.
 
 Name capture and the single open question were **removed** so the app asks for less.
 Their keys, labels and copy are parked rather than deleted, so an answer someone
@@ -136,6 +163,8 @@ Built (approved and implemented — §4):
 - up to three things to try across an area, each belonging to one goal, any number of
   which can be pinned to the start page,
 - complete a step,
+- an optional five-point self-report on how close a goal feels, where the top of the
+  scale offers to close the goal,
 - mobile-first responsive UI,
 - light and dark monochrome themes.
 
@@ -145,8 +174,14 @@ Still not built, and each needs its own approval:
 - weekly review,
 - gratitude page,
 - resurfacing or reminding someone of a next step,
-- any prompt about how something is going, what is getting in the way, or whether
-  it still matters.
+- **any prompt the app raises on its own initiative** about how something is going,
+  what is getting in the way, or whether it still matters.
+
+That last line used to read "any prompt about how something is going", and the goal
+check-in is why it now says *on its own initiative*. The distinction is the one worth
+holding: a control someone reaches for is a different product from a question the app
+decides to ask. Nothing resurfaces, nothing reminds, and no answer is ever required —
+which is the whole of what this entry was protecting. See `docs/goals-and-areas.md`.
 
 The behavioural direction those belong to is Purpose → Next Step → Resurface →
 Action, and only where action repeatedly stalls, Obstacle → Reflection → Adjust.

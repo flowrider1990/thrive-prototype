@@ -18,6 +18,7 @@ import { newId, remember, type Person } from './store'
  * area.<a>.step.<sid>.state    'done' | 'retired'   — absent means open
  * area.<a>.step.<sid>.goal     <gid>
  * area.<a>.step.<sid>.pinned   'yes' | 'no'         — absent means not pinned
+ * area.<a>.goal.<gid>.progress '1'…'5'              — absent means never evaluated
  * area.<a>.step_active         <sid>                — LEGACY, read as a pin
  * ```
  *
@@ -63,6 +64,23 @@ export type StepState = 'open' | 'done' | 'retired'
 /** Deliberately the same vocabulary as `StepState`: absent means current. */
 export type GoalState = 'active' | 'done' | 'retired'
 
+/**
+ * How close this feels, in the person's own judgement. Five points, 1 to 5.
+ *
+ * Stored as the semantic step rather than as a fraction. `0.6` would be a number the app
+ * invented from an answer that was never a number — and the labels ("Getting closer") are
+ * what the person actually chose, so the scale has to survive as the scale.
+ *
+ * **Absent is not 1.** Never having been asked and feeling far away are different states,
+ * and the whole point of an optional check-in is that most goals are in the first one. The
+ * type is `Progress | undefined` everywhere for that reason.
+ *
+ * **5 does not sit still.** Reaching a goal closes it, so the fifth point is a transition
+ * rather than a resting state — see `setGoalProgress` and the note in
+ * `docs/goals-and-areas.md`.
+ */
+export type Progress = 1 | 2 | 3 | 4 | 5
+
 export type Goal = {
   /** A UUID, or `LEGACY_GID` for a goal written before goals had ids. */
   id: string
@@ -70,6 +88,21 @@ export type Goal = {
   /** Why it matters, in the person's own words. Empty reads as absent. */
   why: string | undefined
   state: GoalState
+  /**
+   * Starred, so the start page leads with it.
+   *
+   * **Not `goal_priority`.** That pointer orders goals *within* one area and there is one
+   * of it; this is a per-goal flag, several may be set, and it exists to order a list that
+   * crosses areas — where "first in its own area" says nothing about what to show first
+   * overall. Same shape and same reasoning as a step's `pinned`, so `/data/stored/` reads
+   * them the same way.
+   */
+  pinned: boolean
+  /**
+   * The newest self-reported answer to "how close are you to reaching this?", if there
+   * ever was one. `undefined` means never evaluated, which is not the same as 1.
+   */
+  progress: Progress | undefined
   /** `learnedAt` of its first wording. */
   createdAt: string
 }
@@ -97,6 +130,8 @@ export type AreaState = {
   area: AreaId
   /** `undefined` means the area has never been asked about. */
   review: Review | undefined
+  /** Starred, so `/areas/` leads with it. Never asked for, and not a ranking. */
+  pinned: boolean
   /** Every goal ever written here, oldest first. */
   goals: Goal[]
   /** Still current, capped at `MAX_GOALS`. */
@@ -124,7 +159,18 @@ export type AreaState = {
 export const LEGACY_GID = 'legacy'
 
 const reviewKey = (area: AreaId) => `area.${area}.review`
+/**
+ * Kept at the top of `/areas/`.
+ *
+ * One segment under the area, where a goal's and an entry's live two and three deep — which
+ * is what keeps it out of `GOAL_KEY` and `STEP_KEY` without either pattern needing to know
+ * about it. Same vocabulary as the other two stars, and the same rule: any number may be
+ * set, and it is a preference about what you want to see rather than a ranking.
+ */
+const areaPinnedKey = (area: AreaId) => `area.${area}.pinned`
 const pinnedKey = (area: AreaId, step: string) => `area.${area}.step.${step}.pinned`
+const goalPinnedKey = (area: AreaId, goal: string) => `area.${area}.goal.${goal}.pinned`
+const goalProgressKey = (area: AreaId, goal: string) => `area.${area}.goal.${goal}.progress`
 
 /**
  * **Legacy, read-only.** The single pointer that used to mean "the one being worked
@@ -158,6 +204,10 @@ const STEP_KEY = /^area\.([^.]+)\.step\.([^.]+)\.(text|state|goal|pinned)$/
  * without ambiguity. That is what makes the migration a read rather than a rewrite.
  */
 const GOAL_KEY = /^area\.([^.]+)\.goal\.([^.]+)\.(text|why|state)$/
+// `pinned` and `progress` are deliberately **not** in `GOAL_KEY`: that pattern is what
+// discovers which goals exist, and a star or a rating on its own — from a hand-edited store
+// — must not conjure a goal with no words. Anything added here later has to answer the same
+// question: is this field enough, on its own, to mean a goal is there?
 
 /** Everything this module owns, so `/you` can tell it apart from the rest. */
 export function isAreaKey(key: string): boolean {
@@ -176,6 +226,31 @@ function toState(value: string | undefined): StepState {
 /** Same rule one level up: absent or unrecognised means the goal still stands. */
 function toGoalState(value: string | undefined): GoalState {
   return value === 'done' || value === 'retired' ? value : 'active'
+}
+
+/**
+ * Absent, empty or unrecognised all read as *never evaluated*, which is the same degrading
+ * rule the two above follow — a hand-edited store should lose a rating, not white-screen.
+ *
+ * Empty reading as absent is deliberate rather than incidental: it is how `why` is cleared,
+ * so if a "clear this rating" control is ever wanted, the read side already accepts what it
+ * would write. Nothing writes an empty one today.
+ */
+function toProgress(value: string | undefined): Progress | undefined {
+  switch (value) {
+    case '1':
+      return 1
+    case '2':
+      return 2
+    case '3':
+      return 3
+    case '4':
+      return 4
+    case '5':
+      return 5
+    default:
+      return undefined
+  }
 }
 
 /**
@@ -214,6 +289,8 @@ function readGoals(person: Person, area: AreaId): Goal[] {
       text: text.value,
       why: why || undefined,
       state: toGoalState(person.current(goalStateKey(area, id))?.value),
+      pinned: person.current(goalPinnedKey(area, id))?.value === 'yes',
+      progress: toProgress(person.current(goalProgressKey(area, id))?.value),
       createdAt: wordings[0].learnedAt,
     })
   }
@@ -295,6 +372,7 @@ export function readArea(person: Person, area: AreaId): AreaState {
   return {
     area,
     review: toReview(person.current(reviewKey(area))?.value),
+    pinned: person.current(areaPinnedKey(area))?.value === 'yes',
     goals,
     activeGoals,
     priority,
@@ -315,12 +393,16 @@ export type GoalDetail = Goal & {
   previous: string[]
   /** When the state last changed, if it ever did. */
   stateAt: string | undefined
+  /** When it was last rated, if it ever was. */
+  progressAt: string | undefined
   /** Whether this is the one put first. */
   priority: boolean
 }
 
 export type AreaDetail = {
   area: AreaId
+  /** Starred on `/areas/`. A preference, so it carries no date — like the priority goal. */
+  pinned: boolean
   /** Newest first. */
   reviews: { value: Review; at: string }[]
   /** Newest first, so the current goal comes before the ones it replaced. */
@@ -354,6 +436,7 @@ export function readAreaDetail(person: Person, area: AreaId): AreaDetail {
         ...goal,
         previous: wordings.slice(0, -1).map((fact) => fact.value).reverse(),
         stateAt: person.current(goalStateKey(area, goal.id))?.learnedAt,
+        progressAt: person.current(goalProgressKey(area, goal.id))?.learnedAt,
         priority: state.priority?.id === goal.id,
       }
     })
@@ -370,10 +453,13 @@ export function readAreaDetail(person: Person, area: AreaId): AreaDetail {
 
   return {
     area,
+    pinned: state.pinned,
     reviews,
     goals,
     steps,
-    any: reviews.length > 0 || goals.length > 0 || steps.length > 0,
+    // A star counts. `/data/stored/` promises to show everything the app holds, and an area
+    // whose only fact is a star would otherwise be held and never shown.
+    any: reviews.length > 0 || goals.length > 0 || steps.length > 0 || state.pinned,
   }
 }
 
@@ -447,16 +533,6 @@ export function editGoal(area: AreaId, goal: string, text: string): void {
   remember(goalTextKey(area, goal), text, SOURCE)
 }
 
-/**
- * Why this goal matters, in the person's own words.
- *
- * An empty string is how one is cleared: an append-only log has no delete, so taking
- * something back means saying nothing, and `readGoals` reads nothing as absent. The
- * earlier wording stays in history, exactly as rewording already behaves.
- */
-export function setGoalWhy(area: AreaId, goal: string, why: string): void {
-  remember(goalWhyKey(area, goal), why, SOURCE)
-}
 
 /**
  * Reached. One write: its entries leave the open set by derivation rather than by a
@@ -523,6 +599,61 @@ export function pinStep(area: AreaId, step: string): void {
 /** Explicitly not pinned — which is also how a legacy pointer is taken back. */
 export function unpinStep(area: AreaId, step: string): void {
   remember(pinnedKey(area, step), 'no', SOURCE)
+}
+
+/** Starred, so the start page's list of goals leads with it. */
+export function pinGoal(area: AreaId, goal: string): void {
+  remember(goalPinnedKey(area, goal), 'yes', SOURCE)
+}
+
+export function unpinGoal(area: AreaId, goal: string): void {
+  remember(goalPinnedKey(area, goal), 'no', SOURCE)
+}
+
+/**
+ * How close this feels, in the person's own judgement.
+ *
+ * **Saying the same thing twice writes nothing.** `2 → 3 → 3 → 4` stores `2 → 3 → 4`. The
+ * guard is here rather than at the call sites because there are two of them — the area page
+ * and the start page — and a rule enforced in one place drifts out of the other. Taking
+ * `person` in order to read before writing is the same shape `finishIntroduction` uses.
+ *
+ * What that costs, stated so it is not rediscovered: the log now records **changes**, not
+ * check-ins. "When did they last confirm this was still a 3" has no answer. That is the
+ * right trade for a history a person reads — a column of identical entries is noise — but a
+ * future periodic check-in wants the opposite, and it should get its own key rather than
+ * loosen this one. `docs/goals-and-areas.md` already sketches that key.
+ *
+ * Reaching 5 does **not** close the goal from in here. The caller writes this and then calls
+ * `completeGoal`, because the confirmation that precedes it is a UI concern and burying a
+ * second write in this one would make an innocuous-looking call close a goal.
+ */
+export function setGoalProgress(
+  person: Person,
+  area: AreaId,
+  goal: string,
+  progress: Progress,
+): void {
+  if (person.current(goalProgressKey(area, goal))?.value === String(progress)) return
+  remember(goalProgressKey(area, goal), String(progress), SOURCE)
+}
+
+/**
+ * Keep a life area at the top of `/areas/`.
+ *
+ * The third thing in this app that can be starred, after entries and goals, and it means
+ * the same thing as the other two: *this is what I want to see first*. Any number may be
+ * set — it is not a ranking, and there is deliberately no "the area I am focused on".
+ *
+ * It changes nothing but the order of one list. No area behaves differently for being
+ * starred, nothing is asked more often, and nothing else in the app reads it.
+ */
+export function pinArea(area: AreaId): void {
+  remember(areaPinnedKey(area), 'yes', SOURCE)
+}
+
+export function unpinArea(area: AreaId): void {
+  remember(areaPinnedKey(area), 'no', SOURCE)
 }
 
 export function completeStep(area: AreaId, step: string): void {

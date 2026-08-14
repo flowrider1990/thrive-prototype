@@ -137,7 +137,12 @@ export const en = {
 
     goalQuestion: 'What is your goal?',
     goalPlaceholder: 'In your own words',
-    goalSubmit: 'Continue',
+    /**
+     * "Confirm", not "Continue". The field holds a goal and pressing this commits it —
+     * "Continue" described moving through a walk, which is what the introduction was and
+     * the area page never was. Separate from `stepsContinue`, which really is a way onward.
+     */
+    goalSubmit: 'Confirm',
     /**
      * The way past without inventing something, and the goal-screen counterpart to
      * `stepsUnknown` below.
@@ -152,11 +157,18 @@ export const en = {
      */
     goalSkip: 'Not sure yet',
     /**
-     * Offered on the entries screen, never pushed, and it disappears at the cap.
-     * Nothing states how many goals an area should have — three is what is allowed,
-     * not what is expected.
+     * The same slot, on an area opened on purpose.
+     *
+     * "Not sure yet" is the honest way out of a question you were *asked* — the
+     * introduction walks up with six areas and being unsure about one of them is a real
+     * answer worth naming. Nobody is unsure here: they tapped this area to give it a
+     * goal, so the only thing the quiet control does is undo that tap, and it says so.
+     *
+     * Kept as its own key rather than reusing `manage.back` ("Back to your life areas"),
+     * which is the navigation at the top of the page. Two controls that go to the same
+     * place from different heights should not borrow one string.
      */
-    goalAnother: 'Add another goal',
+    goalBack: 'Back',
 
     /**
      * Deliberately no noun for the thing being asked for.
@@ -168,14 +180,43 @@ export const en = {
      * the work and the concept stays unnamed. `docs/goals-and-areas.md`.
      */
     stepsQuestion: 'What could help you move toward this goal?',
+    /**
+     * The goal the question above is about, shown while an action is written for it.
+     *
+     * Rendered by `GoalLine` at both places that ask — the introduction and the area
+     * page — so the Goal → Action relationship is stated the same way in each. The
+     * quotation marks are here rather than in JSX because German sets them low then high
+     * („so“) and English sets both high (“so”).
+     */
+    forGoal: 'Goal: “{text}”',
     /** The cap, stated before the first entry rather than discovered at the third. */
+    /**
+     * **Shown only once something has been written**, and quietly, beneath the list.
+     *
+     * It used to sit under the question before the field, where it answered a question
+     * nobody had asked yet — the first thing read on a screen asking what could help was
+     * a rule about quantity. The question and the field now stand alone; how many are
+     * allowed is worth knowing only once there is a first one to add to.
+     */
     stepsNote: 'One is enough. You can add up to three.',
     stepsPlaceholder: 'Something small and concrete',
     /** Heads the numbered list once there is something in it. */
     entriesLabel: 'What you want to try',
-    stepsAdd: 'Add',
+    /**
+     * **"Save", for the first action and every later one.**
+     *
+     * The button used to read "Add" and then "Add another" from the second entry on,
+     * which described the wrong act: at the moment it is pressed the person is saving
+     * what they have just written, not adding a further one. "Add another" is now a
+     * separate choice that comes *after* the save, which is the order the person is
+     * actually working in.
+     *
+     * The same key is used by the area page and the start page, so saving an action says
+     * one thing everywhere. It replaced `home.newStepSubmit`, which said exactly this but
+     * lived under `home` while two other screens borrowed it.
+     */
+    stepsSave: 'Save',
     /** From the second entry on, so the button itself says more is allowed. */
-    stepsAddAnother: 'Add another',
     stepsEnough: 'That is enough',
     /**
      * The answer this screen was missing.
@@ -209,13 +250,58 @@ export const en = {
   },
 
   complete: {
+    /**
+     * Said before the closing sentence, not instead of it.
+     *
+     * The screen used to open with "That is it for now.", which lands as a dismissal
+     * directly after someone has answered questions about six areas of their life.
+     * A short thanks first makes it a close rather than a stop. Deliberately one short
+     * line and not a screen of its own — warmth here is a sentence, not a step.
+     */
+    ack: 'Very good, thank you!',
     title: 'That is it for now.',
     body: 'What you want to try is on the start page.',
+    /**
+     * Where the rest of it lives, said once, at the only moment someone has the whole
+     * shape in mind.
+     *
+     * The introduction now writes **one goal and one action per area** — enough to learn
+     * what the app is, and deliberately not enough to set anything up properly. So the
+     * screen that closes it has to say where the rest is, or the ceiling reads as the
+     * product rather than as a starting point.
+     *
+     * `{link}` is split out in JSX so word order stays free: German puts the destination
+     * in a different place, and a sentence chopped into two keys cannot be translated.
+     * The link **names where it goes** rather than saying "here" — out of context, and to
+     * anyone listing the links on a page, "here" says nothing at all.
+     */
+    manage: 'To change goals and next steps, go to {link}.',
+    manageLink: 'your life areas',
     submit: 'Go to the start page',
   },
 
   home: {
-    title: 'What you are working on',
+    /**
+     * "Your next steps", not "What you are working on".
+     *
+     * The page lists steps, so it says so. The old title described a *state* the person
+     * was in, which reads as a judgement about them when the list is empty; this names the
+     * contents, which is a claim about the page and always true.
+     */
+    title: 'Your next steps',
+    /**
+     * The start page answers one of two questions, and the toggle says which.
+     *
+     * Steps first and by default, because the page exists to lead to action; goals are the
+     * longer view, and seeing them plainly is what makes it obvious when one of them has no
+     * steps under it. `goalsTitle` replaces the heading rather than sitting under it — the
+     * heading names what is on screen, so it has to change with it.
+     */
+    viewLabel: 'What to show',
+    viewSteps: 'My next steps',
+    viewGoals: 'My goals',
+    goalsTitle: 'Your goals',
+    goalsEmpty: 'No goals yet.',
     empty: 'Nothing is active right now. That is a fine place to be.',
     /**
      * Shown only when an area holds a goal that never got a next step — that is,
@@ -232,7 +318,22 @@ export const en = {
      * Second half matches `manage.noStep` word for word. The two describe the same
      * gap from different pages, and saying it differently would imply a difference.
      */
-    unfinished: '{area} has a goal, but you have not decided yet what could help.',
+    /**
+     * A goal exists with nothing to try for it, so it can never appear on this page.
+     *
+     * **No longer names the area.** It used to read "{area} has a goal, but you have not
+     * decided yet what could help", with the area as an inline link — precise, and it
+     * still left the reader to work out what to do and left "you have not" sitting where
+     * a reason should be. This says what is true, why it matters *for this page*, and
+     * offers the one control that fixes it.
+     *
+     * Formatted as a hint, like the one on `/areas/`: "Note:" first, italic second, gold
+     * third. Nothing wrong has happened — there is just something left to write down.
+     */
+    unfinished:
+      'Note: there are goals with no concrete steps yet. Write some down and they will show up here.',
+    /** The way to act on the hint. Secondary: the list above it is the point of the page. */
+    unfinishedLink: 'Go to your life areas',
     /**
      * The control that opens the outcomes, and the question *is* the control.
      *
@@ -263,15 +364,8 @@ export const en = {
     outcomeAside: 'This does not fit me anymore',
     cancel: 'Cancel',
     done: 'Noted.',
-    /**
-     * Only rendered when both groups exist. With everything pinned, or nothing, one
-     * unlabelled list says more than two headings over an obvious split.
-     */
-    pinnedLabel: 'Pinned',
-    restLabel: 'Everything else',
     newStepQuestion: 'What could help you move toward this goal?',
     newStepPlaceholder: 'Something small and concrete',
-    newStepSubmit: 'Save',
     /**
      * "Currently" is load-bearing. The sentence describes the storage mode in
      * force right now, not a permanent property of the product, so it stays true
@@ -307,8 +401,35 @@ export const en = {
     backHome: 'Back to the start page',
     pickerTitle: 'Your life areas',
     pickerNote: 'Open one to change its goal, or what you want to try.',
-    noGoal: 'No goal yet',
-    notNow: 'Not right now',
+    /**
+     * How many goals an area holds, on `/areas/`.
+     *
+     * **The overview counts; it does not quote.** It used to print the goal that comes
+     * first, and before that a status line — "No goal yet" or an echo of the review answer.
+     * Both made a row a small summary of the area. A row is a door: it says which area it
+     * is and how much is behind it, and the words someone wrote are on the other side of
+     * it. That also keeps six areas' worth of someone's ambitions off one screen, where a
+     * glance over a shoulder reads all of them at once.
+     *
+     * Three strings rather than one with a plural rule, matching `trying`/`tryingOne`
+     * directly above: "0 goals set" is the arithmetic, not the sentence.
+     */
+    /**
+     * Not "0 goals set". Zero of something is arithmetic; an absence is a state, and it
+     * reads as one. The verb differs from the counted forms for the same reason — nothing
+     * has been *set* here, so saying so in the same words would be pedantic.
+     */
+    goalsNone: 'No goals yet',
+    /**
+     * What is under one goal, in brackets after it on `/areas/`.
+     *
+     * Per goal rather than per area: three goals with their own totals say everything one
+     * area-wide number said, and say which goal each belongs to.
+     */
+    stepsOne: '(1 next step)',
+    stepsMany: '({count} next steps)',
+    goalsOne: '1 goal set',
+    goalsMany: '{count} goals set',
     /**
      * Says what is missing *in relation to the goal*, which "Nothing to try yet"
      * did not — that read as a bare absence and left it unclear whether anything
@@ -319,26 +440,132 @@ export const en = {
      * half of what belongs here. "What could help" is the same phrasing the
      * question uses, so the empty state and the question agree.
      */
-    noStep: 'You have not decided yet what could help.',
+    /**
+     * A hint, and it says so in words before it says so in colour.
+     *
+     * "Note:" is the first cue, `--color-note` the second, italics the third — remove the
+     * hue and the sentence still announces itself as something to notice. That order is
+     * the point: a line that relied on being gold would say nothing at all to anyone who
+     * cannot see gold, which is what §17 rules out.
+     *
+     * Lowercase after the colon on purpose — one sentence with a label on it, not a
+     * heading followed by a second sentence.
+     */
+    /**
+     * **Says what to do, not what you have failed to do.**
+     *
+     * It used to read "you have not decided yet what could help" — accurate, and phrased
+     * as an absence on the person's part, on a page listing six areas where several could
+     * carry it at once. An instruction is the same information pointed forwards.
+     *
+     * Two forms because the row's goals are counted: one goal or several.
+     *
+     * **No "Note:" prefix, unlike the hint on the start page.** That label earns its place
+     * where the sentence states a fact — "there are goals with no concrete steps" needs
+     * something to say why it is being mentioned. This one is already an instruction, so
+     * the label repeated in a word what the imperative said in its first syllable.
+     *
+     * Which leaves gold and italic carrying the treatment, and that is enough here: the
+     * sentence tells you what to do whether or not you can see either. Nothing about its
+     * *meaning* rests on the styling — which is the actual §17 requirement, rather than
+     * a label being present for its own sake.
+     */
+    noStepOne: 'Decide on next steps to reach your goal.',
+    noStepMany: 'Decide on next steps to reach your goals.',
     /** A count rather than one arbitrary entry: with nothing pinned, none is first. */
-    tryingOne: 'One thing to try',
-    trying: '{count} things to try',
+    /**
+     * "Planned", not "to try out".
+     *
+     * Trying something out frames a next step as an experiment someone might abandon; these
+     * are things the person decided to do. The count is what the row is for, so the number
+     * leads — "1", not "One", since it sits beside "1 goal set" one line above.
+     */
+    tryingOne: '1 activity planned',
+    trying: '{count} activities planned',
 
-    reconsiderQuestion: 'Would you like to change or explore something here now?',
-    reconsiderYes: 'Yes',
-    reconsiderNo: 'Leave it for now',
 
     /**
-     * One label for the whole list rather than one per goal: the serif heading is
-     * already unmistakably the thing you want.
+     * A label per goal, numbered, rather than one label over all of them.
      *
-     * There is deliberately **no** matching label over each goal's entries. It used to
-     * repeat `goals.entriesLabel` there, which put the same sentence on screen once per
-     * goal; the indent rule already says those belong to the goal above. That label is
-     * still used where it earns its place — the onboarding screen, where there is no
-     * indent to say it.
+     * "What you want" named the list. This names each item, which is what makes the
+     * three levels on this page legible without a diagram: the numbered label is the
+     * app's word, the quoted line under it is the person's, and the question below that
+     * turns the goal into something to do.
+     *
+     * Shown even with a single goal, which reverses the earlier rule that a lone ordinal
+     * "implies siblings that are not there". That rule was about a bare `1.` list marker
+     * with nothing to explain it; "Goal #1:" reads as a label on a numbered thing, and
+     * "+ Add another goal" sits directly beneath saying where #2 would come from.
      */
-    goalsLabel: 'What you want',
+    goalNumber: 'Goal #{n}:',
+    /**
+     * The same label without a number, for an area holding exactly one goal.
+     *
+     * "Goal #1:" against a single goal implies a #2 that is not there — the objection
+     * that once justified hiding the ordinal altogether. Keeping the label and dropping
+     * only the number answers both halves: the line still says what the quoted sentence
+     * beneath it *is*, and it stops counting when there is nothing to count.
+     *
+     * Used on the area page and on `/areas/`, where the row shows the goal that comes
+     * first — so where an area holds several, that one really is #1.
+     */
+    goalOnly: 'Goal:',
+    /**
+     * The goal in the person's own words, shown as theirs.
+     *
+     * Typographic quotes belong in the catalog and not in JSX: German sets them low then
+     * high („so“) while English sets both high (“so”), so one hardcoded pair would be
+     * wrong in one language. Same reason no other user-visible punctuation lives in a
+     * component.
+     */
+    goalQuoted: '“{text}”',
+    /**
+     * Over each goal's entries, where Package B deliberately left no heading at all.
+     *
+     * That removal was right about the *label* and wrong about what the line was for.
+     * Repeating "What you want to try" three times said nothing the indent had not
+     * already said — but a question earns the line, because it says what the entries are
+     * *for*: the bridge from something you want to something you could do this week.
+     */
+    goalHow: 'How do you want to reach this goal?',
+    /**
+     * The same line once there is something under it.
+     *
+     * A question asks for the first entry; with entries already listed it would be asking
+     * about what is plainly there. The statement introduces the list instead — same slot,
+     * same weight, and which one shows is decided by whether the list is empty.
+     */
+    goalHowDone: 'How you want to reach it:',
+    /** Opens a field in place. The `+` matches "+ Add another goal" one level up. */
+    addEntry: '+ Add an entry',
+    editOn: 'Edit: {text}',
+    deleteOn: 'Remove: {text}',
+    deleteGoalOn: 'Remove goal: {goal}',
+    /**
+     * Deleting a goal asks once, in place, and briefly.
+     *
+     * Not a modal: a floating overlay needs focus trapping, and the project's rule is to
+     * reach for a headless primitive rather than hand-roll that — a dependency this does
+     * not need. The confirmation replaces the goal's own row, so the thing being removed
+     * is what the question is attached to.
+     *
+     * Entries get no confirmation at all, and that is safe rather than sloppy: nothing is
+     * destroyed. Append-only has no delete, so "remove" records that an item is no longer
+     * current and `/data/stored/` still shows it. A mis-tap costs a re-add.
+     */
+    /**
+     * Names the goal, and names the act.
+     *
+     * "Are you sure?" made the reader supply both from memory — of what they had tapped —
+     * on a page that can hold three goals whose rows look alike. A confirmation that does
+     * not say what it is about is a confirmation of the tap rather than of the outcome.
+     *
+     * The goal comes through `goalQuoted`, so it is the person's sentence in quotes here
+     * exactly as it is in the heading above.
+     */
+    confirmDelete: 'Do you really want to remove the goal {goal}?',
+    confirmYes: 'Yes',
+    confirmNo: 'No',
     /**
      * Kept in view on the start page. Deliberately not "focus": several entries can
      * be pinned, so a word implying one would be a promise the model does not make.
@@ -348,39 +575,82 @@ export const en = {
     unpin: 'Unpin',
     pinOn: 'Pin: {text}',
     unpinOn: 'Unpin: {text}',
-    addStep: 'Add something to try',
+    /**
+     * The same act one level up, on a life area.
+     *
+     * Named separately from `pinOn` only because the interpolation is the area's name
+     * rather than someone's own words — the word "Pin" is the same on purpose. Three things
+     * can be starred now, and they should not read as three different features.
+     */
+    pinAreaOn: 'Pin: {area}',
+    unpinAreaOn: 'Unpin: {area}',
+    addStep: 'Add something',
     /** Three visible "Add" buttons are three identical controls out loud. */
-    addStepFor: 'Add something to try for: {goal}',
-    goalAdd: 'Add a goal',
-    goalChange: 'Change this goal',
+    addStepFor: 'Add something for: {goal}',
+    goalAdd: '+ Add another goal',
+    /**
+     * An area holding no goals, reachable by removing the last one.
+     *
+     * It read as a broken page: a heading, nothing under it, and two controls one of which
+     * offered to add "another" goal that was never there. So it says what the emptiness
+     * *means* — nothing here needs attention — and offers the single thing worth doing
+     * about it. `goalAddFirst` is gone with the state that needed it: at zero there is no
+     * "add another" button to mislabel.
+     *
+     * Hedged with "seems", as on `/areas/`: the app is reporting an absence, not making a
+     * claim about someone's life.
+     */
+    emptyNote: 'There is nothing to see here yet.',
+    goalCreate: 'Create a goal',
+    /**
+     * The visible word shortens to "Edit" because it now sits beside the goal it acts
+     * on, where "Change this goal" repeated the subject the line above already names.
+     *
+     * The **accessible name** keeps naming it, because out loud there is no "line above"
+     * — three buttons reading "Edit" are three identical controls to anyone listening.
+     */
+    goalChange: 'Edit',
     goalChangeOn: 'Change this goal: {goal}',
-    done: 'Done',
+    /**
+     * "Back", not "Done" — and quiet.
+     *
+     * Nothing on this page needs finishing: every edit takes effect as it is made, so
+     * "Done" implied a save that had already happened and made leaving look like the
+     * concluding step of a task. It is navigation, so it says where it goes.
+     *
+     * That leaves two quiet controls at the foot of the page and no primary, which is
+     * deliberate here: neither adding a goal nor leaving is the recommended thing to do
+     * next. The recommended thing is on the page above them.
+     */
+    done: 'Back',
 
     /** "Else", because the first one was asked for during the introduction. */
     goalNewQuestion: 'What else do you want here?',
-    goalMenuQuestion: 'What would you like to change?',
-    goalReword: 'Change the wording',
-
     /**
-     * Rewritten from "Need more motivation? …", which opens by telling someone they
-     * lack motivation — a diagnosis nobody asked for, and the kind of claim the
-     * Feature Manifest rules out. This reports instead, and leaves the reader to
-     * decide whether it applies to them.
+     * **The menu question and the reason-writing copy are gone**, along with the screen
+     * that asked them. Opening a goal opens the field now; `editQuestion` below is what
+     * it asks.
+     *
+     * Deleted rather than parked. `m.stored.areas.why` still renders a reason someone
+     * already wrote, so nothing anyone said is lost — but copy for a control that no
+     * longer exists reads as a regression to whoever finds it, which is the same reason
+     * the storage toggle's "off" copy went rather than being kept.
      */
-    goalWhy: 'Write down why this matters',
-    goalWhyEdit: 'Change why this matters',
-    goalWhyInvite: 'Some people find it easier to keep going when the reason is written down.',
-    goalWhyQuestion: 'Why does reaching this goal matter to you?',
-    /** The ceiling stated in prose, the way the three-entry cap already is. */
-    goalWhyNote: 'A sentence or two is plenty. You can leave it empty.',
-
     goalTop: 'Move this to the top',
-    goalTopNote: 'The one at the top is what this area is about right now.',
-
-    goalReached: 'I have reached this',
-    goalReachedQuestion: 'Have you reached this goal?',
-    goalDrop: 'Remove from your current goals',
-    goalDropQuestion: 'Is this no longer a goal for you?',
+    /**
+     * **Five keys went from here**, all of them copy for controls that no longer exist:
+     * `goalTopNote`, `goalReached`, `goalReachedQuestion`, `goalDrop` and `goalDropQuestion`.
+     *
+     * The last four described a closing flow that the goal scale replaced — its fifth point
+     * makes the *reached* / *given up on* distinction now, with a confirmation that states
+     * what closing takes with it. Keeping the strings would have left the next reader a
+     * screen to look for.
+     *
+     * Deleted rather than parked, which is the rule this section already applies to the goal
+     * menu's copy directly above: **copy for a control that no longer exists reads as a
+     * regression to whoever finds it.** Parking is for answers someone already gave —
+     * `stored.areas.goalReached` stays, because it labels a goal that really was reached.
+     */
     /**
      * The consequence, stated before it happens rather than discovered afterwards.
      * Nothing is deleted — what was being tried leaves the list because the goal it
@@ -390,6 +660,90 @@ export const en = {
     goalCloseCancel: 'Not yet',
     /** Only ever shown when there is one, and there should not be. */
     looseLabel: 'Not tied to a goal right now',
+
+    /**
+     * An optional check-in on one goal — the first thing in this app that asks how
+     * something is going rather than what you want to do.
+     *
+     * A question rather than a metric, and five words rather than five numbers. "60%" would
+     * be a figure the app invented from an answer that was never a figure, and
+     * `docs/design-system.md` already rejected percentages one level up for the same reason:
+     * they frame looking at your own life as a task to complete.
+     */
+    progressQuestion: 'How close are you to reaching this goal?',
+    /**
+     * The five points, written as **answers to the question above them**.
+     *
+     * "Feels far away", "Getting closer", "Almost there" were descriptions of a state — the
+     * app narrating your situation back at you. "Not at all" and "kind of" are what a person
+     * says when someone asks them how close they are, so the pair reads as an exchange
+     * rather than as a form: *How close are you to reaching this goal?* — *Kind of.*
+     *
+     * That is also why they are short. An answer is short; a label explains itself.
+     *
+     * Each has to stand alone, because they carry the whole scale now — the two ends are no
+     * longer labelled, so the only words are the one naming the current pick and the ones
+     * spoken for each option.
+     */
+    progress1: 'Not at all',
+    progress2: 'A little bit',
+    progress3: 'Kind of',
+    progress4: 'Very close',
+    /** The one that closes the goal, so it claims the whole thing rather than a degree of it. */
+    progress5: 'I am there',
+    /** Never asked is not the same as far away, and the control has to say which it is. */
+    progressNone: 'Not answered yet',
+    /**
+     * The whole control is a row of dots, so the **button** carries the name and the glyphs
+     * are hidden — the same rule the star follows. It names the goal because a page can hold
+     * three, and three buttons saying "how close are you?" are three identical controls to
+     * anyone listening.
+     */
+    progressOn: '{goal}: how close are you to reaching it? {value}',
+    /**
+     * Picking a dot writes nothing; this does.
+     *
+     * "Confirm" rather than "Continue" for the reason that settled the same question during
+     * goal creation, and it applies harder here: nothing follows this button, so "Continue"
+     * would promise a screen that does not exist.
+     */
+    progressSave: 'Confirm',
+    /**
+     * What the save turns into when the fifth point is picked.
+     *
+     * Reaching a goal closes it, which is more than a rating — so the button stops saying
+     * "Confirm" and asks the real question instead. The scale stays on screen underneath,
+     * so picking a different dot takes it straight back to an ordinary save; a separate
+     * confirmation screen would have hidden the one control that undoes the choice.
+     *
+     * The consequence is stated with the existing `goalCloseNote`, and only when there is
+     * one — with nothing being tried for the goal there is nothing to set aside.
+     */
+    reachedQuestion: 'Mark this goal as reached?',
+    reachedYes: 'Yes, I reached it',
+    /**
+     * Said once, plainly, and then it waits to be dismissed.
+     *
+     * No confetti, no sound, no points. Reaching something you set out to do is worth
+     * marking, and the app's job is to say so and get out of the way — celebration that
+     * performs is the engagement mechanic this product does not build.
+     *
+     * **It deliberately does not name the goal.** It used to read "You reached „…"", quoting
+     * the sentence back — which is fine for a considered goal and slightly absurd for a
+     * half-typed one, and the moment does not need the app to prove it was paying attention.
+     * Generic and true beats specific and brittle: whatever was written, one of your goals
+     * is what you reached.
+     */
+    congrats: 'Congratulations!',
+    congratsAny: 'You have reached one of your goals.',
+    /**
+     * "Continue", not "Confirm" — and here that is right where it was wrong on the scale.
+     *
+     * Something *does* follow this button: dismissing it gives the page back. It is the way
+     * on from a moment, not the commit of a choice, and it takes the primary weight because
+     * while this is on screen it is the only thing to do.
+     */
+    congratsClose: 'Continue',
 
     reviewEdit: 'Edit',
     editQuestion: 'What should it say instead?',
@@ -486,6 +840,22 @@ export const en = {
       goalReached: 'reached',
       /** A pointer, not a fact about the goal — so `standing()` gives it no date. */
       goalPriority: 'first for now',
+      /**
+       * The area itself is starred. Said on the area's own summary line, where "kept in
+       * view" is said about an entry — same idea, one level up, and no date, because a
+       * preference is not a thing that happened.
+       */
+      areaPinned: 'kept at the top',
+      /**
+       * The newest self-reported rating, as the word that was chosen rather than as the
+       * digit that was stored — `'3'` is a token the app wrote, and this page never prints
+       * one of those.
+       *
+       * Past tense on purpose: this is a record of how it felt when it was said, not a
+       * claim about now. A goal closed through the fifth point shows this *and* "reached",
+       * which is two facts about one act rather than the same one twice.
+       */
+      goalProgress: 'how close it felt: {value}',
       /** Only rendered when there is one; an absent reason is not an empty one. */
       why: 'why it matters: {why}',
       edited: 'reworded from: {text}',

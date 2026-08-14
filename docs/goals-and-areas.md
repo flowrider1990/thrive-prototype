@@ -97,11 +97,14 @@ no migration, no change to the consent gate. These are ordinary facts, written
 through the store's `remember()` with `source: 'goals'`.
 
 ```
-area.<a>.review              'yes' | 'not_now'
+area.<a>.review              'yes' | 'not_now'  — also written when a goal is created
+area.<a>.pinned              'yes' | 'no'         — absent means not starred
 area.<a>.goal                the goal, verbatim   — LEGACY, read but never written
 area.<a>.goal.<gid>.text     the goal, verbatim   — newest wins, history = rewordings
-area.<a>.goal.<gid>.why      why it matters       — empty reads as absent
+area.<a>.goal.<gid>.why      why it matters       — READ ONLY, see below
 area.<a>.goal.<gid>.state    'done' | 'retired'   — absent means active
+area.<a>.goal.<gid>.pinned   'yes' | 'no'         — absent means not starred
+area.<a>.goal.<gid>.progress '1' … '5'            — absent means never asked
 area.<a>.goal_priority       <gid>
 area.<a>.step.<sid>.text     the entry, verbatim  — newest wins, history = rewordings
 area.<a>.step.<sid>.state    'done' | 'retired'   — absent means open
@@ -109,6 +112,169 @@ area.<a>.step.<sid>.goal     <gid>                — absent means "attribute it
 area.<a>.step.<sid>.pinned   'yes' | 'no'         — absent means not pinned
 area.<a>.step_active         <sid>                — LEGACY, read as a pin
 ```
+
+### A starred goal is not a prioritised one
+
+`goal_priority` orders goals **within one area** and there is one of it. `goal.<gid>.pinned`
+is a per-goal flag, several may be set, and it exists to order the start page's list of
+goals — which crosses areas, where "first in its own area" says nothing about what to show
+first overall. Same shape and same reasoning as a step's `pinned`.
+
+It is deliberately **not** in `GOAL_KEY`. That pattern is what discovers which goals exist,
+so a star on its own — from a hand-edited store — must not conjure a goal with no words.
+
+### A life area can be starred too
+
+`area.<a>.pinned` puts an area at the top of `/areas/`. The third thing that can be starred,
+after entries and goals, and it means what the other two mean: *show me this first*. Any
+number may be set, nothing behaves differently for being starred, and it orders exactly one
+list.
+
+**One segment under the area**, where a goal's star is two deep and an entry's three. That is
+what keeps it out of `GOAL_KEY` and `STEP_KEY` without either pattern needing to know it
+exists.
+
+**The order it overrides is presentation, not data.** This file already says the area order
+drives the introduction's sequence and nothing else, so re-ordering the list costs nothing —
+but the two come from the same array, which is why §52c asserts a starred area does *not*
+jump the queue during the introduction. A refactor that sorted `areas` itself rather than a
+copy would change which area someone is asked about first, silently, and only for people who
+had starred something.
+
+**The star is a sibling of the row, never inside it.** The whole card is a link — that is the
+page's central affordance — so the button is positioned over the `<li>` instead. A `<button>`
+inside an `<a>` is invalid and would navigate on press, which is what check 27c now guards.
+That check used to assert the page had *no* buttons at all ("this page changes nothing"); it
+is inverted rather than deleted, and keeps the half that was load-bearing.
+
+## How close a goal feels
+
+An optional self-report on one goal, on five points, offered wherever goals are shown — the
+cards on `/areas/<id>/` and the "My goals" view on the start page. Never asked for, never
+reminded about, and a goal works exactly as well with no answer as with one.
+
+This is the **first member of the check-in family**, which `CLAUDE.md` §5 parks as needing
+its own approval and the bottom of this file lists as deliberately absent. It was approved on
+its own terms, and the scope is what keeps it from becoming the parked feature: no reminders,
+no resurfacing, no percentages, no charts, no streaks, no scoring, and nothing added to
+onboarding or goal creation. It is also **not** the per-area status concept below — that one
+is about a life area and is still undecided.
+
+Percentages were rejected for the reason `docs/design-system.md` already gives one level up:
+they frame looking at your own life as a task to complete. The stored value is the semantic
+step, and the five words are what the person actually chose.
+
+### `progress` is not in `GOAL_KEY` either
+
+Same rule as `pinned`, same reason, and now with a check behind it (§50j): a store holding
+`area.<a>.goal.ghost.progress` and no text for `ghost` must not render a goal. Anything added
+under a goal id in future has to answer the same question — *is this field, on its own, enough
+to mean a goal is there?* For text, yes. For everything else so far, no.
+
+### The scale is answers, not descriptions
+
+The five points are written as replies to the question above them: *How close are you to
+reaching this goal?* — *Kind of.* They were once "Feels far away", "Getting closer", "Almost
+there", which described a state back at the person rather than giving them something to say.
+`CLAUDE.md` §3 now carries that as a general standard.
+
+### Nothing is stored until it is confirmed
+
+Picking a point holds it; the button commits it. Picking is a thought and saving is an act,
+and on a question about your own life those should not be the same gesture. §50b asserts the
+store is **byte-identical** while a point is selected — not "no new fact", which a rewrite
+that happened to keep the count would satisfy.
+
+That is also why the control is five native `<input type="radio">` in a `<fieldset>`. A radio
+is a held selection waiting to be committed, which is exactly the requirement; `OptionList`
+fires on tap and cannot express it. Native rather than `role="radiogroup"` because nothing in
+this project implements roving focus, and `components/menu.tsx` sets the rule that claiming a
+role without its keyboard behaviour is worse than not claiming it. Here the browser
+implements it.
+
+### Saying the same thing twice writes nothing
+
+`setGoalProgress` reads before it writes: `2 → 3 → 3 → 4` stores `2 → 3 → 4`. The guard is in
+the **writer**, not at the two call sites, because a rule enforced in one place drifts out of
+the other. Taking `person` in order to read first is the shape `finishIntroduction` already
+uses.
+
+**What that costs, so it is not rediscovered:** the log records *changes*, not check-ins.
+"When did they last confirm this was still a 3" has no answer. That is the right trade for a
+history a person reads — a column of identical entries is noise — but the periodic check-in
+sketched further down wants the opposite, and it should get **its own key** rather than this
+guard being loosened.
+
+### The fifth point closes the goal
+
+Choosing *I am there* writes nothing on its own. It turns the save into "Mark this goal as
+reached?", and confirming appends two facts in causal order — the `5`, then `state = 'done'`
+through `completeGoal`, which is now the only writer of `done` reachable from the UI. So an **active goal
+never rests at 5**: the fifth point is a door, not a state.
+
+The scale stays on screen while it asks, which is why the question is not a screen of its
+own: picking a lower point takes it straight back to an ordinary save, where a separate
+confirmation would have hidden the one control that undoes the choice. The consequence line
+is the existing `goalCloseNote`, shown only when the goal has open entries — with nothing
+being tried for it there is nothing to set aside, and a confirmation with nothing to say is
+the step that teaches people to tap through steps.
+
+Reaching one is said once and then waits to be dismissed. It lives in the host rather than in
+the card because confirming removes the goal from `activeGoals` in the same render — there is
+no card left to render into.
+
+**It does not quote the goal back.** It used to, and that is fine for a considered sentence
+and slightly absurd for a half-typed one; the moment does not need the app to prove it was
+listening. The goal's words still reach the component, only to seed the emoji, which is
+derived rather than drawn at random — `Math.random()` in a render body is a hydration
+mismatch, and picking one in an effect costs a second render pass.
+
+**Nothing else is on screen while it shows**, on either page. Reaching the *last* goal in an
+area is what makes that matter: without it, "there is nothing to see here yet" and an offer to
+create a goal land directly under a celebration, which answers a moment with a shrug and a
+chore. The way on is primary and says "Continue" — something really does follow it, unlike the
+scale's save.
+
+### History is already there, and nothing reads it yet
+
+Only the newest answer is shown. Every answer is kept, because the key is appended to like
+every other — `person.history()` returns each one with its own `learnedAt`. That is the same
+shape this file already sketches for a future check-in, so **progress over time needs no new
+storage**, only something that wants to draw it. §50h is the check that keeps it true.
+
+### `review` is written by two acts, not one
+
+`'yes'` used to be recorded only by answering a review question. Opening a life area from
+`/areas/` now goes straight to "What is your goal?" — tapping a row that says "No goals
+yet" already answers "would you like to change something here", and asking again asks
+someone to confirm their own tap.
+
+That left a gap the explicit write existed to close: an area could hold a live goal while
+its newest `review` still said `'not_now'`. So **writing a goal also records `'yes'`**, at
+the act rather than at the navigation. Guarded on the current value, because append-only
+means an unguarded write would add a duplicate on every goal added during the
+introduction, where the question was already answered.
+
+The introduction still asks. There an area arrives unbidden, six in a row, so whether this
+one is worth a goal at all is a real question and "Not right now" is a real answer.
+
+### `why` is a read path now
+
+There is no longer any way to write `area.<a>.goal.<gid>.why`. It was offered on the
+screen someone opens to rename a goal, as one of five equally weighted options — so the
+commonest management action shared its weight with the rarest, and renaming meant
+answering "what would you like to change?" first.
+
+The **read** survives in full: a reason already written still renders under its goal on
+the area page and on `/data/stored/`, so nothing anyone said became unreachable. `empty
+reads as absent` still describes stored data, and the two-fact retraction some stores
+carry (a reason, then an empty one taking it back) still resolves correctly — there is
+simply no control that produces either any more.
+
+`setGoalWhy` was deleted rather than left uncalled, which is the same rule the legacy
+area pointers follow: **reads never write.** Restoring the feature means restoring a
+writer and its copy, not un-hiding a control. §41i–41k assert the read path against a
+fixture written before the change.
 
 `GOAL_KEY` cannot match the legacy `area.<a>.goal` (too few segments) or
 `area.<a>.goal_priority` (`goal_priority` is not `goal`), so all three coexist
@@ -285,10 +451,30 @@ one area, which is the task manager this is not.
 tried across all of them — three goals holding three each would be nine open entries in
 one area, which is the task manager this is not.
 
-**Onboarding offers up to three, and demands none.** The first goal is optional — "Not
-sure yet" writes nothing — and once a goal has its entries screen, a quiet "Add another
-goal" appears there and disappears at the cap. Nothing states that an area should have
-three; three is what is allowed, not what is expected.
+### The introduction asks for one of each, and demands neither
+
+**Up to three is what the model allows, not what the walk asks for.** The introduction
+writes **one goal and one action per area**, and then moves on: saving the action *is* the
+way to the next area. Both are optional — "Not sure yet" and "I do not know yet" each write
+nothing at all.
+
+The reason is what a first pass is for. Six areas is enough of a walk without each one also
+being an invitation to fill it, and everything the ceiling holds back — a second goal, a
+second action, the numbered list, the cap notice, editing what you just wrote — are answers
+to questions someone only has once they have used the app. Learning the shape is the job;
+setting things up properly is what the area page is for, and the closing screen says so and
+links there.
+
+**None of it became dead code**, which is the thing to check before narrowing a flow. The
+area page enters the same `AreaFlow` after a goal is added there, without the `guided` flag,
+and every one of those affordances is reachable from that side. `scripts/verify.mjs` §29 was
+*re-based* onto that path rather than deleted — it now proves the same three complaints are
+still answered, and, by construction, that the introduction's ceiling belongs to the
+introduction rather than to `ActionEntry`. §45i asserts the ceiling itself.
+
+`guided` is deliberately its own prop rather than `!straightToGoal`, though they are
+opposites today: one decides which question opens the flow, the other when it ends, and
+collapsing them would make "open on the goal, but allow three" impossible to express.
 
 Two things that shape it:
 
@@ -368,6 +554,17 @@ Entries belong to a goal, which changes what each of these costs.
   With nothing being tried for it there is no consequence to state, so there is no
   confirmation either. A confirmation with nothing to say is a step that teaches
   people to tap through steps.
+
+  **Each has exactly one door.** *Reached* is the fifth point of the scale; *set aside* is
+  the remove control on the goal's row. There used to be a second way to reach the first —
+  "I have reached this", inside the panel for changing a goal's **wording** — and it is
+  gone. It made sense while nothing else expressed the distinction, but with the scale it
+  became a duplicate offered from the wrong screen and without the consequence stated.
+
+  The distinction itself is untouched: `completeGoal` writes `done`, `retireGoal` writes
+  `retired`, and `/data/stored/` still tells them apart. What went was one route, not one
+  meaning. §48f2 asserts the edit panel offers no way to close a goal, because "add a quiet
+  way to finish it here" is a natural thing to reach for again.
 
 **This replaced a walk**, and the replacement is worth recording. Changing a goal used
 to review every open entry one screen at a time, because entries belonged to the
@@ -537,10 +734,17 @@ Not a to-do list, not a habit tracker, not a task manager. The point is to keep 
 small number of actions in view because they connect to something the person
 currently cares about — not to hold everything they could possibly do.
 
-Deliberately absent: check-ins, reminders, resurfacing, difficulty and helpfulness
-ratings, streaks, points, urgency, celebration, priorities, recurrence, due dates,
-and any history browser. The behavioural layer that would ask "how is this going?"
-or "does this still matter to you?" belongs to a later iteration.
+Deliberately absent: reminders, resurfacing, difficulty and helpfulness ratings, streaks,
+points, urgency, recurrence, due dates, and any history browser. The behavioural layer that
+would ask "does this still matter to you?" on its own initiative belongs to a later
+iteration.
+
+**Two entries left this list**, and the distinction is worth keeping. *Check-ins* did, in the
+narrow sense above: the app now asks how close a goal feels — but only where someone opened a
+goal and reached for the control, never unprompted. Nothing resurfaces and nothing reminds,
+which is the whole of what "later iteration" was protecting. *Celebration* did too, and
+stayed small: one sentence and one emoji when a goal is reached, with no sound, no animation
+and no score.
 
 ## Product follow-ups: asked for, and deliberately not built
 

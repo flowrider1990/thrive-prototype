@@ -75,6 +75,28 @@ export function StoredAreas() {
   function standing(goal: GoalDetail): string {
     const parts = [noted(goal.createdAt)]
     if (goal.priority) parts.push(m.stored.areas.goalPriority)
+    /**
+     * The newest rating, as the **word** that was chosen.
+     *
+     * The stored value is `'3'` — a token the app wrote, and this page never prints one of
+     * those. Rendering it here at all is not decoration: `isAreaKey()` keeps every `area.*`
+     * fact out of the generic list on `/data/stored/`, so anything not resolved here is held
+     * and never shown, which is the one thing this page exists to make impossible.
+     *
+     * It carries a date, unlike being the goal put first: a rating is something that
+     * happened at a moment, where a pointer is just where something currently points.
+     */
+    if (goal.progress !== undefined) {
+      const scale = [
+        m.manage.progress1,
+        m.manage.progress2,
+        m.manage.progress3,
+        m.manage.progress4,
+        m.manage.progress5,
+      ]
+      const felt = t(m.stored.areas.goalProgress, { value: scale[goal.progress - 1] ?? '' })
+      parts.push(goal.progressAt ? `${felt} · ${formatWhen(goal.progressAt, locale)}` : felt)
+    }
     const word =
       goal.state === 'done'
         ? m.stored.areas.goalReached
@@ -121,10 +143,16 @@ export function StoredAreas() {
                   {m.areas[detail.area]}
                 </h2>
                 {/* What a closed area still tells you: which goal it is about, and
-                    that there is history behind it worth opening. */}
+                    that there is history behind it worth opening.
+
+                    A star is said alongside rather than instead — it is a preference, not
+                    an outcome, so it carries no date, the same rule an entry's pin follows.
+                    It has to appear *somewhere*: an area whose only fact is a star would
+                    otherwise be held and never shown, on the page that promises otherwise. */}
                 <span className="min-w-0 text-sm leading-relaxed text-muted">
                   {goal ?? m.stored.areas.noGoal}
                   {detail.steps.length > 0 && ` · ${count}`}
+                  {detail.pinned && ` · ${m.stored.areas.areaPinned}`}
                 </span>
               </summary>
 

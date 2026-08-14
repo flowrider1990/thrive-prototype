@@ -67,8 +67,13 @@ export function AreaLabel({
   }
 
   if (size === 'card') {
+    // No colour of its own: it inherits from the row, which is what lets a life area
+    // with nothing being worked on recede as a whole. A `text-ink` utility here could
+    // not be overridden by `.option-recede` at all — Tailwind's `utilities` layer wins
+    // over `components` regardless of specificity. Ink is the inherited value
+    // everywhere else, so nothing changes for anyone rendering this outside a row.
     return (
-      <p className="flex items-center gap-x-2.5 text-lg font-medium leading-snug text-ink">
+      <p className="flex items-center gap-x-2.5 text-lg font-medium leading-snug">
         <AreaIcon area={area} size="eyebrow" />
         {m.areas[area]}
       </p>

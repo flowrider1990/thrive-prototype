@@ -2,24 +2,28 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
+import { AreaIcon, GoalIcon } from '@/components/area-icon'
 import { Choice } from '@/components/choice'
-import { Pin } from '@/components/icons'
+import { GoalProgress, GoalReached } from '@/components/goal-progress'
+import { Star } from '@/components/icons'
 import { OptionList } from '@/components/option-list'
 import { TextAnswer } from '@/components/text-answer'
-import { areas, type AreaId } from '@/lib/areas'
+import { areas } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
 import {
   addStep,
   type AreaState,
   completeStep,
   type Goal,
+  pinGoal,
   pinStep,
   readArea,
   retireStep,
   type Step,
+  unpinGoal,
   unpinStep,
 } from '@/lib/person/goals'
-import { usePerson } from '@/lib/person/store'
+import { setHomeView, usePerson } from '@/lib/person/store'
 
 /** One entry, with the context needed to show and act on it. */
 type Row = { step: Step; state: AreaState; goal: Goal | undefined }
@@ -56,9 +60,32 @@ type Busy = { stepId: string; phase: 'check' | 'add' }
  * answers cover both kinds, and none of them counts, scores or congratulates.
  */
 export function NextSteps() {
-  const { m } = useI18n()
+  const { m, t } = useI18n()
   const person = usePerson()
   const [busy, setBusy] = useState<Busy | null>(null)
+  /**
+   * Which goal's rating panel is open, keyed by **area and goal**.
+   *
+   * The goal id alone would not do: `LEGACY_GID` is the literal `'legacy'`, so two areas can
+   * each hold a goal by that id, and one tap would open two panels. The area page can key on
+   * the id because it only ever shows one area.
+   */
+  const [evaluating, setEvaluating] = useState<string | null>(null)
+  /** The words of the goal just reached — it has left `activeGoals`, so its id resolves to nothing. */
+  const [reached, setReached] = useState<string | null>(null)
+  /**
+   * Which of the two questions this page is answering — **remembered**.
+   *
+   * Steps by default, because the page exists to lead to action. Goals are the longer view,
+   * and seeing them plainly is what makes it obvious when one has nothing under it.
+   *
+   * It lives in the person store rather than in component state, so it survives a reload:
+   * someone who prefers the goals view should not have to say so on every visit. That also
+   * means it is consent-gated for free — `commit()` writes nothing in memory mode, so
+   * declining still leaves `localStorage` completely empty, and only `'goals'` is ever
+   * stored, so the default leaves no trace at all.
+   */
+  const showing = person.homeView
 
   const states = areas.map((area) => readArea(person, area))
 
@@ -82,7 +109,15 @@ export function NextSteps() {
   })
   const pinned = rows.filter((row) => row.step.pinned)
   const rest = rows.filter((row) => !row.step.pinned)
-  const grouped = pinned.length > 0 && rest.length > 0
+  /**
+   * Starred entries come first and carry **no label**.
+   *
+   * "Angepinnt" over one group and "Alles andere" over the other named a distinction the
+   * rows already make: a filled star against an outlined one, in the hue nothing else on
+   * the page uses. Two headings to explain two icons is the explanation costing more than
+   * the thing explained — and "Alles andere" in particular labelled a group by what it is
+   * not.
+   */
 
   // An area holding a goal that never got a single entry — interrupted setup, not a
   // pause someone chose. The first one only: naming every area at once would be a
@@ -91,8 +126,164 @@ export function NextSteps() {
     (state) => state.activeGoals.length > 0 && state.steps.length === 0,
   )
 
+  // Every active goal, starred first, then the order `readArea` already derives.
+  const goals = states.flatMap((state) => state.activeGoals.map((goal) => ({ goal, state })))
+  const goalRows = [...goals.filter((g) => g.goal.pinned), ...goals.filter((g) => !g.goal.pinned)]
+
   return (
     <div className="space-y-6">
+      {/**
+       * Toggle above the heading, aligned right — **not beside it**.
+       *
+       * Side by side, the two competed for one line: the heading changes length when the
+       * toggle is used ("Deine nächsten Schritte" against "Deine Ziele"), so at some widths
+       * the control that had just been pressed wrapped below the words it had changed. A
+       * row whose contents resize each other has no stable layout. Stacked, the heading can
+       * be any length and the toggle never moves.
+       *
+       * `role="group"` with a name rather than a tablist — these swap the contents of one
+       * region, and nothing here is a tab panel with its own URL.
+       */}
+      <div className="space-y-3">
+        <div className="flex justify-end">
+        {/**
+         * One bordered track with the selected half filled — a toggle, rather than two
+         * buttons that happen to sit together.
+         *
+         * The halves are plain buttons instead of `.btn`, because two `.btn` borders inside
+         * a third would be an edge around an edge around an edge. The track carries the
+         * one edge; the fill says which half is current.
+         *
+         * State is not carried by that fill alone: `aria-pressed` says which is current out
+         * loud, and each half is labelled with the view's own name, so the words are
+         * readable whether or not the fill is.
+         */}
+        <div
+          role="group"
+          aria-label={m.home.viewLabel}
+            className="inline-flex items-center gap-x-1 rounded-full border border-line-strong p-1"
+        >
+          {(['steps', 'goals'] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={showing === option}
+              className={`rounded-full px-3 py-1 text-sm transition-colors ${
+                showing === option
+                  ? 'bg-ink font-medium text-ground'
+                  : 'text-muted hover:text-ink'
+              }`}
+              onClick={() => setHomeView(option)}
+            >
+              {option === 'steps' ? m.home.viewSteps : m.home.viewGoals}
+            </button>
+          ))}
+          </div>
+        </div>
+        <h1 className="heading">{showing === 'steps' ? m.home.title : m.home.goalsTitle}</h1>
+      </div>
+
+      {showing === 'goals' ? (
+        <div className="space-y-6">
+        {/**
+         * Outside the empty/list branch below, deliberately.
+         *
+         * Reaching your only goal empties the list, which would swap this whole subtree for
+         * "no goals yet" — taking the congratulation with it in the same render that earned
+         * it. Mounted here it survives that, and its live region exists from the moment the
+         * goals view does, which is what makes the announcement a change rather than an
+         * insertion.
+         */}
+        <GoalReached goalText={reached} onClose={() => setReached(null)} />
+        {/* The list stands down while the congratulation is up — the same focus rule the area
+            page follows, and for the same reason: reaching the last goal would otherwise put
+            "no goals yet" directly under it. */}
+        {reached !== null ? null : goalRows.length === 0 ? (
+          <p className="text-sm text-muted">{m.home.goalsEmpty}</p>
+        ) : (
+          /* The goals themselves and nothing else: no area, no counts, no state. Seeing
+             them as a plain list is the point — anything more would make this a second
+             areas page. */
+          <ul className="space-y-4">
+            {goalRows.map(({ goal, state }) => {
+              const key = `${state.area}-${goal.id}`
+              const rating = evaluating === key
+              return (
+              <li key={key} className="flex flex-wrap items-start gap-x-2.5 gap-y-3">
+                <span aria-hidden="true" className="mt-1 shrink-0 text-lg leading-none text-muted">
+                  &bull;
+                </span>
+                {/* The same mark a goal carries everywhere else it is named. */}
+                <GoalIcon className="mt-0.5" />
+                {/**
+                 * The goal opens the area it lives in.
+                 *
+                 * A goal listed with no way to reach anything was a dead end — the one thing
+                 * you would want after seeing it is where it sits and what is under it.
+                 *
+                 * `?from=home` is what makes the area's back link say "Zurück zur
+                 * Startseite" instead of pointing at `/areas/`; `AreaScreen` already reads
+                 * it, so arriving from here behaves like arriving from a row's area link.
+                 * The link wraps only the words — the star beside it is a control, and a
+                 * link containing it would navigate on every press.
+                 */}
+                <p
+                  className={`min-w-0 flex-1 leading-relaxed ${
+                    goal.pinned ? 'font-semibold' : ''
+                  }`}
+                >
+                  <Link href={`/areas/${state.area}?from=home`} className="link-inline">
+                    {goal.text}
+                  </Link>
+                </p>
+                {/**
+                 * The same control the area page shows, from the same component — a goal
+                 * rated here has to mean what it means there, and two implementations of one
+                 * scale are two things to keep in step.
+                 *
+                 * Left of the star, so the row's controls read as a group. Open, its `w-full`
+                 * form wraps onto its own line inside this row — which is why the row gained
+                 * `flex-wrap` and a row gap.
+                 */}
+                <GoalProgress
+                  area={state.area}
+                  goal={goal}
+                  open={rating}
+                  hasEntries={state.open.some((step) => step.goalId === goal.id)}
+                  className="mt-0.5"
+                  // Level with the goal's words rather than with the bullet before them:
+                  // the panel belongs to that goal, and starting it further left would sit
+                  // it outside the row it is about.
+                  panelClassName="ps-7"
+                  onOpen={() => setEvaluating(key)}
+                  onClose={() => setEvaluating(null)}
+                  onReached={setReached}
+                />
+                {/* Down while this row is being rated — one question at a time, the same
+                    rule the area page follows. Only *this* row's: the others are different
+                    goals, not the surrounding detail of this one. */}
+                {!rating && (
+                  <button
+                    type="button"
+                    className={`pin-toggle shrink-0 ${goal.pinned ? 'pin-toggle-on' : ''}`}
+                    aria-label={t(goal.pinned ? m.manage.unpinOn : m.manage.pinOn, {
+                      text: goal.text,
+                    })}
+                    onClick={() =>
+                      goal.pinned ? unpinGoal(state.area, goal.id) : pinGoal(state.area, goal.id)
+                    }
+                  >
+                    <Star filled={goal.pinned} />
+                  </button>
+                )}
+              </li>
+              )
+            })}
+          </ul>
+        )}
+        </div>
+      ) : (
+        <>
       {/*
        * Mounted once, above the list, and never unmounted — with up to eighteen rows
        * that placement matters more, not less. A `role="status"` element inserted
@@ -108,30 +299,47 @@ export function NextSteps() {
         <p className="max-w-prose text-sm leading-relaxed text-muted">{m.home.empty}</p>
       )}
 
-      <UnfinishedNote area={unfinished?.area} />
+      {/**
+       * **One list, not two.** Starred rows come first inside it.
+       *
+       * They used to be two containers, which was right while each carried a heading.
+       * With the headings gone the split had no visible purpose left and one invisible
+       * effect: the two groups sat in the outer `space-y-6` stack, so rows were 20px
+       * apart *within* a group and 24px apart across the seam between them. Starring an
+       * entry moved it across that seam, so the list shifted slightly — a control
+       * changing the metrics of the thing it acts on, which is the one thing the design
+       * system says a state change must never do.
+       */}
+      <ul className="space-y-5">
+        {[...pinned, ...rest].map((row, index) => (
+          /**
+           * The line sits on the first unstarred row, inside the single list.
+           *
+           * A separate container for each group is what caused rows to shift by the
+           * difference between two gaps; a border on one child divides the groups without
+           * reintroducing that. Only where both groups exist — a rule above the first row
+           * of a list divides it from nothing.
+           */
+          <li
+            key={row.step.id}
+            className={
+              pinned.length > 0 && index === pinned.length ? 'border-t border-line pt-5' : ''
+            }
+          >
+            <EntryRow
+              row={row}
+              busy={busy?.stepId === row.step.id ? busy : null}
+              onBusy={setBusy}
+            />
+          </li>
+        ))}
+      </ul>
 
-      {[pinned, rest].map((group, index) =>
-        group.length === 0 ? null : (
-          <div key={index} className="space-y-3">
-            {/* Only when there is a distinction to draw. */}
-            {grouped && (
-              <p className="text-sm text-muted">
-                {index === 0 ? m.home.pinnedLabel : m.home.restLabel}
-              </p>
-            )}
-            <ul className="space-y-5">
-              {group.map((row) => (
-                <li key={row.step.id}>
-                  <EntryRow
-                    row={row}
-                    busy={busy?.stepId === row.step.id ? busy : null}
-                    onBusy={setBusy}
-                  />
-                </li>
-              ))}
-            </ul>
-          </div>
-        ),
+      {/* **After** the list, not before it. Above the steps it was the first thing read
+          on a page whose point is the steps — a note about what is missing, ahead of what
+          is there. Underneath, it reads as what to do next once the list runs out. */}
+      <UnfinishedNote show={unfinished !== undefined} />
+        </>
       )}
     </div>
   )
@@ -144,25 +352,28 @@ export function NextSteps() {
  * A `Link`, never a button: this page has already been through one round of a control
  * that looked like navigation and quietly acted instead.
  */
-function UnfinishedNote({ area }: { area: AreaId | undefined }) {
+function UnfinishedNote({ show }: { show: boolean }) {
   const { m } = useI18n()
-  if (!area) return null
-
-  // The placeholder has to survive translation: without it this falls back to plain
-  // text rather than breaking the screen.
-  const [before, after] = m.home.unfinished.split('{area}')
-  if (after === undefined) {
-    return <p className="max-w-prose text-sm leading-relaxed text-muted">{m.home.unfinished}</p>
-  }
+  if (!show) return null
 
   return (
-    <p className="max-w-prose text-sm leading-relaxed text-muted">
-      {before}
-      <Link href={`/areas/${area}`} className="link-inline">
-        {m.areas[area]}
-      </Link>
-      {after}
-    </p>
+    <div className="space-y-3">
+      {/* The same hint treatment as `/areas/`: the words say it is a hint, the slant says
+          it again, and the hue only makes it findable. Nothing has gone wrong here — there
+          is just something left to write down, which is why it is gold and not red.
+
+          It no longer names the area. Naming one was precise, but it left the reader to
+          work out what to do about it; the control below says that instead. */}
+      <p className="max-w-prose text-sm font-semibold italic leading-relaxed text-note">{m.home.unfinished}</p>
+      {/* Primary, and a link because it navigates. Emphasis is safe here in a way it
+          would not have been above the list: with the steps already read, this is the one
+          useful thing left on the page, and nothing else on it competes for the weight. */}
+      <div>
+        <Link href="/areas" className="btn btn-primary">
+          {m.home.unfinishedLink}
+        </Link>
+      </div>
+    </div>
   )
 }
 
@@ -247,7 +458,7 @@ function EntryRow({
         <p className="max-w-prose leading-relaxed text-ink">{m.home.newStepQuestion}</p>
         <TextAnswer
           placeholder={m.home.newStepPlaceholder}
-          submitLabel={m.home.newStepSubmit}
+          submitLabel={m.goals.stepsSave}
           skipLabel={m.home.cancel}
           onSubmit={(value) => {
             addStep(state.area, value, goal?.id)
@@ -272,37 +483,62 @@ function EntryRow({
      * with the controls tucked beside them instead of stacked underneath.
      */
     <div className="flex items-start gap-x-3">
-      {/* The pin comes first in source order but contributes no text, which keeps the
-          entry's own words the start of the row's text content — §42b reads the first
-          thirty characters of the `li` to prove pinning reorders the list. */}
-      <button
-        type="button"
-        className={`pin-toggle ${step.pinned ? "pin-toggle-on" : ""}`}
-        aria-label={t(step.pinned ? m.manage.unpinOn : m.manage.pinOn, { text: step.text })}
-        onClick={() =>
-          step.pinned ? unpinStep(state.area, step.id) : pinStep(state.area, step.id)
-        }
-      >
-        <Pin filled={step.pinned} />
-      </button>
+      {/* A bullet where the star used to be, matching the area page: it marks these as a
+          list and gives the words a left edge to sit against. `aria-hidden` — the `ul`
+          already says "list item". */}
+      <span aria-hidden="true" className="mt-1 shrink-0 text-lg leading-none text-muted">
+        &bull;
+      </span>
+
 
       <div className="min-w-0 flex-1 space-y-0.5">
         {/* Plain text, and a step above the metadata under it. Not a button, not an
             option, nothing that acts when touched. */}
-        <p className="max-w-prose leading-relaxed text-ink">{step.text}</p>
+        {/* Starred entries read in bold — weight, not colour: the star and its hue already
+            carry the state, and colouring the words would compete with the hint, which is
+            the only coloured text on this page. */}
+        <p className={`max-w-prose leading-relaxed text-ink ${step.pinned ? 'font-semibold' : ''}`}>
+          {step.text}
+        </p>
 
         {/* One line: what this is for, and where it lives. The area is a sibling of the
             controls and never wraps them — a link containing "How is it going?" would
             navigate on every answer. */}
         <p className="flex flex-wrap items-center gap-x-1.5 text-sm leading-relaxed text-muted">
-          {goal && <span className="min-w-0">{goal.text}</span>}
-          {goal && <span aria-hidden="true">·</span>}
+          {/* **Area first, then goal** — outermost container inwards, which is the order
+              the hierarchy is stated in everywhere else: an area holds goals, a goal holds
+              this. Read the other way it named the goal before saying where the goal
+              lived.
+
+              The emoji sits *outside* the link, deliberately. It gives the row's area the
+              same recognisable mark it carries on `/areas/` and on its own page. Outside
+              because 37b clicks a leaf whose text is the bare area name — and because a
+              link whose accessible name began with "person walking" would announce the
+              decoration before the destination. `AreaIcon` is `aria-hidden`, so the name
+              stays exactly the area's. */}
+          <AreaIcon area={state.area} size="eyebrow" />
           <Link href={`/areas/${state.area}?from=home`} className="link-inline">
             {m.areas[state.area]}
           </Link>
+          {goal && <span aria-hidden="true">·</span>}
+          {goal && <GoalIcon />}
+          {goal && <span className="min-w-0">{goal.text}</span>}
         </p>
       </div>
 
+      {/* Beside the outcome control rather than out at the left edge, so a row is words
+          on one side and the things you can do to them on the other — the same grouping
+          the area page uses. */}
+      <button
+        type="button"
+        className={`pin-toggle shrink-0 ${step.pinned ? "pin-toggle-on" : ""}`}
+        aria-label={t(step.pinned ? m.manage.unpinOn : m.manage.pinOn, { text: step.text })}
+        onClick={() =>
+          step.pinned ? unpinStep(state.area, step.id) : pinStep(state.area, step.id)
+        }
+      >
+        <Star filled={step.pinned} />
+      </button>
       <button
         ref={trigger}
         type="button"

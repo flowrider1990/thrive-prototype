@@ -46,6 +46,8 @@ type Snapshot = {
   localeChoice: LocaleChoice
   /** `null` means "follow the operating system" — see `lib/theme.ts`. */
   theme: ThemeChoice
+  /** Which view the start page opens on. `'steps'` is the default and is never stored. */
+  homeView: 'steps' | 'goals'
   facts: readonly PersonFact[]
 }
 
@@ -59,6 +61,7 @@ export type Person = Snapshot & {
   remember: (key: string, value: string, source?: string) => void
   setLocale: (locale: Locale) => void
   setTheme: (theme: Theme) => void
+  setHomeView: (view: 'steps' | 'goals') => void
   forgetEverything: () => void
 }
 
@@ -75,6 +78,7 @@ const EMPTY: Snapshot = {
   locale: 'en',
   localeChoice: null,
   theme: null,
+  homeView: 'steps',
   facts: [],
 }
 
@@ -131,6 +135,7 @@ function loadOnce(): void {
           locale: stored.locale ?? detectLocale(),
           localeChoice: stored.locale ?? null,
           theme: stored.theme ?? null,
+          homeView: stored.homeView === 'goals' ? 'goals' : 'steps',
           facts: stored.facts,
         }
       : {
@@ -143,6 +148,7 @@ function loadOnce(): void {
           locale: detectLocale(),
           localeChoice: null,
           theme: null,
+          homeView: 'steps',
           facts: [],
         },
   )
@@ -200,6 +206,8 @@ function parse(raw: string | null): PersonStore | null {
       // written before the theme existed must keep loading — this is the whole
       // reason the field is optional instead of a version bump.
       ...(isTheme(stored.theme) ? { theme: stored.theme } : {}),
+      // Anything but the one value reads as the default, like every other optional field.
+      ...(stored.homeView === 'goals' ? { homeView: 'goals' as const } : {}),
       facts: stored.facts.filter(isFact),
     }
   } catch {
@@ -220,6 +228,8 @@ function write(state: Snapshot): void {
     ...(state.localeChoice ? { locale: state.localeChoice } : {}),
     // Omitted while unset, so following the OS leaves no trace in the store.
     ...(state.theme ? { theme: state.theme } : {}),
+    // Omitted while it is the default, so never touching the toggle leaves nothing behind.
+    ...(state.homeView === 'goals' ? { homeView: 'goals' as const } : {}),
     // Memory-only keys are dropped **here**, at the one function that touches the
     // device, rather than wherever consent happens to be granted. `grantConsent()`
     // persists the snapshot as it stands so that answers given this visit are kept
@@ -297,6 +307,14 @@ export function setTheme(theme: Theme): void {
   commit((previous) => ({ ...previous, theme }))
 }
 
+/**
+ * Which view the start page opens on — a preference, so it goes through `commit()` like
+ * the theme: kept when consent was given, session-only when it was not.
+ */
+export function setHomeView(view: 'steps' | 'goals'): void {
+  commit((previous) => ({ ...previous, homeView: view }))
+}
+
 export function forgetEverything(): void {
   try {
     window.localStorage.removeItem(STORAGE_KEY)
@@ -318,6 +336,8 @@ export function forgetEverything(): void {
     locale: snapshot.locale,
     localeChoice: null,
     theme: null,
+    // Back to the default view as well: deleting everything includes a preference.
+    homeView: 'steps',
     facts: [],
   })
 }
@@ -362,6 +382,7 @@ export function usePerson(): Person {
       remember,
       setLocale,
       setTheme,
+      setHomeView,
       forgetEverything,
     }),
     [current],

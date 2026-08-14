@@ -43,3 +43,26 @@ export function AreaIcon({ area, size = 'inline' }: { area: AreaId; size?: keyof
     </span>
   )
 }
+
+/**
+ * The mark for a goal — a finish line — wherever one is named, counted or asked for.
+ *
+ * Here rather than in the message catalogs, for the same reason the area emoji are: how a
+ * goal is *drawn* is not copy, and the stored model owes nothing to it. It also keeps one
+ * place to change if the mark ever does.
+ *
+ * `aria-hidden`, always. The words beside it already say "goal", so announcing "chequered
+ * flag" first would add noise rather than meaning — and where it repeats as a count it
+ * would say it once per flag.
+ *
+ * `count` repeats it, which is how `/areas/` shows how many goals an area holds without
+ * the reader having to parse a number first. Bounded by `MAX_GOALS` at the source.
+ */
+export function GoalIcon({ count = 1, className = '' }: { count?: number; className?: string }) {
+  if (count < 1) return null
+  return (
+    <span aria-hidden="true" className={`shrink-0 ${className}`}>
+      {'🏁'.repeat(count)}
+    </span>
+  )
+}

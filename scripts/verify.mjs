@@ -680,11 +680,14 @@ const EN = {
   reviewNo: 'Not right now',
   goal: 'What is your goal?',
   cont: 'Continue',
+  confirm: 'Confirm',
   steps: 'What could help you move toward this goal?',
   entries: 'What you want to try',
   entriesNote: 'One is enough. You can add up to three.',
-  add: 'Add',
-  addMore: 'Add another',
+  unfinished: 'there are goals with no concrete steps yet',
+  unfinishedLink: 'Go to your life areas',
+  forGoal: 'Goal: “Sleep better”',
+  ack: 'Very good, thank you!',
   full: 'Three is plenty to start with.',
   edit: 'Edit',
   editSubmit: 'Save',
@@ -693,7 +696,7 @@ const EN = {
   focus: 'Which one would you like to focus on first?',
   complete: 'That is it for now.',
   toHome: 'Go to the start page',
-  home: 'What you are working on',
+  home: 'Your next steps',
   check: 'How is it going?',
   outcomeDone: 'I have done this',
   outcomeOngoing: 'Still on it',
@@ -704,17 +707,21 @@ const EN = {
   navHome: 'Start',
   navAreas: 'Life areas',
   picker: 'Your life areas',
-  addStep: 'Add something to try',
-  manageDone: 'Done',
-  goalAdd: 'Add a goal',
+  addStep: 'Add something',
+  addEntry: '+ Add an entry',
+  manageDone: 'Back',
+  goalAdd: '+ Add another goal',
   goalNewQuestion: 'What else do you want here?',
-  goalChange: 'Change this goal',
+  goalChange: 'Edit',
   goalReword: 'Change the wording',
   goalTop: 'Move this to the top',
-  goalReached: 'I have reached this',
-  goalDrop: 'Remove from your current goals',
+  confirmDelete: 'really want to remove the goal',
+  confirmYes: 'Yes',
+  confirmNo: 'No',
   goalCloseNote: 'What you were trying for it is set aside with it. Nothing is deleted.',
-  goalsLabel: 'What you want',
+  goalNumber: 'Goal #1:',
+  goalOnly: 'Goal:',
+  goalsOne: '1 goal set',
   editSubmit: 'Save',
   contYes: 'Yes, let us go on',
   navData: 'Data protection',
@@ -726,13 +733,18 @@ const EN = {
   delConfirm: 'Yes, delete everything',
   delDone: 'Deleted. Nothing is left.',
   pinnedLabel: 'Pinned',
-  tryingOne: 'One thing to try',
+  tryingOne: '1 activity planned',
   restLabel: 'Everything else',
   goalSkip: 'Not sure yet',
+  goalBack: 'Back',
   goalAnother: 'Add another goal',
   storedBack: 'Back to data protection',
   delRestart: 'Start again',
-  reconsiderQuestion: 'Would you like to change or explore something here now?',
+  emptyNote: 'There is nothing to see here yet.',
+  viewSteps: 'My next steps',
+  viewGoals: 'My goals',
+  goalsTitle: 'Your goals',
+  goalCreate: 'Create a goal',
   pin: 'Pin',
   unpin: 'Unpin',
   storageOptionLocal: 'Save on this device',
@@ -740,6 +752,18 @@ const EN = {
   cloudDevOnly: 'Cloud sync is currently available to developers only.',
   storageOnDone: 'Saving is on now.',
   dataDelete: 'Delete my data',
+  progressQuestion: 'How close are you to reaching this goal?',
+  progressNone: 'Not answered yet',
+  progress2: 'A little bit',
+  progress3: 'Kind of',
+  progress4: 'Very close',
+  progressSave: 'Confirm',
+  reachedQuestion: 'Mark this goal as reached?',
+  reachedYes: 'Yes, I reached it',
+  reachedNo: 'Not yet',
+  congrats: 'Congratulations!',
+  congratsAny: 'You have reached one of your goals.',
+  congratsClose: 'Continue',
 }
 
 /**
@@ -885,34 +909,28 @@ async function seedLegacyOnboarded() {
 }
 
 /**
- * Walks one life area: yes, a goal, and some things to try.
+ * Walks one life area in the introduction: yes, a goal, and **one** thing to try.
  *
- * The last click differs by count on purpose: at three the field gives way to a
- * plain Continue. There used to be a fourth step choosing which entry to start
- * with — the introduction no longer asks, so nothing is prioritised here either.
+ * One, not a list, and the signature says so — it used to take an array. Saving an action
+ * during the introduction now carries straight on to the next area, so there is no second
+ * field to type into and no Continue to press afterwards. Passing `null` means answering
+ * "I do not know yet", which writes nothing and is the only honest way past an empty field.
+ *
+ * Everything the list shape used to exercise — the numbered entries, the cap notice, the
+ * per-entry Edit, the offer of another — still exists on the **area page's** flow, and §29
+ * exercises it there. This helper is not the place it disappeared from; it is the place it
+ * never belonged.
  */
-async function runArea(goal, steps) {
+async function runArea(goal, step) {
   await click(EN.reviewYes)
   await type(goal)
-  await click(EN.cont)
-  await enterEntries(steps)
-  await click(steps.length >= 3 ? EN.cont : EN.enough)
-}
-
-/**
- * Types the entries in, one at a time. Extracted from `runArea` so §29 can stop
- * part-way through the list and exercise editing.
- *
- * The button label differs for the first entry, and that is deliberate rather than
- * incidental: the change from "Add" to "Add another" is what tells someone more
- * than one is allowed. §29 asserts the two really are different.
- */
-async function enterEntries(steps) {
-  for (const [index, step] of steps.entries()) {
-    console.log('DEBUG enterEntries', index, '|', (await text()).split('\n').join(' / ').slice(0, 300))
-    await type(step)
-    await click(index === 0 ? EN.add : EN.addMore)
+  await click(EN.confirm)
+  if (step === null) {
+    await click(EN.stepsUnknown)
+    return
   }
+  await type(step)
+  await click(EN.save)
 }
 
 /**
@@ -998,7 +1016,7 @@ check(
   `current=${marks.marks[0].paint} upcoming=${marks.marks[1].paint}`,
 )
 
-await runArea('Sleep better', ['Walk for 20 minutes', 'Read before bed'])
+await runArea('Sleep better', 'Walk for 20 minutes')
 marks = await progress()
 check(
   '4f. answering an area fills its mark and moves to the next',
@@ -1023,7 +1041,7 @@ check(
 // a real observation rather than an assumption about when the write happens.
 const doneMidway = JSON.parse(await raw()).facts.filter((f) => f.key === 'introduction_done')
 
-await runArea('Get the portfolio finished', ['Finish the case study'])
+await runArea('Get the portfolio finished', 'Finish the case study')
 // Three areas are answered by now — two walked, one declined — so the rest is the
 // remainder. Asserting the count keeps this check falsifiable: without it, the
 // helper's own success would be the only thing 4h could fail on.
@@ -1034,8 +1052,50 @@ check(
   screen.includes(EN.complete) && declined === AREAS.length - 3,
   `${declined} declined, expected ${AREAS.length - 3}`,
 )
+check(
+  // Order matters, which is why this is an index comparison and not two `includes`.
+  // Opening with "That is it for now." lands as a dismissal right after someone has
+  // answered questions about six areas of their life; the thanks has to come first.
+  '4h2. and it thanks you before it says that is it, not instead of it',
+  screen.includes(EN.ack) && screen.indexOf(EN.ack) < screen.indexOf(EN.complete),
+  screen.replace(NL, ' / ').slice(0, 110),
+)
+
+/**
+ * The closing screen says where the rest of it is done, and links there.
+ *
+ * It has to, now that the introduction stops at one goal and one action per area:
+ * without this the ceiling reads as the product, and the page that lifts it is never
+ * mentioned. The link names its destination rather than saying "here" — out of context,
+ * "here" says nothing at all.
+ */
+const closingLink = await evaluate(`(() => {
+  const link = [...document.querySelectorAll('main a[href]')]
+    .find((a) => a.textContent.trim() === ${JSON.stringify('your life areas')});
+  return link ? new URL(link.href).pathname : null;
+})()`)
+check(
+  '4h3. and it says where goals and next steps are changed, with a way there',
+  screen.includes('To change goals and next steps') && closingLink === '/areas/',
+  `link → ${closingLink}`,
+)
 
 await click(EN.toHome)
+
+/**
+ * The second entry for this area is added **where the app now puts that ability**.
+ *
+ * The introduction writes one action per area, so two open in one area can no longer come
+ * out of the walk. §24 needs exactly that — "finishing one with others still open asks
+ * nothing" is a claim about an *area*, not about a list — so it is set up through the area
+ * page's own inline field, which is a real path a person takes rather than a seeded store.
+ */
+await goto(`/areas/${AREAS[0].id}/`)
+await waitForText('Sleep better')
+await click(EN.addEntry)
+await type('Read before bed')
+await click(EN.save)
+await goto('/')
 screen = await text()
 check(
   '4i. home lists everything open across areas, each with the goal it serves',
@@ -1320,16 +1380,16 @@ check('24m. Life areas lists every one with its state', (await text()).includes(
 // it: inserting an area anywhere before it silently moves which one this is.
 await clickOption(AREAS[2].label)
 // Navigation, not a selection: wait for the destination rather than for a fixed delay.
-await waitForText(EN.addStep)
-await click(EN.addStep)
+await waitForText(EN.addEntry)
+await click(EN.addEntry)
 await type('Ask Sam for feedback')
 await click(EN.save)
-await click(EN.addStep)
+await click(EN.addEntry)
 await type('Pick the three best pieces')
 await click(EN.save)
 check(
   '24n. at three open entries there is no way to add a fourth',
-  !(await visible(EN.addStep)),
+  !(await visible(EN.addEntry)),
   (await text()).replace(/\n/g, ' / ').slice(0, 140),
 )
 
@@ -1344,13 +1404,38 @@ check(
 
 await click(EN.goalAdd)
 await type('Get hired somewhere I like')
-await click(EN.cont)
+await click(EN.confirm)
 screen = await text()
 check(
-  '7a. a second goal sits beside the first, under one label, in a numbered list',
+  /**
+   * A later goal is followed by the same question as the first one.
+   *
+   * It used to return to the overview instead, so a goal added this way began with nothing
+   * under it — the very state `/areas/` then flags as a hint. The cause was a duplicated
+   * screen: `AreaManage` had its own copy of the goal question whose only difference was
+   * where it went afterwards, and deleting the copy is what made the two paths one.
+   */
+  '7a0. a later goal is asked about its next steps, exactly as the first one is',
+  screen.includes(EN.steps) &&
+    screen.includes('Get hired somewhere I like') &&
+    // And not the offer to add a third instead: on this page the overview already carries
+    // it, so here it only invited abandoning the question on screen. §45a asserts the
+    // introduction still makes the offer.
+    !(await visible(EN.goalAnother)),
+  screen.replace(NL, ' / ').slice(0, 140),
+)
+// Out of the steps screen without inventing anything. Which control that is depends on the
+// area, not on this goal: the cap counts across the whole area, and by now this one is at
+// it — so the field has given way to the notice and its Continue. Either way it writes
+// nothing and returns to the area.
+await click((await visible(EN.stepsUnknown)) ? EN.stepsUnknown : EN.cont)
+screen = await text()
+check(
+  '7a. a second goal sits beside the first, each one named and numbered',
   screen.includes('Get hired somewhere I like') &&
     screen.includes('Get the portfolio finished') &&
-    screen.includes(EN.goalsLabel),
+    screen.includes(EN.goalNumber) &&
+    screen.includes('Goal #2:'),
   screen.replace(/\n/g, ' / ').slice(0, 200),
 )
 // Order is the priority, so the ordinals have to be real list markers rather than
@@ -1364,14 +1449,16 @@ const ordered = await evaluate(
 )
 check(
   '7b. and they are an ordered list, oldest first until something says otherwise',
-  ordered?.length === 2 && ordered[0].startsWith('1.') && ordered[1].startsWith('2.'),
+  // `includes`, not `startsWith`: the row opens with the goal mark now. Which label sits
+  // on which row is still the claim.
+  ordered?.length === 2 && ordered[0].includes('Goal #1:') && ordered[1].includes('Goal #2:'),
   JSON.stringify(ordered),
 )
 
 // One tap, one write, and the order changes. This is the whole priority feature:
 // there is no rank to rewrite and no second goal to renumber.
 await clickAria('Change this goal: Get hired somewhere I like')
-await clickOption(EN.goalTop)
+await click(EN.goalTop)
 const reordered = await evaluate(
   `(() => [...document.querySelector('main ol').children].map((li) => li.textContent.trim().slice(0, 40)))()`,
 )
@@ -1385,7 +1472,8 @@ check(
 // Rewording is the case the old walk fired on, and the case that no longer needs it.
 const beforeReword = JSON.parse(await raw()).facts.length
 await clickAria('Change this goal: Get the portfolio finished')
-await clickOption(EN.goalReword)
+// No menu step any more: opening a goal opens the field, prefilled. Renaming is an
+// edit rather than a decision, and it used to cost a whole screen to say so.
 await type('Finish the portfolio properly')
 await click(EN.editSubmit)
 screen = await text()
@@ -1403,8 +1491,26 @@ check(
 // through steps. The case that *does* have one is §41, on a store built for it —
 // closing a goal here would take the only active entry in the run with it.
 const beforeDrop = JSON.parse(await raw()).facts.length
-await clickAria('Change this goal: Get hired somewhere I like')
-await clickOption(EN.goalDrop)
+// Removing is its own control now — a cross beside the goal, not an option inside the
+// edit screen — and it asks once, in place. "One tap" in the name below always meant one
+// *write*, which is still true: the confirmation writes nothing.
+await clickAria('Remove goal: Get hired somewhere I like')
+screen = await text()
+check(
+  // Names the goal, and is the only thing on the page: the second goal's card and the
+  // page's own controls come down, so the one moment needing a single answer is not also
+  // the busiest state on the screen.
+  '7e0. removing a goal asks once, names it, and is the only thing on screen',
+  screen.includes(EN.confirmDelete) &&
+    screen.includes('Get hired somewhere I like') &&
+    !screen.includes('Finish the portfolio properly') &&
+    !(await visible(EN.goalAdd)) &&
+    !(await visible(EN.manageDone)) &&
+    JSON.parse(await raw()).facts.length === beforeDrop &&
+    (await visible(EN.confirmNo)),
+  screen.replace(NL, ' / ').slice(0, 120),
+)
+await click(EN.confirmYes)
 screen = await text()
 check(
   '7e. setting aside a goal nothing was being tried for takes one tap and one fact',
@@ -1414,9 +1520,22 @@ check(
   screen.replace(/\n/g, ' / ').slice(0, 200),
 )
 check(
-  '7f. and with one goal left the ordinals go away — a lone "1." implies siblings',
-  !(await evaluate(`!!document.querySelector('main ol li span[aria-hidden]')`)),
-  'no ordinal',
+  /**
+   * With one goal left the **label** stays and the **number** goes.
+   *
+   * Two earlier rules met here. The first hid a bare `aria-hidden` "1." at one goal,
+   * because a lone ordinal implies a sibling that is not there. The second showed
+   * "Goal #1:" always, as visible words. This keeps what each was right about: the line
+   * still names what the quoted sentence beneath it is, and it stops counting when
+   * there is nothing to count.
+   */
+  '7f2. and with one goal left the label stays but stops numbering',
+  // The absence to assert is the **number**, not any hidden span: the goal mark is an
+  // `aria-hidden` span and belongs there. Looking for a `#` says what this is about.
+  (await text()).includes(EN.goalOnly) &&
+    !(await text()).includes(EN.goalNumber) &&
+    !(await evaluate(`document.querySelector('main ol li').innerText.includes('#')`)),
+  (await text()).replace(NL, ' / ').slice(0, 80),
 )
 
 await click(EN.manageDone)
@@ -1516,32 +1635,70 @@ check('8e. after a reload it starts over', (await text()).includes(EN.consent))
 // Three things were not obvious on the old screen: that more than one is allowed,
 // that the cap is three, and that what you typed can be changed. Each has its own
 // assertion, because each was its own complaint.
+//
+// **Re-based, not weakened.** This section used to run inside the introduction, where
+// saving an action now carries straight on to the next area — one goal and one action is
+// the whole of what the walk asks for. Everything it asserts still exists, on the flow the
+// area page enters after a goal is added there, so the section moved to where the behaviour
+// lives rather than being deleted along with the path it happened to use.
+//
+// That is also the check that the introduction's ceiling is a property of the introduction
+// and not of `ActionEntry`: if saving ever auto-continued here too, every assertion below
+// would fail at once.
 
-await clearStorage()
-await goto('/')
-await click(EN.yes)
-await click(EN.introOk)
-await click(EN.reviewYes)
+await seedOnboarded()
+await goto(`/areas/${AREAS[1].id}/`)
+await waitForText(EN.emptyNote)
+await click(EN.goalCreate)
+await waitForText(EN.goal)
 await type('Sleep better')
-await click(EN.cont)
+await click(EN.confirm)
 
 screen = await text()
 check(
-  '29a. the cap is stated before the first entry, not discovered at the third',
-  screen.includes(EN.entriesNote) && (await count('ol li')) === 0,
-  `${await count('ol li')} entries listed`,
+  /**
+   * "What could help you move toward this goal?" needs a *this*.
+   *
+   * The goal used to be shown only where an area held more than one, on the reasoning
+   * that with one it was redundant — true about telling goals apart, wrong about the
+   * question, whose subject was then nowhere on the screen. This area holds exactly one,
+   * which is the case that used to be blank.
+   */
+  '29a0. the goal is named while the action is asked for, even with one goal',
+  screen.includes(EN.forGoal),
+  screen.replace(NL, ' / ').slice(0, 120),
+)
+check(
+  // Inverted. It used to be stated *before* the field, so the first thing read on a
+  // screen asking what could help was a rule about how many — an answer to a question
+  // nobody had asked. The question and the field now stand alone.
+  '29a. the cap is not stated before the first entry — the question stands alone',
+  !screen.includes(EN.entriesNote) && screen.includes(EN.steps) && (await count('input')) === 1,
+  `${await count('ol li')} entries listed, note shown: ${screen.includes(EN.entriesNote)}`,
 )
 
-// The label really has to differ, or the change from "Add" to "Add another" — the
-// thing that says more is allowed — could be absent while every click still lands.
-const addFirst = (await visible(EN.add)) && !(await visible(EN.addMore))
+// Saving is one act and adding another is the next, so the field closes on save and the
+// cap appears at the point it becomes useful. The old flow relabelled the same button
+// "Add another" and left an empty field open, which named the wrong act and implied a
+// second entry was expected.
+const savesFirst = (await visible(EN.save)) && !(await visible(EN.addStep))
 await type('Walk after dinner')
-await click(EN.add)
-const addNext = (await visible(EN.addMore)) && !(await visible(EN.add))
+await click(EN.save)
+screen = await text()
+const afterSave = {
+  field: await count('input'),
+  addOffered: await visible(EN.addStep),
+  note: screen.includes(EN.entriesNote),
+  on: await visible(EN.cont),
+}
 check(
-  '29b. the add control says "Add" for the first entry and "Add another" after it',
-  addFirst && addNext,
-  `first: ${addFirst}, after one: ${addNext}`,
+  '29b. saving says "Save", closes the field, and only then offers another',
+  savesFirst &&
+    afterSave.field === 0 &&
+    afterSave.addOffered === true &&
+    afterSave.note === true &&
+    afterSave.on === true,
+  `first: ${savesFirst}, after: ${JSON.stringify(afterSave)}`,
 )
 
 check(
@@ -1552,10 +1709,12 @@ check(
   (await ariaLabels()).join(' / '),
 )
 
+await click(EN.addStep)
 await type('Read before bed')
-await click(EN.addMore)
+await click(EN.save)
+await click(EN.addStep)
 await type('Stretch in the morning')
-await click(EN.addMore)
+await click(EN.save)
 screen = await text()
 check(
   '29d. the third entry fills the list and the field gives way',
@@ -1596,7 +1755,7 @@ check('5b. the reason is acknowledged and going on is offered', screen.includes(
 
 await click(EN.contYes)
 await click(EN.introOk)
-await runArea('Move more', ['Walk after lunch'])
+await runArea('Move more', 'Walk after lunch')
 await declineRest()
 await click(EN.toHome)
 screen = await text()
@@ -1675,7 +1834,7 @@ await type(CONCERN)
 await click(EN.cont)
 await click(EN.contYes)
 await click(EN.introOk)
-await runArea('Move more', ['Walk after lunch'])
+await runArea('Move more', 'Walk after lunch')
 await declineRest()
 await click(EN.toHome)
 
@@ -1761,16 +1920,18 @@ check(
 
 await click('Ja')
 await type('Besser schlafen')
-await click('Weiter')
+await click('Bestätigen')
 await type('20 Minuten spazieren gehen')
-await click('Hinzufügen')
-await click('Das reicht')
+// Saving is the way on now — there is no "Weiter" to press afterwards, because during the
+// introduction one action per area is the whole of what is asked for. The German walk
+// exercises that in its own language rather than trusting the English one.
+await click('Speichern')
 await declineRest({ no: 'Gerade nicht', done: 'Das war’s für den Anfang.' })
 await click('Zur Startseite')
 screen = await text()
 check(
   '6d. the whole flow reads in German and what was typed comes back verbatim',
-  screen.includes('Woran du gerade dran bist') &&
+  screen.includes('Deine nächsten Schritte') &&
     screen.includes('20 Minuten spazieren gehen') &&
     // The English-leak guard, stated against the fixture rather than a literal, so
     // renaming the home title cannot quietly make it vacuous.
@@ -1819,7 +1980,7 @@ await declineAreas(AREAS.length - 1)
 // The last area: answered, a goal given, then interrupted before any next step.
 await click(EN.reviewYes)
 await type('Draw something every week')
-await click(EN.cont)
+await click(EN.confirm)
 await goto('/')
 screen = await text()
 check(
@@ -1829,33 +1990,67 @@ check(
 )
 check(
   '25b. and home says so, rather than reporting that everything is settled',
-  screen.includes('has a goal, but you have not decided yet'),
+  screen.includes(EN.unfinished),
 )
 
-// The sentence names the area and links to it. Both halves matter: a link whose text
-// is "life area" would be useless out of context, and a link that navigates nowhere
-// useful is worse than the prose it replaced.
-const unfinishedLink = await evaluate(
+/**
+ * The hint carries the way to act on it, and it no longer names the area.
+ *
+ * It used to read "{area} has a goal, but you have not decided yet…" with the area as an
+ * inline link. Precise — and it left the reader to work out what to do, with "you have
+ * not" where a reason should be. The hint now says what is true and offers one control,
+ * which is why this asserts a **destination** rather than a name: naming an area was the
+ * old design's way of being useful, not the guarantee.
+ *
+ * It also sits **after** the list now, so the first thing read on a page about steps is
+ * the steps. Asserted by position, because "present somewhere" was never the claim.
+ */
+const unfinishedCta = await evaluate(
   `(() => {
-     const link = [...document.querySelectorAll('main a[href]')]
-       .find((a) => a.textContent.trim() === ${JSON.stringify(LAST_AREA.label)});
-     return link ? { text: link.textContent.trim(), href: new URL(link.href).pathname } : null;
+     const main = document.querySelector('main');
+     const link = [...main.querySelectorAll('a[href]')]
+       .find((a) => a.textContent.trim() === ${JSON.stringify('Go to your life areas')});
+     if (!link) return null;
+     const hint = [...main.querySelectorAll('p')]
+       .find((p) => p.textContent.includes('no concrete steps'));
+     const list = main.querySelector('ul');
+     return {
+       href: new URL(link.href).pathname,
+       primary: link.classList.contains('btn-primary'),
+       italic: hint ? getComputedStyle(hint).fontStyle : null,
+       hasList: Boolean(list),
+       // 4 === DOCUMENT_POSITION_FOLLOWING: the hint comes after the list.
+       afterList: Boolean(hint && list && list.compareDocumentPosition(hint) & 4),
+     };
    })()`,
 )
 check(
-  '25b2. the unfinished area is named as a real link to that area',
-  unfinishedLink?.href === `/areas/${LAST_AREA.id}/`,
-  unfinishedLink ? `${unfinishedLink.text} → ${unfinishedLink.href}` : 'no link on the area name',
+  '25b2. the hint offers one way to act on it, under the list rather than over it',
+  unfinishedCta?.href === '/areas/' &&
+    unfinishedCta.primary === true &&
+    unfinishedCta.italic === 'italic' &&
+    /**
+     * **The ordering is checked only when there is a list to order against, and no
+     * fixture in this file produces one.**
+     *
+     * `unfinished` fires on an area with a goal and *no steps ever written*, which every
+     * walk here reaches only by declining every other area — so home has the hint and an
+     * empty list. `seedGoals()` gives the opposite: a list, and no area qualifying for the
+     * hint. So the clause is guarded rather than asserted, and this is written down instead
+     * of left as a green check implying more than it measures. Verified by eye for now.
+     */
+    (!unfinishedCta.hasList || unfinishedCta.afterList),
+  JSON.stringify(unfinishedCta),
 )
 
-// The trap this page has already fallen into once: something that looks like
-// navigation but writes. Following it must leave the store byte-identical.
+// The trap this page has already fallen into once: something that looks like navigation
+// but writes. Following it must leave the store byte-identical.
 const beforeUnfinished = await raw()
-await clickText(LAST_AREA.label)
+await clickText(EN.unfinishedLink)
 await sleep(400)
 check(
   '25b3. and following it navigates without changing anything',
-  (await text()).includes('Draw something every week') && (await raw()) === beforeUnfinished,
+  (await text()).includes(EN.picker) && (await raw()) === beforeUnfinished,
   (await raw()) === beforeUnfinished ? 'store untouched' : 'STORE CHANGED',
 )
 await goto('/')
@@ -1865,16 +2060,16 @@ await clickNav(EN.navAreas)
 screen = await text()
 check(
   '25c. the unfinished area is reachable and says what is missing',
-  screen.includes(LAST_AREA.label) && screen.includes('not decided yet what could help'),
+  screen.includes(LAST_AREA.label) && screen.includes('ecide on next steps to reach your goal'),
 )
 await clickOption(LAST_AREA.label)
 await waitForText('Draw something every week')
 screen = await text()
 check(
   '25d. its goal survived, and finishing the setup is one action away',
-  screen.includes('Draw something every week') && (await visible(EN.addStep)),
+  screen.includes('Draw something every week') && (await visible(EN.addEntry)),
 )
-await click(EN.addStep)
+await click(EN.addEntry)
 await type('Sketch on Sunday morning')
 await click(EN.save)
 // "Done" now returns to the areas list rather than to home, because the area is its
@@ -1884,10 +2079,8 @@ await sleep(400)
 screen = await text()
 check(
   '25e. adding the missing entry lists it, with nothing else asked',
-  // The areas list counts what is there rather than naming one of them: with nothing
-  // pinned, no entry is first, and picking one to show would be arbitrary. Home is
-  // where the words themselves live, which 25e2 checks.
-  screen.includes(EN.tryingOne) && screen.includes(EN.picker),
+  // The count is per goal now, in brackets after the goal it belongs to.
+  screen.includes('(1 next step)') && screen.includes(EN.picker),
   screen.replace(/\n/g, ' / ').slice(0, 120),
 )
 
@@ -1895,7 +2088,7 @@ await clickNav(EN.navHome)
 screen = await text()
 check(
   '25e2. and home stops reporting it as unfinished setup',
-  screen.includes('Sketch on Sunday morning') && !screen.includes('has a goal, but you have not'),
+  screen.includes('Sketch on Sunday morning') && !screen.includes(EN.unfinished),
   screen.replace(/\n/g, ' / ').slice(0, 120),
 )
 
@@ -1912,7 +2105,7 @@ check(
 )
 check(
   '25g. and "Later" is not reported as unfinished setup — it is a real answer',
-  !screen.includes('has a goal, but you have not'),
+  !screen.includes(EN.unfinished),
 )
 
 // --- 38. a goal with nothing to try yet is a real answer, not a blocked screen -
@@ -1934,7 +2127,7 @@ await click(EN.introOk)
 // Area 1: yes, a goal, then "I do not know yet".
 await click(EN.reviewYes)
 await type('Sleep better')
-await click(EN.cont)
+await click(EN.confirm)
 screen = await text()
 check(
   '38a. the steps screen offers a way on without inventing something',
@@ -1956,7 +2149,7 @@ const stepsButtons = await evaluate(
 )
 check(
   '38b. adding stays the primary action, and every way out of it is quiet',
-  stepsButtons.find((b) => b.label === EN.add)?.primary === true &&
+  stepsButtons.find((b) => b.label === EN.save)?.primary === true &&
     stepsButtons.find((b) => b.label === EN.stepsUnknown)?.quiet === true &&
     stepsButtons.find((b) => b.label === EN.stepsUnknown)?.primary === false &&
     // Exactly one, over every control on the screen: entering something concrete.
@@ -2005,25 +2198,28 @@ await click(EN.toHome)
 screen = await text()
 check(
   '38f. home renders goal-with-no-entry as guidance, not as broken data',
-  screen.includes('has a goal, but you have not decided yet') && screen.includes(EN.home),
+  screen.includes(EN.unfinished) && screen.includes(EN.home),
   screen.replace(/\n/g, ' / ').slice(0, 140),
 )
 
 await clickNav(EN.navAreas)
 screen = await text()
 check(
+  // The goal's own words are no longer printed here (34b), so what has to match home
+  // is the sentence about there being nothing to try yet — which is the half this check
+  // was really about: two screens describing one state in one wording.
   '38g. and the areas list says the same thing in the same words',
-  screen.includes('Sleep better') && screen.includes('not decided yet what could help'),
+  screen.includes('ecide on next steps to reach your goal') && screen.includes('Sleep better'),
   screen.replace(/\n/g, ' / ').slice(0, 160),
 )
 
 // Opening it must offer adding something without re-asking for the goal.
 await clickOption(AREAS[0].label)
-await waitForText(EN.addStep)
+await waitForText(EN.addEntry)
 screen = await text()
 check(
   '38h. opening the area offers adding something, with the goal intact',
-  screen.includes('Sleep better') && (await visible(EN.addStep)),
+  screen.includes('Sleep better') && (await visible(EN.addEntry)),
   screen.replace(/\n/g, ' / ').slice(0, 140),
 )
 
@@ -2033,7 +2229,10 @@ await chooseIn('Language', 'Deutsch')
 await sleep(400)
 check(
   '38i. the same state reads correctly in German',
-  (await text()).includes('noch nicht festgelegt'),
+  // The German hint no longer says "noch nicht festgelegt" — it names the absence rather
+  // than the person's inaction: "es gibt Ziele ohne konkrete Schritte".
+  (await text()).includes('Ziele ohne konkrete Schritte') &&
+    (await visible('Zu den Lebensbereichen')),
   (await text()).replace(/\n/g, ' / ').slice(0, 160),
 )
 await chooseIn('Sprache', 'English')
@@ -2098,7 +2297,11 @@ for (const scheme of ['light', 'dark']) {
     const field = document.querySelector('.field');
     if (!field) return null;
     const style = getComputedStyle(field);
-    return { border: style.borderTopColor, background: style.backgroundColor };
+    return {
+      border: style.borderTopColor,
+      background: style.backgroundColor,
+      width: style.borderTopWidth,
+    };
   })()`)
   const edgeRatio = await contrast(edge.border, edge.background)
   check(
@@ -2138,12 +2341,86 @@ for (const scheme of ['light', 'dark']) {
   })()`)
   const onGround = await contrast(pin.colour, pin.ground)
   const onSurface = await contrast(pin.colour, pin.surface)
+  const noteColour = await evaluate(`(() => {
+    const read = (value) => {
+      const el = document.createElement('span');
+      el.style.color = value;
+      document.body.append(el);
+      const out = getComputedStyle(el).color;
+      el.remove();
+      return out;
+    };
+    return {
+      colour: read('var(--color-note)'),
+      ground: read('var(--color-ground)'),
+      surface: read('var(--color-surface)'),
+    };
+  })()`)
+  const noteGround = await contrast(noteColour.colour, noteColour.ground)
+  const noteSurface = await contrast(noteColour.colour, noteColour.surface)
+  check(
+    // **4.5:1, not the 3:1 a border needs.** A control edge only has to be seen; this is
+    // a whole sentence at `text-sm` that has to be read. Gold is also the easiest hue in
+    // the set to pick too light on paper and too dark on ink, so both are measured.
+    `31g. and a hint's colour is readable as body text on both backgrounds (${scheme})`,
+    noteGround >= 4.5 && noteSurface >= 4.5,
+    `${noteGround}:1 on ground, ${noteSurface}:1 on surface (${noteColour.colour})`,
+  )
+
   check(
     `31e. and an active pin's colour is readable on both backgrounds (${scheme})`,
     onGround >= 3 && onSurface >= 3,
     `${onGround}:1 on ground, ${onSurface}:1 on surface (${pin.colour})`,
   )
 }
+
+/**
+ * Every `--dark-*` value has to be mapped in **both** dark blocks.
+ *
+ * The dark palette is defined once and mapped twice — under
+ * `@media (prefers-color-scheme: dark)` for "the OS asked", and under
+ * `:root[data-theme='dark']` for "the person chose". Forgetting the second is invisible
+ * to every other check in this file, because they all emulate the media query. That is
+ * precisely how `--color-pin` shipped mapped in one block and not the other, drawing an
+ * active pin in the light red at 2.48:1 on a chosen dark theme.
+ *
+ * So this asserts the *shape* rather than any single colour, and every token added later
+ * is covered by it without anyone having to remember.
+ */
+const themeMapping = await evaluate(`(() => {
+  const root = document.documentElement;
+  const names = new Set();
+  for (const sheet of document.styleSheets) {
+    let rules;
+    try { rules = sheet.cssRules } catch { continue }
+    for (const rule of rules) {
+      if (!rule.style) continue;
+      for (const prop of rule.style) if (prop.startsWith('--dark-')) names.add(prop);
+    }
+  }
+  const had = root.dataset.theme;
+  root.dataset.theme = 'dark';
+  const cs = getComputedStyle(root);
+  const unmapped = [];
+  for (const dark of names) {
+    const target = '--color-' + dark.slice('--dark-'.length);
+    const want = cs.getPropertyValue(dark).trim();
+    if (!want) continue;
+    const got = cs.getPropertyValue(target).trim();
+    if (got !== want) unmapped.push(target + ' = ' + (got || 'unset') + ', expected ' + want);
+  }
+  if (had) root.dataset.theme = had; else delete root.dataset.theme;
+  return { count: names.size, unmapped };
+})()`)
+check(
+  '31f. every dark token is mapped for a chosen theme, not only for the OS one',
+  // The count guards the sweep against finding nothing and passing vacuously.
+  themeMapping.count >= 8 && themeMapping.unmapped.length === 0,
+  themeMapping.unmapped.length
+    ? themeMapping.unmapped.join(' | ')
+    : `${themeMapping.count} tokens mapped`,
+)
+
 await setScheme('light')
 
 // --- 10. corrupt store ----------------------------------------------------
@@ -2235,12 +2512,39 @@ check(
   areaHrefs.join(' '),
 )
 
-// Rows navigate rather than select, so they are `<a>`. Nothing on this page changes
-// anything, which is the whole difference from the `.option` buttons elsewhere.
+/**
+ * **Inverted, and the half that mattered is kept.**
+ *
+ * This read "the rows are links, not buttons — this page changes nothing", and asserted
+ * zero buttons on the page. Starring an area makes the second half false: the page does
+ * change something now.
+ *
+ * The first half is the part that was ever load-bearing, and it survives unchanged. A *row*
+ * navigates, so a row is an `<a>` — the whole difference from the `.option` buttons
+ * elsewhere, which select. What this now adds is the structural rule that made the star
+ * possible at all: the button is a **sibling** of the link, never inside it. A `<button>`
+ * within an `<a>` is invalid and would navigate on press, and it is exactly what someone
+ * reaching for "put the star in the row" would write.
+ *
+ * Inverted rather than deleted, as 36c, 7f, 29a, 34b, 41g, 42j and 46b were: quietly
+ * removing a check that says *do not do this* is how a codebase forgets it ever decided.
+ */
+const pickerRows = await evaluate(`(() => {
+  const rows = [...document.querySelectorAll('main ul > li')];
+  return {
+    rows: rows.length,
+    links: rows.filter((li) => li.querySelector(':scope > a[href]')).length,
+    stars: rows.filter((li) => li.querySelector(':scope > button')).length,
+    nested: rows.filter((li) => li.querySelector('a button, button a')).length,
+  };
+})()`)
 check(
-  '27c. and the rows are links, not buttons — this page changes nothing',
-  (await count('main a[href]')) === AREAS.length && (await count('main button')) === 0,
-  `${await count('main a[href]')} link(s), ${await count('main button')} button(s)`,
+  '27c. each row is a link, with its star beside it rather than inside it',
+  pickerRows?.rows === AREAS.length &&
+    pickerRows.links === AREAS.length &&
+    pickerRows.stars === AREAS.length &&
+    pickerRows.nested === 0,
+  JSON.stringify(pickerRows),
 )
 
 // The deep link, cold. This is the half of the original plan's verification item 11
@@ -2572,28 +2876,55 @@ const rowType = await evaluate(
      if (!row) return null;
      const name = [...row.querySelectorAll('p, span')]
        .find((e) => e.textContent.trim().endsWith(${JSON.stringify(AREAS[0].label)}));
-     const goal = [...row.querySelectorAll('span')]
-       .find((e) => e.textContent.trim() === 'Sleep better');
-     if (!name || !goal) return null;
+     // The goal's own line now: named, numbered where it helps, and ending in what is
+     // under it.
+     const count = [...row.querySelectorAll('span')]
+     // A character class, not an escape: this lives inside a template literal, which
+     // eats the backslash before the regex is ever parsed.
+       .find((e) => /next steps?[)]$/.test(e.textContent.trim()));
+     if (!name || !count) return null;
      const px = (el) => parseFloat(getComputedStyle(el).fontSize);
-     const ink = getComputedStyle(document.body).color;
      return {
        name: px(name),
-       goal: px(goal),
+       count: px(count),
+       countText: count.textContent.trim(),
        nameWeight: getComputedStyle(name).fontWeight,
-       goalIsInk: getComputedStyle(goal).color === ink,
      };
    })()`,
 )
 check(
-  '34a. the area name is larger than the goal beneath it',
-  rowType !== null && rowType.name > rowType.goal,
-  rowType ? `name ${rowType.name}px / goal ${rowType.goal}px, weight ${rowType.nameWeight}` : 'row not found',
+  '34a. the area name is larger than the line beneath it',
+  rowType !== null && rowType.name > rowType.count,
+  rowType
+    ? `name ${rowType.name}px / count ${rowType.count}px "${rowType.countText}"`
+    : 'row not found',
 )
 check(
-  '34b. and the goal is still the person’s words in full ink, only smaller',
-  rowType?.goalIsInk === true,
-  `goal is ink: ${rowType?.goalIsInk}`,
+  /**
+   * **Replaced rather than deleted**, because the rule it asserted was reversed.
+   *
+   * It used to hold that the goal on this page stays the person's words in full ink —
+   * muting them to make room for a label the app chose would have been the wrong trade.
+   * That defended a goal this page no longer prints: a row now says which area and how
+   * many goals, and the sentences someone wrote live behind it. Which also keeps six
+   * areas of somebody's ambitions off one screen, where a glance reads all of them.
+   *
+   * So it inverts: the words must be **absent** here and the count present. Deleting it
+   * would have left nothing saying this page is an index on purpose.
+   */
+  /**
+   * **Inverted back**, and the reason is worth keeping.
+   *
+   * This page counted goals for a while — "2 Ziele angegeben" — which kept someone's
+   * sentences off a screen showing six areas at once. It also meant the only way to learn
+   * what you had written was to open every area in turn, so the page could not do the job
+   * it exists for. Naming them costs the privacy of a glance and buys that back.
+   */
+  '34b. and it names each goal with what is under it, rather than counting them',
+  rowType !== null &&
+    rowType.countText.includes('Sleep better') &&
+    /[(][0-9]+ next steps?[)]$/.test(rowType.countText),
+  `"${rowType?.countText}"`,
 )
 
 // --- 35. every nested page has the same way back ----------------------------
@@ -3228,14 +3559,24 @@ check(
   areaScreen.includes('Write the case study') && !areaScreen.includes('Read the Rust book'),
   areaScreen.replace(/\n/g, ' / ').slice(0, 200),
 )
-// The pointer, not merely the newest goal: `Learn Rust` is newer and reached, and
-// picking it would mean the priority key was being ignored.
-await clickNav(EN.navAreas)
+/**
+ * The pointer, not merely the newest goal: `Learn Rust` is newer and reached, and
+ * surfacing it would mean the priority key was being ignored.
+ *
+ * Moved from `/areas/` to the area's own page, because the list stopped printing goals
+ * (34b) and an assertion about *which* goal it shows had nothing left to read. This is
+ * the surface where the pointer is now visible, and the case is unchanged: one active
+ * goal reached, one still standing, and only one of them may appear.
+ */
+await goto(`/areas/${AREAS[3].id}/`)
 screen = await text()
 check(
-  '41c. the areas list shows the goal put first, not the newest one',
-  screen.includes('Finish the portfolio') && !screen.includes('Learn Rust'),
-  screen.replace(/\n/g, ' / ').slice(0, 200),
+  '41c. the area page shows the goal put first, and a reached one not at all',
+  screen.includes('Finish the portfolio') &&
+    !screen.includes('Learn Rust') &&
+    // One active goal left, so the label carries no number.
+    screen.includes(EN.goalOnly),
+  screen.replace(NL, ' / ').slice(0, 200),
 )
 
 await goto('/data/stored/')
@@ -3272,17 +3613,31 @@ check(
 // the walked store has only one active entry left by this point.
 await seedGoals()
 await goto(`/areas/${AREAS[3].id}/`)
-await clickAria('Change this goal: Finish the portfolio')
-await clickOption(EN.goalReached)
+/**
+ * Closing a goal that *does* have things being tried for it.
+ *
+ * The two ways of closing one now sit in different places, and this asserts the one that
+ * looks destructive: **removing** asks first, in place, and writes nothing until answered.
+ * The old flow put a sentence about what would go with it on a screen of its own; that
+ * screen is gone, and what replaced the sentence is that nothing happens until you say so
+ * — which 41h then measures for real.
+ *
+ * "I have reached this" stays immediate, inside inline editing. It is not the same act:
+ * the record keeps `done` apart from `retired`, and nothing is destroyed either way —
+ * entries leave the *open* set by derivation, not by a cascade.
+ */
+await clickAria('Remove goal: Finish the portfolio')
 screen = await text()
+const beforeClose = JSON.parse(await raw())
 check(
-  '41g. closing a goal states what it takes with it, before it happens',
-  screen.includes(EN.goalCloseNote) && screen.includes(EN.goalReached),
-  screen.replace(/\n/g, ' / ').slice(0, 200),
+  '41g. removing a goal with things being tried asks first, and writes nothing yet',
+  screen.includes(EN.confirmDelete) &&
+    (await visible(EN.confirmNo)) &&
+    beforeClose.facts.length === JSON.parse(await raw()).facts.length,
+  screen.replace(NL, ' / ').slice(0, 160),
 )
 
-const beforeClose = JSON.parse(await raw())
-await click(EN.goalReached)
+await click(EN.confirmYes)
 screen = await text()
 const afterClose = JSON.parse(await raw())
 const retiredEntries = (store) =>
@@ -3302,47 +3657,56 @@ check(
 
 const whyIn = (fact, area) => new RegExp(`^area\.${area}\.goal\.[^.]+\.why$`).test(fact.key)
 
-// The optional reason: written where there is none, and cleared where there is.
+/**
+ * The optional reason is **parked**: there is no longer any way to write one, and every
+ * reason already written still shows.
+ *
+ * Writing it was a fifth peer on the screen someone opens to rename a goal, which is
+ * the weight it should never have had. Removing the flow is only safe if the read path
+ * survives it, so that is what these assert — the same shape as the parked name
+ * question, and the reason `setGoalWhy` went rather than sitting uncalled.
+ *
+ * `seedGoals()` writes a `why` on a goal in `AREAS[3]`, so the fixture is a store from
+ * before the change: exactly the case that must not lose anything.
+ */
 await seedGoals()
-await goto(`/areas/${AREAS[0].id}/`)
-await clickAria('Change this goal: Sleep better')
+await goto(`/areas/${AREAS[3].id}/`)
 screen = await text()
 check(
-  '41i. a goal with no reason is offered one, with why anyone would bother',
-  screen.includes('Write down why this matters') &&
-    screen.includes('Some people find it easier'),
-  screen.replace(/\n/g, ' / ').slice(0, 200),
-)
-await clickOption('Write down why this matters')
-await type('I am tired of being tired')
-await click(EN.editSubmit)
-screen = await text()
-check(
-  '41j. and it sits under the goal it belongs to, not beside it',
-  screen.includes('I am tired of being tired') && screen.includes('Sleep better'),
-  screen.replace(/\n/g, ' / ').slice(0, 200),
+  '41i. a reason written before still shows under the goal it belongs to',
+  screen.includes('It has been open for years') && screen.includes('Finish the portfolio'),
+  screen.replace(NL, ' / ').slice(0, 160),
 )
 
-// Clearing it. An append-only log has no delete, so the way to take something back
-// is to say nothing — and nothing reads as absent. Without `allowEmpty` on that
-// field there would be no way to undo a reason once written.
-await clickAria('Change this goal: Sleep better')
-await clickOption('Change why this matters')
-await type('')
-await click(EN.editSubmit)
-screen = await text()
-const cleared = JSON.parse(await raw())
+// And on the page whose whole job is to show everything the app holds.
+await goto('/data/stored/')
+await expandAll()
 check(
-  '41k. submitting it empty takes it back, and keeps what was said in the history',
-  !screen.includes('I am tired of being tired') &&
-    screen.includes('Sleep better') &&
-    // Both facts are there for *this* goal: the reason, and the empty one that
-    // retracts it. Scoped to the area, since the fixture seeds one elsewhere too.
-    cleared.facts.filter((f) => whyIn(f, AREAS[0].id)).length === 2,
-  cleared.facts
-    .filter((f) => whyIn(f, AREAS[0].id))
-    .map((f) => JSON.stringify(f.value))
-    .join(' '),
+  '41j. and on /you, so nothing anyone wrote became unreachable',
+  (await text()).includes('It has been open for years'),
+  'reason present',
+)
+
+// The other half: opening that goal offers no way to write one, so the flow really is
+// gone rather than merely moved. Asserted against the goal that has a reason, because
+// "no invitation" is easiest to get wrong where one already exists.
+await goto(`/areas/${AREAS[3].id}/`)
+await clickAria('Change this goal: Finish the portfolio')
+screen = await text()
+const whyFacts = JSON.parse(await raw()).facts.filter((f) => whyIn(f, AREAS[3].id)).length
+// Inline editing puts the goal's words in a form control, and `innerText` cannot see a
+// value — so the goal is read from the field rather than from the page.
+const editingValue = await evaluate(
+  `(() => { const f = document.querySelector('main input, main textarea'); return f ? f.value : null })()`,
+)
+check(
+  '41k. and editing it offers no way to write one — the field is the screen now',
+  !screen.includes('why this matters') &&
+    !screen.includes('What would you like to change?') &&
+    editingValue === 'Finish the portfolio' &&
+    // Nothing was written by looking, which is the point of a read path.
+    whyFacts === 1,
+  `${screen.replace(NL, ' / ').slice(0, 110)} — ${whyFacts} why fact(s)`,
 )
 
 // --- 42. pinning, the skippable goal, and the pointer that became a pin ---------
@@ -3397,9 +3761,19 @@ const order = await evaluate(
   `[...document.querySelectorAll('main li')].map((li) => li.textContent.trim().slice(0, 30))`,
 )
 check(
-  '42b. pinning one moves it to the top, labels both groups, and writes one fact',
-  order[0].startsWith('Read before bed') &&
-    screen.includes(EN.pinnedLabel) &&
+  // The headings are gone: a filled star against an outlined one already says which
+  // group a row is in, and "Everything else" labelled a group by what it is not. So the
+  // claim is the *order*, which is what mattered all along.
+  // Also that the rows keep their spacing: starring used to move a row across the seam
+  // between two containers, where the gap was 24px instead of 20px, so the list shifted
+  // under the control that acted on it.
+  '42b. starring one moves it to the top of one list, without shifting the others',
+  // A bullet leads each row now, so this asks which entry is first rather than what
+  // the row's text begins with.
+  order[0].includes('Read before bed') &&
+    !screen.includes(EN.pinnedLabel) &&
+    // One list: two would put a different gap on either side of the boundary.
+    (await count('main ul')) === 1 &&
     afterPin.facts.length === beforePin + 1 &&
     afterPin.facts.some((f) => f.key.endsWith('.pinned') && f.value === 'yes'),
   `${JSON.stringify(order)} | ${afterPin.facts.length} vs ${beforePin}`,
@@ -3421,7 +3795,7 @@ await clickAria('Unpin: Walk after dinner')
 check(
   '42d. unpinning is one more fact, and never a deletion',
   JSON.parse(await raw()).facts.filter((f) => f.key.endsWith('.pinned')).length === 3 &&
-    (await text()).includes(EN.pinnedLabel),
+    !(await text()).includes(EN.pinnedLabel),
   JSON.parse(await raw())
     .facts.filter((f) => f.key.endsWith('.pinned'))
     .map((f) => f.value)
@@ -3444,7 +3818,11 @@ const goalOrder = await evaluate(
 )
 check(
   '42d2. but inside a goal, pinning leaves the order alone',
-  goalOrder?.length === 2 && goalOrder[0].startsWith('Walk after dinner'),
+  // Each entry carries a bullet in front of its words now, so the claim is which entry
+  // sits first rather than what the row's text begins with.
+  goalOrder?.length === 2 &&
+    goalOrder[0].includes('Walk after dinner') &&
+    goalOrder[1].includes('Read before bed'),
   JSON.stringify(goalOrder),
 )
 
@@ -3459,8 +3837,10 @@ const pinColours = await evaluate(`(() => {
   return { on: getComputedStyle(on).color, off: getComputedStyle(off).color };
 })()`)
 check(
-  '42d3. an active pin is drawn in the pin colour and an inactive one is not',
-  pinColours !== null && pinColours.on !== pinColours.off && pinColours.on === 'rgb(180, 38, 42)',
+  '42d3. an active star is drawn in the hint colour and an inactive one is not',
+  // The hint colour now, not a red of its own: red on a control meaning "keep this in
+  // view" read as a warning about the thing it was marking.
+  pinColours !== null && pinColours.on !== pinColours.off && pinColours.on === 'rgb(194, 65, 12)',
   JSON.stringify(pinColours),
 )
 
@@ -3472,8 +3852,9 @@ const legacyOrder = await evaluate(
 )
 check(
   '42e. a retired pointer reads as a pin, with nothing written to convert it',
-  legacyOrder[0].startsWith('Walk after dinner') &&
-    (await text()).includes(EN.pinnedLabel) &&
+  // Bullet-led rows: which entry is first is the claim, not the row's first character.
+  legacyOrder[0].includes('Walk after dinner') &&
+    !(await text()).includes(EN.pinnedLabel) &&
     JSON.parse(await raw()).facts.every((f) => !f.key.endsWith('.pinned')),
   JSON.stringify(legacyOrder),
 )
@@ -3529,14 +3910,57 @@ await click(EN.toHome)
 screen = await text()
 check(
   '42i. a skipped area is not reported as unfinished setup',
-  !screen.includes('has a goal, but you have not') && screen.includes(EN.home),
+  !screen.includes(EN.unfinished) && screen.includes(EN.home),
   screen.replace(NL, ' / ').slice(0, 140),
 )
 await goto(`/areas/${AREAS[0].id}/`)
+screen = await text()
 check(
-  '42j. and it stays completable from its own page',
-  (await text()).includes(EN.reconsiderQuestion),
-  (await text()).replace(NL, ' / ').slice(0, 140),
+  /**
+   * Still completable from its own page — and now in one step fewer.
+   *
+   * This asserted that opening a skipped area asks "Would you like to change or explore
+   * something here now?" first. Tapping a row that says "No goals yet" *is* that answer,
+   * so the question was asking someone to confirm their own tap. The page opens on the
+   * field instead, and the assertion follows: the way in is still there, with the
+   * intermediate question gone rather than merely quieter.
+   */
+  /**
+   * Opening a skipped area shows **what state it is in**, and one way on.
+   *
+   * This asserted a text field, because the page used to answer a tap on a row with the
+   * goal question. A tap is a request to see the area; the field skipped the only screen
+   * that says what is there. Creation starts from the button instead — asserted below,
+   * so "shows the empty state" cannot pass while the way on is broken.
+   */
+  '42j. and it opens on what is there, with one way to start something',
+  screen.includes(EN.emptyNote) &&
+    (await visible(EN.goalCreate)) &&
+    !screen.includes(EN.goal),
+  screen.replace(NL, ' / ').slice(0, 140),
+)
+await click(EN.goalCreate)
+screen = await text()
+check(
+  '42j1. and that button is what opens the goal question',
+  screen.includes(EN.goal) && (await count('main input')) === 1,
+  screen.replace(NL, ' / ').slice(0, 120),
+)
+check(
+  /**
+   * The way out of the field says the right thing for how you got here.
+   *
+   * "Not sure yet" belongs to a question that walked up uninvited — the introduction asks
+   * about six areas and being unsure about one is a real answer. Nobody is unsure on this
+   * page: they opened this area to give it a goal, so the quiet control undoes the tap.
+   *
+   * Both halves asserted, because the one that will rot is the *negative*: 42h clicks
+   * "Not sure yet" during the introduction and would abort if it ever went missing there,
+   * but nothing else would notice it leaking back onto this page.
+   */
+  '42j2. and its way out says "Back" here, while the introduction still says "Not sure yet"',
+  (await visible(EN.goalBack)) && !(await visible(EN.goalSkip)),
+  `Back: ${await visible(EN.goalBack)}, Not sure yet: ${await visible(EN.goalSkip)}`,
 )
 
 // --- 43. the start page is a working list, and the action dominates it ---------
@@ -3673,78 +4097,58 @@ await click(EN.yes)
 await click(EN.introOk)
 await click(EN.reviewYes)
 await type('Sleep better')
-await click(EN.cont)
+await click(EN.confirm)
 screen = await text()
 check(
-  '45a. after a goal, another one is offered — quietly, and not as the way on',
-  (await visible(EN.goalAnother)) &&
-    // Still the entries question, and adding one is still the primary thing to do.
-    screen.includes(EN.steps) &&
-    (await visible(EN.add)),
+  /**
+   * **The introduction offers no second goal**, and that is the change.
+   *
+   * It used to, quietly, on the entries screen. The offer is gone from the walk entirely,
+   * so the introduction now creates at most one goal per area — more are added from the
+   * area's own page, where the whole hierarchy is on screen to add them against.
+   *
+   * What the deleted §45b–45g covered has not been lost, it moved: 7a0 asserts a later goal
+   * is asked about its next steps on the area page, and 48g that it opens in place under the
+   * goal it belongs to. Their point was per-goal linkage, and that is where linkage now
+   * happens.
+   */
+  '45a. the introduction asks for one goal per area and offers no second',
+  screen.includes(EN.steps) &&
+    (await visible(EN.save)) &&
+    !(await visible(EN.goalAnother)),
   screen.replace(NL, ' / ').slice(0, 160),
 )
 
-// An entry first, so the second goal has something to be told apart from.
+// One entry, and that *is* out — saving carries straight on to the next area. Nothing along
+// the way ranks anything either: pinning and priority are both decisions for later, on a
+// page that shows what there is to decide between.
 await type('Walk after dinner')
-await click(EN.add)
-await click(EN.goalAnother)
+await click(EN.save)
+await sleep(300)
 screen = await text()
+/**
+ * **Saving one action ends the area.**
+ *
+ * Six areas is enough of a walk without each one also being an invitation to fill it: one
+ * goal and one action is enough to learn what the app is, and everything the ceiling holds
+ * back is a tap away on the area's own page afterwards.
+ *
+ * Asserted from the other side as well — that nothing offers to keep going here. The list,
+ * the cap notice, "Add something" and "That is enough" all still exist, and §29 exercises
+ * every one of them on the flow the area page enters. If they ever reappeared *here*, this
+ * is what would say so.
+ */
 check(
-  '45b. taking it asks what else, rather than repeating the first question',
-  screen.includes(EN.goalNewQuestion) && !screen.includes(EN.goal),
-  screen.replace(NL, ' / ').slice(0, 160),
+  '45i. saving one action carries straight on to the next area',
+  screen.includes(AREAS[1].label) &&
+    screen.includes(EN.review) &&
+    !screen.includes(EN.steps) &&
+    !(await visible(EN.addStep)) &&
+    !(await visible(EN.enough)) &&
+    !(await visible(EN.cont)),
+  screen.replace(NL, ' / ').slice(0, 110),
 )
-
-await type('Run a 10k')
-await click(EN.cont)
-screen = await text()
-const secondGoal = JSON.parse(await raw())
-check(
-  '45c. the second goal gets its own entries screen, not the first goal is',
-  // Named, because with two goals the question alone cannot say which one.
-  screen.includes('Run a 10k') &&
-    // The first goal's entry is not listed under the second.
-    !screen.includes('Walk after dinner') &&
-    secondGoal.facts.filter((f) => /\.goal\.[^.]+\.text$/.test(f.key)).length === 2,
-  screen.replace(NL, ' / ').slice(0, 200),
-)
-
-// The cap counts across the area, not per goal — so an entry for the second goal plus
-// the first goal's one leaves room for exactly one more.
-await type('Sign up for a race')
-await click(EN.add)
-const linked = JSON.parse(await raw()).facts.filter((f) => /\.step\.[^.]+\.goal$/.test(f.key))
-check(
-  '45d. its entries are linked to it, not to the goal that came first',
-  linked.length === 2 && new Set(linked.map((f) => f.value)).size === 2,
-  linked.map((f) => f.value.slice(0, 8)).join(' '),
-)
-
-await click(EN.goalAnother)
-await type('Sleep through the night')
-await click(EN.cont)
-screen = await text()
-check(
-  '45e. at three goals the offer goes away, and nothing says three was the point',
-  !(await visible(EN.goalAnother)) &&
-    JSON.parse(await raw()).facts.filter((f) => /\.goal\.[^.]+\.text$/.test(f.key)).length === 3,
-  screen.replace(NL, ' / ').slice(0, 160),
-)
-check(
-  '45f. and the area-wide cap still holds, so the field gives way at three entries',
-  // Two entries so far across two goals; one more fills the area.
-  (await count('input')) === 1,
-  `${await count('input')} field(s)`,
-)
-await type('Wind down earlier')
-await click(EN.add)
-check(
-  '45g. the third entry fills the area, whichever goals they belong to',
-  (await count('input')) === 0 && (await text()).includes(EN.full),
-  `${await count('input')} field(s)`,
-)
-
-// Nothing was prioritised on the way through — that is the area page's job.
+await declineRest()
 const noRank = JSON.parse(await raw()).facts
 check(
   '45h. and the introduction ranked nothing: no pin, no priority',
@@ -3795,8 +4199,10 @@ check(
   footAfter.primaries.length === 1 &&
     footAfter.primaries[0].text === EN.delRestart &&
     footAfter.primaries[0].href === '/' &&
-    // And leaving is still offered, one weight down.
-    footAfter.quiet.includes(EN.storedBack),
+    // **And nothing beside it.** A second "Back to data protection" here repeated the link
+    // at the top of the page, so the end of the page was a choice between going on and
+    // going back where you came from. The way back is the one at the top; §35 covers it.
+    footAfter.quiet.length === 0,
   JSON.stringify(footAfter),
 )
 check(
@@ -3968,6 +4374,1034 @@ check(
 )
 await setScheme('light')
 await evaluate('localStorage.clear()')
+
+// --- 48. the refinement pass: recede, hierarchy, and editing that edits -----
+//
+// Three claims, all of them the kind that pass by eye and regress silently: a row
+// recedes without becoming unreadable, the goal hierarchy reads in order, and opening a
+// goal opens the field rather than a menu.
+
+await seedGoals()
+await goto('/areas/')
+
+/**
+ * Recede is a *comparison*, so it has to be measured as one.
+ *
+ * `seedGoals()` gives some areas a goal and leaves others untouched, so both kinds of
+ * row are on this page at once. Asserting the quiet row's colour alone would pass just
+ * as happily if every row were muted, which is the failure mode this is here to catch.
+ */
+const areaRows = await evaluate(`(() => {
+  const all = [...document.querySelectorAll('main a.option')];
+  const pick = (quiet) => {
+    const el = all.find((a) => a.classList.contains('option-recede') === quiet);
+    if (!el) return null;
+    const label = el.querySelector('p');
+    return {
+      border: getComputedStyle(el).borderTopColor,
+      text: getComputedStyle(label).color,
+      opacity: getComputedStyle(el).opacity,
+      pointer: getComputedStyle(el).pointerEvents,
+      href: el.getAttribute('href'),
+      disabled: el.getAttribute('aria-disabled'),
+      padding: getComputedStyle(el).padding,
+      borderWidth: getComputedStyle(el).borderTopWidth,
+    };
+  };
+  return { quiet: pick(true), loud: pick(false), ink: getComputedStyle(document.body).color };
+})()`)
+check(
+  '48a. an area with nothing being worked on recedes against one that has a goal',
+  areaRows.quiet !== null &&
+    areaRows.loud !== null &&
+    areaRows.quiet.border !== areaRows.loud.border &&
+    areaRows.quiet.text !== areaRows.loud.text &&
+    areaRows.loud.text === areaRows.ink,
+  areaRows.quiet && areaRows.loud
+    ? `quiet ${areaRows.quiet.border}/${areaRows.quiet.text} vs loud ${areaRows.loud.border}/${areaRows.loud.text}`
+    : JSON.stringify(areaRows),
+)
+check(
+  // The whole risk of "de-emphasise" is shipping something that reads as switched off.
+  // Full opacity, live pointer events, a real destination, no `aria-disabled`, and the
+  // same box as its neighbour: quieter is a statement about attention, not about state.
+  '48b. and it is quieter without being disabled — same box, real link, full opacity',
+  areaRows.quiet.opacity === '1' &&
+    areaRows.quiet.pointer !== 'none' &&
+    areaRows.quiet.href &&
+    areaRows.quiet.disabled === null &&
+    // The frame, not the height: a row holding a goal has three lines and one without
+    // has two, so equal heights was never the right thing to want. What must not differ
+    // is the box — same padding, same border width — so nothing shifts as an area gains
+    // a goal, and nothing reads as a smaller or thinner control.
+    areaRows.quiet.padding === areaRows.loud.padding &&
+    areaRows.quiet.borderWidth === areaRows.loud.borderWidth,
+  JSON.stringify(areaRows.quiet),
+)
+
+// Restored on focus, and by a real Tab rather than a scripted `.focus()` — the same
+// standard §23 holds itself to, because `:focus-visible` depends on how focus arrived.
+const reached = await tabTo('a.option-recede')
+// `.option` carries `transition-colors`, so reading straight after focus catches an
+// interpolated colour matching neither end — 86,83,79 for a value that should be one of
+// 107 or 31. Wait the transition out rather than asserting against a frame of it.
+await sleep(400)
+const focusRestored = await evaluate(
+  `(() => {
+     const el = document.activeElement;
+     return { text: getComputedStyle(el.querySelector('p')).color, border: getComputedStyle(el).borderTopColor };
+   })()`,
+)
+check(
+  '48c. and a keyboard restores it in full, not only a pointer',
+  // Text back to full ink, and the edge no longer the receded one. Compared against the
+  // quiet border rather than pinned to a token value, so this survives a palette retune.
+  reached > 0 &&
+    focusRestored.text === areaRows.ink &&
+    focusRestored.border !== areaRows.quiet.border,
+  `${reached} tab(s), ${focusRestored.text} / ${focusRestored.border}`,
+)
+
+/**
+ * The hierarchy, asserted as an *order* rather than as three separate presences.
+ *
+ * Label, then the person's words in quotes, then the question that turns one into the
+ * other. Each of those could exist while sitting in the wrong place, and the wrong place
+ * is precisely the complaint this pass answered — so position is the assertion.
+ */
+await goto(`/areas/${AREAS[3].id}/`)
+const shape48 = await evaluate(`(() => {
+  const li = document.querySelector('main ol li');
+  if (!li) return null;
+  // The goal mark lands on a line of its own here. It is decoration, so it is not
+  // part of the order being asserted.
+  const lines = li.innerText
+    .split(String.fromCharCode(10))
+    .map((l) => l.replace(/[^ -~‘-‟]/g, '').trim())
+    .filter(Boolean);
+  return {
+    lines: lines.slice(0, 3),
+    // Searched across every line rather than the first few: a goal carrying a reason
+    // pushes the question further down, which is correct. What matters is that it is
+    // under the goal, not that it sits at a fixed offset from it.
+    // Either form: a question when the list is empty, a statement introducing it when
+    // not. Both occupy the same slot, and which one shows is the assertion in 48d2.
+    hasQuestion: lines.some(
+      (l) => l.startsWith('How do you want to reach this goal?') || l.startsWith('How you want to reach it:'),
+    ),
+    quoted: /^[\u201e\u201c]/.test(lines[1] ?? ''),
+    goalIsHeading: (li.querySelector('h2')?.innerText ?? '').includes('Finish the portfolio'),
+  };
+})()`)
+check(
+  '48d. a goal reads as label, then the person’s own words quoted, then the question',
+  shape48 !== null &&
+    shape48.lines[0] === EN.goalOnly &&
+    shape48.quoted === true &&
+    shape48.goalIsHeading === true &&
+    shape48.hasQuestion === true,
+  JSON.stringify(shape48),
+)
+
+// Editing sits with the goal, not among the entry controls: one level per group.
+const editPlacement = await evaluate(`(() => {
+  const li = document.querySelector('main ol li');
+  const heading = li.querySelector('h2');
+  // Icon-only now, so found by accessible name — which is also the only thing a screen
+  // reader has to tell three "Edit" buttons apart.
+  const edit = [...li.querySelectorAll('button')]
+    .find((b) => (b.getAttribute('aria-label') || '').startsWith('Change this goal:'));
+  const remove = [...li.querySelectorAll('button')]
+    .find((b) => (b.getAttribute('aria-label') || '').startsWith('Remove goal:'));
+  const add = [...li.querySelectorAll('button')].find((b) => b.innerText.trim() === '+ Add an entry');
+  if (!heading || !edit || !remove || !add) return null;
+  return {
+    editBesideGoal: edit.parentElement === heading.parentElement,
+    removeBesideGoal: remove.parentElement === heading.parentElement,
+    editSharesRowWithAdd: edit.parentElement === add.parentElement,
+    // Named after the goal, not just "Edit": three of these on one page otherwise say
+    // the same word three times to anyone listening.
+    named: (edit.getAttribute('aria-label') || '').includes('Finish the portfolio'),
+  };
+})()`)
+check(
+  '48e. and its edit and remove sit with the goal, not among the entry controls',
+  editPlacement?.editBesideGoal === true &&
+    editPlacement?.removeBesideGoal === true &&
+    editPlacement?.editSharesRowWithAdd === false &&
+    editPlacement?.named === true,
+  JSON.stringify(editPlacement),
+)
+
+/**
+ * One thing open at a time, and a goal's card holds its own entries.
+ *
+ * Editing an entry used to leave the goal's edit and remove controls up, plus
+ * "+ Eintrag hinzufügen" — three more ways to start something else while something was
+ * half-written, two of which discarded it. And the card is what makes a goal and its
+ * entries read as one object; without it they were a run of indented lines.
+ */
+await clickAria('Edit: Write the case study')
+const focused48 = await evaluate(`(() => {
+  const li = document.querySelector('main ol li');
+  const names = [...li.querySelectorAll('button')].map((b) => b.getAttribute('aria-label') || b.innerText.trim());
+  return {
+    field: Boolean(li.querySelector('input, textarea')),
+    goalControls: names.filter((n) => n.startsWith('Change this goal:') || n.startsWith('Remove goal:')).length,
+    addOffered: names.some((n) => n === '+ Add an entry'),
+    carded: getComputedStyle(li).borderTopWidth !== '0px' && li.querySelector('ul') !== null,
+  };
+})()`)
+check(
+  '48i. editing an entry hides the goal’s controls, inside a card that holds both',
+  focused48.field === true &&
+    focused48.goalControls === 0 &&
+    focused48.addOffered === false &&
+    focused48.carded === true,
+  JSON.stringify(focused48),
+)
+// Close it again: the next check needs the row's own controls back.
+await click(EN.cancel)
+
+/**
+ * Asking for an action outside the introduction no longer needs to *say* which goal.
+ *
+ * It used to open a screen of its own, which had to repeat the goal — "Goal: …" — because
+ * the goal was no longer on the page. The field opens inside the goal's own list item
+ * now, so the heading two lines above it *is* the context, and repeating it would be the
+ * third thing on screen saying the same thing.
+ *
+ * What still has to match the introduction is the word on the button: saving an action
+ * says "Save" everywhere. So this asserts position and label, which is what survived the
+ * screen going away.
+ */
+await click('+ Add an entry')
+const askedHere = await evaluate(`(() => {
+  const li = document.querySelector('main ol li');
+  const field = li ? li.querySelector('input, textarea') : null;
+  const heading = li ? li.querySelector('h2') : null;
+  return {
+    fieldInsideGoal: Boolean(field),
+    goalStillOnScreen: (heading?.innerText ?? '').includes('Finish the portfolio'),
+    // No repeated context line: the heading already is it.
+    repeatsGoalLine: document.querySelector('main').innerText.includes('Goal: “Finish'),
+  };
+})()`)
+check(
+  '48g. and adding an action opens in place, under the goal it belongs to',
+  askedHere.fieldInsideGoal === true &&
+    askedHere.goalStillOnScreen === true &&
+    askedHere.repeatsGoalLine === false &&
+    (await visible(EN.save)),
+  JSON.stringify(askedHere),
+)
+await goto(`/areas/${AREAS[3].id}/`)
+
+// And opening it lands in a prefilled field. `innerText` cannot see a form value, so
+// this reads the input directly — the one place where asserting the DOM is the only
+// honest option.
+await clickAria('Change this goal: Finish the portfolio')
+const editing = await evaluate(`(() => {
+  const field = document.querySelector('main input, main textarea');
+  return {
+    value: field ? field.value : null,
+    options: document.querySelectorAll('main button.option').length,
+    buttons: [...document.querySelectorAll('main button')].map((b) => b.innerText.trim()).filter(Boolean),
+  };
+})()`)
+/**
+ * **Closing a goal is not offered from the screen about its wording.**
+ *
+ * "I have reached this" used to sit here, and it was reasonable while nothing else made the
+ * *reached* / *given up on* distinction. The goal scale's fifth point makes it now, with a
+ * confirmation that states what closing takes with it — so this was a second door to one
+ * outcome, opened from a screen about rewording, with no consequence stated.
+ *
+ * Asserted rather than left to the diff, because "add a quiet way to finish it here" is a
+ * natural thing to reach for again. The distinction itself is untouched: `completeGoal` and
+ * `retireGoal` both still exist and are both still reachable, from the scale and from the
+ * remove control.
+ */
+check(
+  '48f2. and it offers no way to close the goal — that lives with the scale now',
+  !editing?.buttons.some((label) => /reached|erreicht/i.test(label)),
+  (editing?.buttons ?? []).join(' / '),
+)
+check(
+  '48f. opening a goal opens the field, prefilled, with no menu of peers in front of it',
+  editing.value === 'Finish the portfolio' && editing.options === 0,
+  JSON.stringify(editing),
+)
+
+// --- 49. the start page answers one of two questions ------------------------
+//
+// A toggle swaps the list of next steps for a list of goals. Both are the same page, so
+// the heading has to change with it — a heading naming one of them would be wrong half
+// the time.
+
+await seedGoals()
+await goto('/')
+check(
+  '49a. it opens on next steps, with the other view offered',
+  (await text()).includes(EN.home) &&
+    (await visible(EN.viewGoals)) &&
+    // Above the heading, not beside it: side by side they competed for one line, and the
+    // heading changes length when the toggle is used — so at some widths the control that
+    // had just been pressed wrapped below the words it had changed.
+    (await evaluate(
+      `(() => {
+         const group = document.querySelector('main [role="group"]');
+         const h1 = document.querySelector('main h1');
+         // 4 === DOCUMENT_POSITION_FOLLOWING: the heading comes after the toggle.
+         return Boolean(group && h1 && group.compareDocumentPosition(h1) & 4) &&
+           group.getBoundingClientRect().bottom <= h1.getBoundingClientRect().top;
+       })()`,
+    )) === true &&
+    // Pressed rather than colour alone: the label is the state's name, and this is what
+    // says which one is current out loud.
+    (await evaluate(
+      `[...document.querySelectorAll('main button')]
+         .find((b) => b.textContent.trim() === ${JSON.stringify('My next steps')})
+         ?.getAttribute('aria-pressed')`,
+    )) === 'true',
+  (await text()).replace(NL, ' / ').slice(0, 90),
+)
+
+await click(EN.viewGoals)
+screen = await text()
+check(
+  '49b. switching shows the goals themselves, and renames the page with them',
+  screen.includes(EN.goalsTitle) &&
+    !screen.includes(EN.home) &&
+    screen.includes('Sleep better') &&
+    // The goals and nothing else: no area, no counts, no state. Anything more would make
+    // this a second areas page.
+    !screen.includes(EN.check),
+  screen.replace(NL, ' / ').slice(0, 120),
+)
+
+/**
+ * Starring a goal is its own fact, and it sorts this list.
+ *
+ * Deliberately not `goal_priority`: that orders goals *within* one area and there is one
+ * of it, which says nothing about what to show first in a list that crosses areas. So the
+ * write has to land on the goal's own key, and the order has to follow it.
+ */
+const beforeStar = JSON.parse(await raw()).facts.length
+const secondGoal49 = await evaluate(
+  `document.querySelectorAll('main ul li p')[1].textContent.trim()`,
+)
+await clickAria(`Pin: ${secondGoal49}`)
+await sleep(250)
+const starred = JSON.parse(await raw())
+const goalOrderNow = await evaluate(
+  `[...document.querySelectorAll('main ul li p')].map((p) => p.textContent.trim())`,
+)
+check(
+  '49c. starring a goal moves it first and writes one fact on the goal itself',
+  goalOrderNow[0] === secondGoal49 &&
+    starred.facts.length === beforeStar + 1 &&
+    starred.facts.some((f) => /\.goal\.[^.]+\.pinned$/.test(f.key) && f.value === 'yes'),
+  `${JSON.stringify(goalOrderNow.slice(0, 2))} | ${starred.facts.length} vs ${beforeStar}`,
+)
+
+/**
+ * The choice is remembered across a reload — and it is **not** a fact.
+ *
+ * This asserted that the toggle "stores nothing", which passed for the wrong reason the
+ * moment it began being saved: it counted `facts`, and the view is a store field like
+ * `theme`. It now asserts both halves of what is actually true — the preference survives a
+ * reload, and it adds no entry to the append-only log, because a way of reading the page is
+ * not something the person said.
+ */
+const beforeReload = JSON.parse(await raw())
+await goto('/')
+screen = await text()
+check(
+  '49d. the chosen view survives a reload, without becoming a fact',
+  screen.includes(EN.goalsTitle) &&
+    !screen.includes(EN.home) &&
+    JSON.parse(await raw()).facts.length === beforeReload.facts.length &&
+    JSON.parse(await raw()).homeView === 'goals',
+  `${JSON.parse(await raw()).facts.length} facts, homeView ${JSON.parse(await raw()).homeView}`,
+)
+
+/**
+ * A goal opens its area, and the way back follows where you came from.
+ *
+ * `?from=home` is the whole mechanism — `AreaScreen` reads it, and 37e/37f already cover
+ * the fallbacks — so this asserts that the link carries it and that the back link answers
+ * accordingly. A goal you can see but not act on is a dead end.
+ */
+const goalLink = await evaluate(
+  `(() => {
+     const link = document.querySelector('main ul li p a');
+     return link ? { href: link.getAttribute('href'), text: link.textContent.trim() } : null;
+   })()`,
+)
+await clickText(goalLink.text)
+await sleep(500)
+screen = await text()
+const backFromGoal = await evaluate(
+  `(() => {
+     const a = document.querySelector('main a[href]');
+     return a ? { href: new URL(a.href).pathname, text: a.textContent.trim() } : null;
+   })()`,
+)
+check(
+  '49d2. a goal on the start page opens its area, and the way back points at home',
+  goalLink.href.includes('?from=home') &&
+    screen.includes(goalLink.text) &&
+    backFromGoal?.href === '/',
+  `${goalLink.href} -> ${JSON.stringify(backFromGoal)}`,
+)
+await goto('/')
+
+// Back to the default, which is the one value never written: choosing it drops the field
+// rather than storing 'steps', so anyone who does not keep the goals view leaves no trace.
+await click(EN.viewSteps)
+await sleep(250)
+check(
+  '49e. and choosing the default again leaves nothing stored about it',
+  (await text()).includes(EN.home) && JSON.parse(await raw()).homeView === undefined,
+  `homeView ${JSON.stringify(JSON.parse(await raw()).homeView)}`,
+)
+
+// --- 50. how close a goal feels, and the fifth point that closes it ------
+
+/**
+ * An optional check-in on one goal, on both pages that show goals.
+ *
+ * The seeded fixture is doing real work here: `seedGoals()` predates this feature and writes
+ * no progress fact, so every goal it produces is exactly the case that has to keep working
+ * — one that existed before the question was ever asked. "Absent" is therefore observed
+ * rather than arranged.
+ *
+ * Nothing here had a check to invert. Progress is new, so no existing assertion claimed
+ * that reaching the top of the scale leaves a goal open; the closing behaviour is asserted
+ * from scratch below rather than by flipping something.
+ */
+
+await seedGoals()
+const AREA_G = AREAS[3].id
+await goto(`/areas/${AREA_G}/`)
+await waitForText('Finish the portfolio')
+
+/** The dots, as painted: how many are filled, and whether every box is the same size. */
+const dots = async () =>
+  evaluate(`(() => {
+    const host = document.querySelector('main .scale-toggle') || document.querySelector('main form');
+    if (!host) return null;
+    const marks = [...host.querySelectorAll('span[aria-hidden="true"]')];
+    const seen = marks.map((el) => {
+      const s = getComputedStyle(el);
+      const r = el.getBoundingClientRect();
+      return {
+        background: s.backgroundColor,
+        borderWidth: s.borderTopWidth,
+        borderColor: s.borderTopColor,
+        w: Math.round(r.width),
+        h: Math.round(r.height),
+      };
+    });
+    return {
+      total: seen.length,
+      filled: seen.filter((d) => d.background !== 'rgba(0, 0, 0, 0)').length,
+      boxes: [...new Set(seen.map((d) => d.w + 'x' + d.h))],
+      first: seen[0],
+      last: seen[seen.length - 1],
+    };
+  })()`)
+
+/** Picks the nth point without saving it — which is the distinction this whole section is about. */
+async function pick(n) {
+  await evaluate(`document.querySelectorAll('main form input[type="radio"]')[${n - 1}].click()`)
+  await sleep(200)
+}
+
+const restingDots = await dots()
+check(
+  '50a. a goal written before this feature shows an empty scale, and holds no rating',
+  restingDots?.total === 5 && restingDots.filled === 0 && !(await raw()).includes('.progress'),
+  `${restingDots?.filled}/${restingDots?.total} filled`,
+)
+
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+const beforePick = await raw()
+await pick(3)
+screen = await text()
+/**
+ * **The check this section exists for.**
+ *
+ * Picking is a thought and saving is an act. A radio that wrote on change would look
+ * identical on screen and be a different product — one that records a passing impression of
+ * your own life the moment you touch it. Byte-identical, not "no new fact": a rewrite that
+ * happened to keep the count would pass the weaker form.
+ */
+check(
+  '50b. choosing a point writes nothing at all until it is confirmed',
+  (await raw()) === beforePick && screen.includes(EN.progress3),
+  (await raw()) === beforePick ? `store untouched, and it says “${EN.progress3}”` : 'STORE CHANGED',
+)
+
+/**
+ * Rating gives the goal the page, the way removing one already did.
+ *
+ * Asserted on **button text**, not on the page's words: `manageDone` is "Back", and the back
+ * link at the top of every nested page reads "Back to your life areas" — so a `screen`
+ * substring test passes whatever the footer does. The kind of needle that guards nothing
+ * while looking like it guards something.
+ */
+const whileRating = await evaluate(`(() => {
+  const main = document.querySelector('main');
+  return {
+    buttons: [...main.querySelectorAll('button')].map((b) => b.innerText.trim()).filter(Boolean),
+    cards: main.querySelectorAll('ol > li').length,
+  };
+})()`)
+check(
+  '50c. and while it is open, the goal has the page — no siblings, no entry controls, no footer',
+  whileRating?.cards === 1 &&
+    ![EN.addEntry, EN.goalAdd, EN.manageDone].some((label) => whileRating.buttons.includes(label)) &&
+    !(await ariaLabels()).some(
+      (l) => l.startsWith('Change this goal:') || l.startsWith('Remove goal:'),
+    ),
+  `${whileRating?.cards} card(s): ${whileRating?.buttons.join(' / ')}`,
+)
+
+await click(EN.cancel)
+await sleep(250)
+check(
+  '50d. cancelling leaves the store byte-identical',
+  (await raw()) === beforePick,
+  (await raw()) === beforePick ? 'untouched' : 'STORE CHANGED',
+)
+
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+await pick(3)
+await click(EN.progressSave)
+await sleep(300)
+const rated = JSON.parse(await raw()).facts.filter((f) => f.key.endsWith('.progress'))
+check(
+  '50e. confirming writes one fact, keyed on the goal, holding the number',
+  rated.length === 1 && rated[0].key === `area.${AREA_G}.goal.${G1}.progress` && rated[0].value === '3',
+  rated.map((f) => `${f.key}=${f.value}`).join(', ') || 'nothing written',
+)
+
+await goto(`/areas/${AREA_G}/`)
+await waitForText('Finish the portfolio')
+const afterReload = await dots()
+check(
+  '50f. it survives a reload and the scale shows it',
+  afterReload?.filled === 3,
+  `${afterReload?.filled}/5 filled`,
+)
+
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+const reopened = await evaluate(`(() => {
+  const inputs = [...document.querySelectorAll('main form input[type="radio"]')];
+  const save = [...document.querySelectorAll('main form button')].find((b) => b.type === 'submit');
+  return {
+    checked: inputs.findIndex((i) => i.checked) + 1,
+    named: inputs.every((i) => (i.closest('label')?.innerText || i.labels?.[0]?.textContent || '').trim().length > 0),
+    saveDisabled: save?.disabled === true,
+  };
+})()`)
+check(
+  '50g. reopening starts from what is stored, with the save already available',
+  reopened?.checked === 3 && reopened.saveDisabled === false,
+  JSON.stringify(reopened),
+)
+
+await pick(2)
+await click(EN.progressSave)
+await sleep(300)
+const two = JSON.parse(await raw()).facts.filter((f) => f.key.endsWith('.progress'))
+/**
+ * Appended, not replaced. This is the check that keeps "progress over time" possible without
+ * anything today reading it: the log holds every rating with its own `learnedAt`, and only
+ * the newest is shown.
+ */
+check(
+  '50h. a later answer is appended, and the newest one wins',
+  two.length === 2 && two.map((f) => f.value).join('') === '32' && (await dots())?.filled === 2,
+  two.map((f) => f.value).join(' → '),
+)
+
+const beforeRepeat = await raw()
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+await pick(2)
+await click(EN.progressSave)
+await sleep(300)
+/**
+ * Saying the same thing twice writes nothing.
+ *
+ * The guard is in the writer rather than at the two call sites, so this holds from the start
+ * page too. What it costs is recorded in `docs/goals-and-areas.md`: the log now holds
+ * *changes*, not check-ins, and "when did they last confirm this was still a 2" has no
+ * answer. A future periodic check-in wants its own key, not this one relaxed.
+ */
+check(
+  '50i. confirming the value it already holds writes nothing',
+  (await raw()) === beforeRepeat,
+  (await raw()) === beforeRepeat ? 'no duplicate appended' : 'STORE CHANGED',
+)
+
+/**
+ * The `GOAL_KEY` trap, asserted rather than trusted.
+ *
+ * That pattern is what discovers which goals exist, so a field added to it makes any fact
+ * under a goal id conjure a goal with no words — from a hand-edited or partially-synced
+ * store. `pinned` is excluded for this reason and `progress` follows it; this is what would
+ * notice if either were ever folded back in.
+ */
+await goto('/')
+const ghostAt = '2026-03-01T00:00:00.000Z'
+await evaluate(
+  `localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, ${JSON.stringify(
+    JSON.stringify({
+      version: 1,
+      consentAt: ghostAt,
+      locale: 'en',
+      facts: [
+        { id: 'x1', key: 'introduction_done', value: 'yes', source: 'goals', learnedAt: ghostAt },
+        { id: 'x2', key: `area.${AREA_G}.review`, value: 'yes', source: 'goals', learnedAt: ghostAt },
+        { id: 'x3', key: `area.${AREA_G}.goal.real.text`, value: 'A real goal', source: 'goals', learnedAt: ghostAt },
+        { id: 'x4', key: `area.${AREA_G}.goal.ghost.progress`, value: '4', source: 'goals', learnedAt: ghostAt },
+      ],
+    }),
+  )})`,
+)
+await goto(`/areas/${AREA_G}/`)
+await waitForText('A real goal')
+check(
+  '50j. a rating with no goal behind it does not conjure one',
+  (await count('main ol > li')) === 1 && !(await text()).includes(EN.progress4),
+  `${await count('main ol > li')} goal cards`,
+)
+
+// --- the fifth point ------------------------------------------------------
+
+await seedGoals()
+await goto(`/areas/${AREA_G}/`)
+await waitForText('Finish the portfolio')
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+const beforeFive = await raw()
+await pick(5)
+screen = await text()
+check(
+  '50k. reaching the top of the scale asks rather than acts, and still writes nothing',
+  (await raw()) === beforeFive &&
+    screen.includes(EN.reachedQuestion) &&
+    screen.includes(EN.progressQuestion) &&
+    screen.includes(EN.goalCloseNote),
+  (await raw()) === beforeFive ? 'asked, nothing written' : 'STORE CHANGED',
+)
+
+await pick(4)
+screen = await text()
+/**
+ * The scale stays on screen while it asks, which is the whole reason the question is not a
+ * screen of its own: changing your mind costs one tap on another dot rather than a trip out
+ * through Cancel and back in.
+ */
+check(
+  '50l. picking a lower point takes the question back',
+  !screen.includes(EN.reachedQuestion) && screen.includes(EN.progress4),
+  'back to an ordinary save',
+)
+
+await pick(5)
+await click(EN.reachedNo)
+await sleep(300)
+check(
+  '50m. declining the question leaves the goal exactly as it was',
+  (await raw()) === beforeFive && (await text()).includes('Finish the portfolio'),
+  (await raw()) === beforeFive ? 'untouched, goal still there' : 'STORE CHANGED',
+)
+
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+await pick(5)
+await click(EN.reachedYes)
+await sleep(400)
+screen = await text()
+/**
+ * Two facts, in causal order — "I got there", then "so this is done".
+ *
+ * The fixture already writes `text` and `why` under this goal, so the filter is on the two
+ * fields the act produces rather than on the goal id; asserting a count over everything
+ * under `goal.<gid>.` would have counted the seed and passed for the wrong reason.
+ *
+ * `state` is written by the same `completeGoal` the "I have reached this" control uses, so
+ * the cascade, `activeGoals` and `/data/stored/` all behave as they already did.
+ */
+const closing = JSON.parse(await raw()).facts.filter(
+  (f) => f.key.startsWith(`area.${AREA_G}.goal.${G1}.`) && /\.(progress|state)$/.test(f.key),
+)
+check(
+  '50n. confirming records the five and closes the goal, in that order',
+  closing.length === 2 &&
+    closing[0].key.endsWith('.progress') &&
+    closing[0].value === '5' &&
+    closing[1].key.endsWith('.state') &&
+    closing[1].value === 'done',
+  closing.map((f) => `${f.key.split('.').pop()}=${f.value}`).join(' → '),
+)
+/**
+ * The congratulation has the page, and does not quote the goal back.
+ *
+ * Both halves are deliberate. It stays generic because quoting a half-typed goal at someone
+ * is slightly absurd and the moment does not need the app to prove it was listening — so the
+ * check asserts the words are **gone**, which also proves the list stood down rather than
+ * merely losing one row. Reaching the last goal in an area is what makes that matter: without
+ * it, "there is nothing to see here yet" and an offer to create a goal land directly under a
+ * celebration.
+ *
+ * The way on is primary, because with everything else hidden it is the only thing to do.
+ */
+const celebration = await evaluate(`(() => {
+  const main = document.querySelector('main');
+  const on = [...main.querySelectorAll('a, button')].find(
+    (el) => el.innerText.trim() === ${JSON.stringify('Continue')},
+  );
+  return {
+    buttons: [...main.querySelectorAll('button')].map((b) => b.innerText.trim()).filter(Boolean),
+    primary: on?.classList.contains('btn-primary') ?? null,
+  };
+})()`)
+check(
+  '50o. it says so without quoting the goal, and takes the page while it does',
+  screen.includes(EN.congrats) &&
+    screen.includes(EN.congratsAny) &&
+    !screen.includes('Finish the portfolio') &&
+    !screen.includes(EN.emptyNote) &&
+    celebration?.primary === true &&
+    celebration.buttons.length === 1,
+  `${celebration?.buttons.join(' / ')} — primary ${celebration?.primary}`,
+)
+
+await click(EN.congratsClose)
+await sleep(300)
+check(
+  '50o2. and dismissing it gives the page back',
+  (await text()).includes(EN.emptyNote),
+  'the area is itself again',
+)
+
+/**
+ * The cascade, observed rather than assumed: an entry leaves the open set when the goal it
+ * serves closes, by derivation and with no second write. It is the reason the confirmation
+ * states a consequence, so it had better be true.
+ */
+await goto('/')
+await sleep(400)
+check(
+  '50p. what was being tried for it leaves the start page with it',
+  !(await text()).includes('Pick the three best pieces'),
+  'entries gone with the goal',
+)
+
+// --- the start page -------------------------------------------------------
+
+await seedGoals()
+await goto('/')
+await click(EN.viewGoals)
+await sleep(300)
+const starsBefore = (await ariaLabels()).filter(
+  (l) => l.startsWith('Pin:') || l.startsWith('Unpin:'),
+).length
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+const beforeHome = await raw()
+await pick(2)
+const starsDuring = (await ariaLabels()).filter(
+  (l) => l.startsWith('Pin:') || l.startsWith('Unpin:'),
+).length
+/**
+ * **That** row's star comes down, not every row's.
+ *
+ * A count rather than an absence, because the other goals are still listed and still
+ * starrable — they are different goals, not the surrounding detail of this one, so hiding
+ * them would be a different and wrong idea of focus. Asserting "no stars at all" would have
+ * demanded exactly that.
+ */
+check(
+  '50q. the start page holds the choice unsaved, and takes down that row’s star only',
+  (await raw()) === beforeHome && starsDuring === starsBefore - 1 && starsBefore > 1,
+  (await raw()) === beforeHome
+    ? `nothing written, stars ${starsBefore} → ${starsDuring}`
+    : 'STORE CHANGED',
+)
+
+await click(EN.progressSave)
+await sleep(300)
+const fromHome = JSON.parse(await raw()).facts.filter((f) => f.key.endsWith('.progress'))
+/**
+ * The first goal on the start page is the **legacy** one, and that makes this the better
+ * case rather than the wrong one.
+ *
+ * Its words live at the old bare `area.<a>.goal` key and always will — moving them would
+ * split its wording history at the seam. Its newer fields live under the reserved gid like
+ * any other goal's, which is the whole point of putting the id in the key: a goal can grow
+ * a field without its text having to move. This is that claim, exercised on the one goal
+ * where it is not obvious.
+ */
+check(
+  '50r. and confirming from there writes the same key — including for the legacy goal',
+  fromHome.length === 1 &&
+    fromHome[0].key === `area.${AREAS[0].id}.goal.legacy.progress` &&
+    fromHome[0].value === '2',
+  fromHome.map((f) => `${f.key}=${f.value}`).join(', ') || 'nothing written',
+)
+
+/**
+ * Two states, two differences, identical metrics — the rule `components/progress-marks.tsx`
+ * follows and the reason this reuses its vocabulary rather than inventing a second one. §17
+ * forbids carrying meaning by colour alone, so fill and border width both have to change;
+ * the boxes have to stay one size, or every rating would reflow the row.
+ */
+await goto('/')
+await sleep(300)
+const painted50 = await dots()
+check(
+  '50s. filled and empty marks are one size and differ in more than colour',
+  painted50?.boxes.length === 1 &&
+    painted50.first.background !== painted50.last.background &&
+    painted50.first.borderWidth !== painted50.last.borderWidth,
+  `${painted50?.boxes.join(',')} — ${painted50?.first.borderWidth} vs ${painted50?.last.borderWidth}`,
+)
+
+/**
+ * The radios are native on purpose: `components/menu.tsx` sets the rule that claiming a role
+ * without implementing its keyboard behaviour is worse than not claiming it, and nothing in
+ * this project implements roving focus. So the browser does it — which only holds while they
+ * really are inputs in a named group.
+ */
+await goto('/')
+await click(EN.viewGoals)
+await sleep(300)
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+const keyboard = await evaluate(`(() => {
+  const group = document.querySelector('main form fieldset');
+  const inputs = [...(group?.querySelectorAll('input[type="radio"]') || [])];
+  return {
+    grouped: Boolean(group?.querySelector('legend')?.textContent?.trim()),
+    sameName: new Set(inputs.map((i) => i.name)).size === 1,
+    named: inputs.every((i) => (i.closest('label')?.innerText || '').trim().length > 0),
+    count: inputs.length,
+  };
+})()`)
+check(
+  '50t. every point is a real radio in a named group, each with its own name',
+  keyboard?.count === 5 && keyboard.grouped && keyboard.sameName && keyboard.named,
+  JSON.stringify(keyboard),
+)
+
+/**
+ * Memory mode. `setGoalProgress` goes through `remember()` like everything else, so the
+ * consent gate applies — but "it goes through `remember()` so it must be gated" is an
+ * argument, not a check, which is the same reasoning 5e already records one level up.
+ */
+await clearStorage()
+await goto('/')
+await click(EN.no)
+await type('Not for me.')
+await click(EN.cont)
+await click(EN.contYes)
+await click(EN.introOk)
+await runArea('Sleep before midnight', 'Phone out of the bedroom')
+await declineRest()
+await click(EN.toHome)
+await click(EN.viewGoals)
+await sleep(300)
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+await pick(3)
+await click(EN.progressSave)
+await sleep(300)
+check(
+  '50u. rating works with nothing being saved, and saves nothing',
+  (await dots())?.filled === 3 && (await keys()).length === 0,
+  `${(await keys()).length} localStorage keys`,
+)
+
+// --- 51. structural edges are one weight, and it is not a hairline --------
+
+/**
+ * `--edge` reaches everything that draws a control or a card, and separators are left alone.
+ *
+ * This exists because of how the first attempt failed. `--edge: 1.5px` was correct in the
+ * stylesheet, shipped in the built CSS, and rendered as **1px** — Chrome floors a border to
+ * whole device pixels, so it only showed on a retina screen. Everything looked right on the
+ * machine it was written on and nothing had changed anywhere else. Asserting a *number*
+ * rather than "the declaration is present" is the whole point: the used value is the only
+ * thing that says whether the change happened.
+ *
+ * The second half matters as much as the first. The reason a control edge is thicker is to
+ * stop it reading as the same kind of line as a rule between paragraphs — so if separators
+ * were ever swept along with it, the distinction this token exists to create would be gone
+ * while every "is it thicker" check still passed.
+ */
+await seedGoals()
+await goto(`/areas/${AREAS[3].id}/`)
+await waitForText('Finish the portfolio')
+// Rated first, so the marks have both states to compare. Unrated they are five identical
+// empty circles, and 51c would have been measuring nothing.
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+await pick(3)
+await click(EN.progressSave)
+await sleep(300)
+const edges = await evaluate(`(() => {
+  const width = (sel) => {
+    const el = document.querySelector(sel);
+    return el ? getComputedStyle(el).borderTopWidth : null;
+  };
+  const dots = [...document.querySelectorAll('main .scale-toggle span')]
+    .map((el) => getComputedStyle(el).borderTopWidth);
+  return {
+    card: width('main ol > li'),
+    button: width('main .btn'),
+    pin: width('main .pin-toggle'),
+    scale: width('main .scale-toggle'),
+    // A decorative rule, which must stay a hairline.
+    rule: getComputedStyle(document.querySelector('footer')).borderTopWidth,
+    dots: [...new Set(dots)].sort(),
+  };
+})()`)
+const structural = [edges?.card, edges?.button, edges?.pin, edges?.scale]
+check(
+  '51a. every control and card edge is drawn at the same weight, thicker than a hairline',
+  new Set(structural).size === 1 && parseFloat(structural[0]) >= 2,
+  structural.join(' / '),
+)
+check(
+  '51b. and a separator is still a hairline, which is the distinction the token buys',
+  edges?.rule === '1px' && parseFloat(structural[0]) > parseFloat(edges.rule),
+  `rule ${edges?.rule} vs edge ${structural[0]}`,
+)
+/**
+ * The scale's marks are **not** on `--edge`, and must not be swept onto it: their 1px/2px
+ * difference is the second, non-colour cue that says which are filled. §17 forbids carrying
+ * meaning by colour alone, so equalising these would break an accessibility rule while
+ * looking like tidying up.
+ */
+check(
+  '51c. the scale marks keep their own two widths, which is how filled is readable',
+  edges?.dots.length === 2,
+  edges?.dots.join(' / '),
+)
+
+// --- 52. starring a life area moves it, and changes nothing else ---------
+
+/**
+ * The third thing that can be starred, and it means what the other two mean: *show me this
+ * first*. Any number may be set, nothing behaves differently for it, and it orders exactly
+ * one list.
+ *
+ * The order it overrides is presentation rather than data — `lib/areas.ts` drives the
+ * introduction's sequence and nothing else — so this is safe in a way re-ordering stored
+ * things would not be. §52c is the check on that: the *walk* order must not move.
+ */
+await seedGoals()
+await goto('/areas/')
+await waitForText(EN.picker)
+const orderBefore = await evaluate(
+  `[...document.querySelectorAll('main ul > li')].map((li) => li.innerText.replace(/[ ]+/g, ' ').trim())`,
+)
+await clickAria(`Pin: ${AREAS[3].label}`)
+await sleep(350)
+const orderAfter = await evaluate(
+  `[...document.querySelectorAll('main ul > li')].map((li) => li.innerText.replace(/[ ]+/g, ' ').trim())`,
+)
+const starFacts = JSON.parse(await raw()).facts.filter((f) => /^area\.[^.]+\.pinned$/.test(f.key))
+check(
+  '52a. starring an area moves it to the top and writes one fact on the area itself',
+  orderBefore?.[0] !== orderAfter?.[0] &&
+    orderAfter?.[0]?.includes(AREAS[3].label) &&
+    starFacts.length === 1 &&
+    starFacts[0].key === `area.${AREAS[3].id}.pinned` &&
+    starFacts[0].value === 'yes',
+  `${orderBefore?.[0]} → ${orderAfter?.[0]}`,
+)
+check(
+  '52a2. and the areas below it keep the order they had',
+  JSON.stringify(orderAfter?.slice(1)) ===
+    JSON.stringify(orderBefore?.filter((label) => !label.includes(AREAS[3].label))),
+  (orderAfter ?? []).join(' / '),
+)
+
+await goto('/areas/')
+await waitForText(EN.picker)
+const persisted = await evaluate(
+  `document.querySelector('main ul > li').innerText.replace(/[ ]+/g, ' ').trim()`,
+)
+await clickAria(`Unpin: ${AREAS[3].label}`)
+await sleep(350)
+const orderBack = await evaluate(
+  `[...document.querySelectorAll('main ul > li')].map((li) => li.innerText.replace(/[ ]+/g, ' ').trim())`,
+)
+check(
+  '52b. it survives a reload, and unstarring puts the list back as it was',
+  persisted?.includes(AREAS[3].label) && JSON.stringify(orderBack) === JSON.stringify(orderBefore),
+  `${persisted} → ${orderBack?.[0]}`,
+)
+
+/**
+ * The introduction's sequence is **not** the list's order, and starring must not touch it.
+ *
+ * They come from the same array, which is exactly why this is worth asserting rather than
+ * reasoning about: `/areas/` re-orders a copy, and a future refactor that sorted `areas`
+ * itself would change which area someone is asked about first — silently, and only for
+ * people who had starred something.
+ */
+await clearStorage()
+await goto('/')
+await evaluate(
+  `localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, ${JSON.stringify(
+    JSON.stringify({
+      version: 1,
+      consentAt: '2026-04-01T00:00:00.000Z',
+      locale: 'en',
+      facts: [
+        {
+          id: 'star',
+          key: `area.${AREAS[5].id}.pinned`,
+          value: 'yes',
+          source: 'goals',
+          learnedAt: '2026-04-01T00:00:00.000Z',
+        },
+      ],
+    }),
+  )})`,
+)
+await goto('/')
+await sleep(500)
+// Past the "next we will look at six areas" screen, which is what a store holding nothing
+// but a star opens on.
+await click(EN.introOk)
+await sleep(300)
+screen = await text()
+check(
+  '52c. a starred area does not jump the queue in the introduction',
+  screen.includes(AREAS[0].label) && !screen.includes(AREAS[5].label),
+  screen.replace(NL, ' / ').slice(0, 90),
+)
+
+await goto('/data/stored/')
+await expandAll()
+check(
+  '52d. and the star is shown on the page that promises to show everything',
+  (await text()).includes('kept at the top'),
+  'star rendered rather than silently held',
+)
 
 check(
   '9. no request went anywhere but the app’s own assets',

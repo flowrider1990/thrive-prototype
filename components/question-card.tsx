@@ -14,6 +14,7 @@ export function QuestionCard({
   ack,
   subject,
   eyebrow,
+  mark,
   question,
   note,
   children,
@@ -51,8 +52,20 @@ export function QuestionCard({
    * enough to be read as part of it.
    */
   eyebrow?: ReactNode
+  /**
+   * A small mark before the question, for what the question is *about* — the goal flag on
+   * every screen that asks for one. Decorative and `aria-hidden` at its callers, so the
+   * heading's accessible name stays the question itself.
+   */
+  mark?: ReactNode
   question: string
-  note?: string | null
+  /**
+   * A node rather than a string, so a note can carry a link inside its sentence — which
+   * the closing screen needs, and which splitting the sentence across two keys would have
+   * made untranslatable. Still rendered as one `<p>`; this widens what may go in it, not
+   * how it is laid out.
+   */
+  note?: ReactNode
   children?: ReactNode
 }) {
   const { m } = useI18n()
@@ -70,7 +83,11 @@ export function QuestionCard({
               </h1>
               {/* Sans, full ink, and a step above body: unmistakably the thing to
                   answer, and no longer competing with the area for the display face. */}
-              <p className="max-w-prose text-lg leading-relaxed text-ink">{question}</p>
+              <p className="max-w-prose text-lg leading-relaxed text-ink">
+                {mark}
+                {mark ? ' ' : null}
+                {question}
+              </p>
               {/* After the question here, not before it: with a `subject` the area is
                   already the heading, so this is detail about what is being asked
                   rather than a label over it. */}
@@ -83,7 +100,11 @@ export function QuestionCard({
                   can run to six lines — the consent one does — and the display scale
                   that suits a page title shouts at that length on a phone. Same
                   face, so the screens still read as one product. */}
-              <h1 className="heading text-2xl leading-snug sm:text-3xl">{question}</h1>
+              <h1 className="heading text-2xl leading-snug sm:text-3xl">
+                {mark}
+                {mark ? ' ' : null}
+                {question}
+              </h1>
             </>
           )}
         </div>

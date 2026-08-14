@@ -70,5 +70,13 @@ export type PersonStore = {
    * discard real answers.
    */
   theme?: Theme
+  /**
+   * Which of the start page's two views to open on. Absent means next steps.
+   *
+   * Optional for the reason `theme` and `locale` are: a `version: 2` would make `parse()`
+   * reject every existing store. Only `'goals'` is ever written — the default leaves no
+   * trace, so a person who never touched the toggle has nothing stored about it.
+   */
+  homeView?: 'goals'
   facts: PersonFact[]
 }

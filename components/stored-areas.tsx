@@ -75,6 +75,28 @@ export function StoredAreas() {
   function standing(goal: GoalDetail): string {
     const parts = [noted(goal.createdAt)]
     if (goal.priority) parts.push(m.stored.areas.goalPriority)
+    /**
+     * The newest rating, as the **word** that was chosen.
+     *
+     * The stored value is `'3'` — a token the app wrote, and this page never prints one of
+     * those. Rendering it here at all is not decoration: `isAreaKey()` keeps every `area.*`
+     * fact out of the generic list on `/data/stored/`, so anything not resolved here is held
+     * and never shown, which is the one thing this page exists to make impossible.
+     *
+     * It carries a date, unlike being the goal put first: a rating is something that
+     * happened at a moment, where a pointer is just where something currently points.
+     */
+    if (goal.progress !== undefined) {
+      const scale = [
+        m.manage.progress1,
+        m.manage.progress2,
+        m.manage.progress3,
+        m.manage.progress4,
+        m.manage.progress5,
+      ]
+      const felt = t(m.stored.areas.goalProgress, { value: scale[goal.progress - 1] ?? '' })
+      parts.push(goal.progressAt ? `${felt} · ${formatWhen(goal.progressAt, locale)}` : felt)
+    }
     const word =
       goal.state === 'done'
         ? m.stored.areas.goalReached

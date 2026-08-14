@@ -476,6 +476,52 @@
     color: var(--color-note);
   }
 
+  /**
+   * The fourth icon-only control: a row of five dots saying how close a goal feels.
+   *
+   * Same border rule as `.pin-toggle` and for the same reason — a control edge at rest is
+   * what says "this is a control", and a bare row of dots would read as decoration rather
+   * than as something to press. Wider padding because the content is five glyphs on a row
+   * rather than one, so `p-1.5` on a pill would crowd them against the edge.
+   *
+   * `rounded-full` rather than `rounded-md`: this belongs to the icon-button family, not to
+   * the `.field` / `.option` family that draws boxes around content.
+   *
+   * The dots inside carry no colour of their own beyond their tokens, so nothing here sets
+   * one — unlike `.pin-toggle-on`, this control has no on/off state to mark. What it shows
+   * is *how many* are filled, and that is the dots' own business.
+   */
+  .scale-toggle {
+    @apply inline-flex shrink-0 items-center gap-x-1 rounded-full px-2.5 py-1.5;
+    @apply border border-line-strong transition-colors;
+    @apply hover:border-muted;
+  }
+
+  /**
+   * One point on the scale: a hidden radio and a visible dot.
+   *
+   * The radio is `sr-only` rather than restyled with `appearance-none`, so the browser keeps
+   * arrow-key navigation, group semantics and the "3 of 5" announcement — every part that is
+   * expensive to hand-roll — while the dot carries the appearance. `components/menu.tsx`
+   * states the rule this follows: claiming a role without implementing its keyboard
+   * behaviour is worse than not claiming it, so here the browser implements it.
+   *
+   * The consequence is that the global `:focus-visible` outline would land on a 1px clipped
+   * input and be invisible, so the label takes it instead. `:has()` rather than a `peer`
+   * utility, to keep it with the other component classes.
+   *
+   * Padding, not size: the dot stays 12px in every state, and the label around it is what
+   * makes the target big enough to hit.
+   */
+  .scale-option {
+    @apply inline-flex cursor-pointer items-center justify-center rounded-full p-2;
+  }
+
+  .scale-option:has(input:focus-visible) {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
   .link-inline {
     @apply text-ink underline decoration-line-strong underline-offset-2 transition-colors;
   }

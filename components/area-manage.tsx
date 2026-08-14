@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { AreaFlow } from '@/components/area-flow'
 import { AreaIcon, GoalIcon } from '@/components/area-icon'
+import { GoalProgress, GoalReached } from '@/components/goal-progress'
 import { Cross, Pencil, Star } from '@/components/icons'
 import { TextAnswer } from '@/components/text-answer'
 import type { AreaId } from '@/lib/areas'
@@ -90,21 +91,60 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
   const [deletingGoal, setDeletingGoal] = useState<string | null>(null)
   const [editingStep, setEditingStep] = useState<string | null>(null)
   const [addingTo, setAddingTo] = useState<string | null>(null)
+  const [evaluating, setEvaluating] = useState<string | null>(null)
+
+  /**
+   * The goal that was just reached, held by its **words** rather than by its id.
+   *
+   * Confirming removes it from `activeGoals` in the same render, so by the time the
+   * congratulation is read there is no goal left to look up. Keeping the text is what lets
+   * the message name what was achieved instead of saying "done".
+   */
+  const [reached, setReached] = useState<string | null>(null)
 
   const back = () => setView({ at: 'overview' })
 
-  /**
-   * While a goal's removal is being confirmed, **only that goal is on the page.**
-   *
-   * The question was one card among others, with two more goals and two page controls
-   * still offering things to do — so the one moment that needs a single answer was the
-   * busiest state on the screen. Filtering the list is enough: the card is already the
-   * question, and everything else simply is not drawn.
-   */
+  /** Opening any one inline mode closes the rest — two open panels are two places to type. */
+  function onlyOpen(next: () => void) {
+    setEditingGoal(null)
+    setDeletingGoal(null)
+    setEditingStep(null)
+    setAddingTo(null)
+    setEvaluating(null)
+    next()
+  }
+
   const allGoals = state.priority
     ? [state.priority, ...state.activeGoals.filter((goal) => goal.id !== state.priority?.id)]
     : state.activeGoals
-  const goals = deletingGoal ? allGoals.filter((goal) => goal.id === deletingGoal) : allGoals
+
+  /**
+   * The goal that has the page to itself, if one does.
+   *
+   * Three states take it: confirming a removal, changing the wording, and saying how close
+   * it feels. Each asks **one** question about **one** goal, and each used to ask it as a
+   * card among others — with two more goals and two page controls still offering things to
+   * do, so the moments that need a single answer were the busiest states on the screen.
+   *
+   * Filtering the list is the whole mechanism: the card is already the question, so
+   * everything else simply is not drawn. Nothing scrolls away and nothing is disabled.
+   *
+   * Editing an **entry** deliberately does not isolate. That field lives inside the entries
+   * block, so hiding the surroundings would hide the thing being typed into; there the
+   * narrower `busyHere` rule takes the goal's own controls down instead.
+   */
+  const isolated = deletingGoal ?? editingGoal ?? evaluating
+  const goals = isolated ? allGoals.filter((goal) => goal.id === isolated) : allGoals
+
+  /**
+   * The congratulation takes the page in the same way, and needs its own flag because it is
+   * the one state not attached to a goal id — the goal it is about has just left the list.
+   *
+   * Reaching the *last* goal in an area is what makes this matter: without it, "there is
+   * nothing to see here yet" and an offer to create a goal appear directly under the
+   * congratulation, which answers a moment with a shrug and a chore.
+   */
+  const celebrating = reached !== null
 
   /**
    * `back`, not `onDone`: finishing here returns to **this area**, not to the list of
@@ -160,6 +200,17 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
       </h1>
 
       {/**
+       * Directly under the heading, because the goal it names has just left the page — and
+       * above the empty state, since reaching the *last* goal produces both and
+       * "nothing to see here" ahead of "congratulations" reads as the wrong one first.
+       *
+       * Always rendered: the live region inside has to exist before it has anything to say,
+       * or the announcement is an insertion rather than a change and nothing is spoken.
+       * Only its visible half is conditional.
+       */}
+      <GoalReached goalText={reached} onClose={() => setReached(null)} />
+
+      {/**
        * An area with nothing in it says so, and offers one thing.
        *
        * Reachable by removing the last goal — which used to leave a heading, empty space,
@@ -167,7 +218,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
        * existed. A single primary reads as the way on rather than as a page that failed to
        * load, and the way *out* is the back link at the top, which every nested page has.
        */}
-      {allGoals.length === 0 && !deletingGoal && (
+      {allGoals.length === 0 && !isolated && !celebrating && (
         <div className="space-y-6">
           <p className="max-w-prose leading-relaxed text-muted">{m.manage.emptyNote}</p>
           {/* One primary and one quiet way back, the same pairing the footer uses where
@@ -188,6 +239,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
         </div>
       )}
 
+      {!celebrating && (
       <div className="space-y-3">
         {/* One card per goal, so a goal and its entries read as one object rather than
             as a run of lines that happen to be indented. `border-line` and not
@@ -226,10 +278,11 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
             const entryEditing = editingStep !== null && trying.some((s) => s.id === editingStep)
             /**
              * The goal's own controls come down while anything under it is open — editing
-             * an entry *or* adding one. The add block is excluded from its own condition,
-             * since that block is where the new-entry field lives.
+             * an entry, adding one, *or* rating the goal. The add block is excluded from its
+             * own condition, since that block is where the new-entry field lives.
              */
-            const busyHere = entryEditing || addingTo === goal.id
+            const rating = evaluating === goal.id
+            const busyHere = entryEditing || addingTo === goal.id || rating
 
             return (
               <li
@@ -297,6 +350,11 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                             onClick={() => {
                               completeGoal(area, goal.id)
                               setEditingGoal(null)
+                              // The same congratulation the fifth point produces. Two ways to
+                              // reach one outcome behaving differently is exactly the
+                              // divergence this page removed when it deleted its duplicated
+                              // goal screen.
+                              setReached(goal.text)
                             }}
                           >
                             {m.manage.goalReached}
@@ -362,10 +420,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                           type="button"
                           className="pin-toggle"
                           aria-label={t(m.manage.goalChangeOn, { goal: goal.text })}
-                          onClick={() => {
-                            setDeletingGoal(null)
-                            setEditingGoal(goal.id)
-                          }}
+                          onClick={() => onlyOpen(() => setEditingGoal(goal.id))}
                         >
                           <Pencil />
                         </button>
@@ -373,15 +428,38 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                           type="button"
                           className="pin-toggle"
                           aria-label={t(m.manage.deleteGoalOn, { goal: goal.text })}
-                          onClick={() => {
-                            setEditingGoal(null)
-                            setDeletingGoal(goal.id)
-                          }}
+                          onClick={() => onlyOpen(() => setDeletingGoal(goal.id))}
                         >
                           <Cross />
                         </button>
                         </>
                         )}
+                        {/**
+                         * How close this feels, at the end of the row the goal's own words
+                         * start.
+                         *
+                         * A **direct child** of this flex row rather than the far side of a
+                         * `justify-between` pair, and that is load-bearing: §48e asserts the
+                         * edit and remove controls share a parent with the heading, so
+                         * wrapping them to build two columns would break it. `ms-auto` pushes
+                         * this to the end without restructuring anything, and the row's
+                         * `flex-wrap` lets it drop to its own line at phone width.
+                         *
+                         * Open, it takes the same slot and lays out full width beneath the
+                         * heading — so the goal being judged stays legible while it is
+                         * judged. That is why it is not a fourth branch of the ternary above:
+                         * those branches replace the `h2`.
+                         */}
+                        <GoalProgress
+                          area={area}
+                          goal={goal}
+                          open={rating}
+                          hasEntries={trying.length > 0}
+                          className="ms-auto"
+                          onOpen={() => onlyOpen(() => setEvaluating(goal.id))}
+                          onClose={() => setEvaluating(null)}
+                          onReached={setReached}
+                        />
                       </div>
                     )}
                     {/* Only when it is there. There is no longer any way to write one,
@@ -398,7 +476,8 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                    * bullet on each entry carries what the rule was really for: marking these
                    * as a list rather than as loose lines.
                    *
-                   * Hidden while the goal's removal is being confirmed.
+                   * Hidden while the goal's removal is being confirmed, and while it is being
+                   * rated.
                    *
                    * The question and the add control belong to a goal that may be about to
                    * go, so leaving them up asks how you want to reach something while
@@ -406,8 +485,14 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                    * be orphaned by the next tap. With them gone the confirmation is the
                    * only thing on the goal, which is what a confirmation is for.
                    *
+                   * Rating is the same argument from the other direction: "how close are
+                   * you?" and "how do you want to get there?" are two questions about the
+                   * same goal, and answering one while the other is on screen is the
+                   * split attention this page spent a whole pass removing. It matters most
+                   * at the fifth point, where the next tap may close the goal these entries
+                   * belong to.
                    */}
-                  {deletingGoal !== goal.id && (
+                  {isolated !== goal.id && (
                   <div className="space-y-3 ps-5">
                     {/* A question, where Package B deliberately left no heading at all.
                         That removal was right about the *label*: repeating "What you want
@@ -434,7 +519,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                                 area={area}
                                 step={step}
                                 editing={editingStep === step.id}
-                                onEdit={() => setEditingStep(step.id)}
+                                onEdit={() => onlyOpen(() => setEditingStep(step.id))}
                                 onDone={() => setEditingStep(null)}
                               />
                             </li>
@@ -481,10 +566,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                              */
                             className={`btn btn-sm ${trying.length === 0 ? 'btn-primary' : 'btn-quiet'}`}
                             aria-label={t(m.manage.addStepFor, { goal: goal.text })}
-                            onClick={() => {
-                              setEditingStep(null)
-                              setAddingTo(goal.id)
-                            }}
+                            onClick={() => onlyOpen(() => setAddingTo(goal.id))}
                           >
                             {m.manage.addEntry}
                           </button>
@@ -501,7 +583,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
         {/* An entry belonging to no goal must never be invisible. It can only
             happen through a hand-edited store or one written by an older build, but
             "stored and unshowable" is the one state this page cannot have. */}
-        {!deletingGoal && loose.length > 0 && (
+        {!isolated && loose.length > 0 && (
           <div className="space-y-1 border-t border-line pt-4">
             <p className="text-sm text-muted">{m.manage.looseLabel}</p>
             <ul className="space-y-1">
@@ -511,7 +593,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                     area={area}
                     step={step}
                     editing={editingStep === step.id}
-                    onEdit={() => setEditingStep(step.id)}
+                    onEdit={() => onlyOpen(() => setEditingStep(step.id))}
                     onDone={() => setEditingStep(null)}
                   />
                 </li>
@@ -520,14 +602,15 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
           </div>
         )}
 
-        {!deletingGoal && atCap && <p className="text-sm text-muted">{m.goals.stepsFull}</p>}
+        {!isolated && atCap && <p className="text-sm text-muted">{m.goals.stepsFull}</p>}
       </div>
+      )}
 
       {/* No rule above these. It separated the goals from the page's own controls back
           when the goals were a run of lines; each goal is a bordered card now, so the line
           was a second edge doing the same job — and it read as a card boundary of its
           own. */}
-      {!deletingGoal && allGoals.length > 0 && (
+      {!isolated && !celebrating && allGoals.length > 0 && (
       <div className="flex flex-wrap items-center gap-x-5 gap-y-3 pt-2">
         {allGoals.length < MAX_GOALS && (
           <button

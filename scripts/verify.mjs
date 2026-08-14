@@ -753,6 +753,18 @@ const EN = {
   cloudDevOnly: 'Cloud sync is currently available to developers only.',
   storageOnDone: 'Saving is on now.',
   dataDelete: 'Delete my data',
+  progressQuestion: 'How close are you to reaching this goal?',
+  progressNone: 'Not answered yet',
+  progress2: 'A little bit',
+  progress3: 'Kind of',
+  progress4: 'Very close',
+  progressSave: 'Confirm',
+  reachedQuestion: 'Mark this goal as reached?',
+  reachedYes: 'Yes, I reached it',
+  reachedNo: 'Not yet',
+  congrats: 'Congratulations!',
+  congratsAny: 'You have reached one of your goals.',
+  congratsClose: 'Continue',
 }
 
 /**
@@ -4650,6 +4662,471 @@ check(
   '49e. and choosing the default again leaves nothing stored about it',
   (await text()).includes(EN.home) && JSON.parse(await raw()).homeView === undefined,
   `homeView ${JSON.stringify(JSON.parse(await raw()).homeView)}`,
+)
+
+// --- 50. how close a goal feels, and the fifth point that closes it ------
+
+/**
+ * An optional check-in on one goal, on both pages that show goals.
+ *
+ * The seeded fixture is doing real work here: `seedGoals()` predates this feature and writes
+ * no progress fact, so every goal it produces is exactly the case that has to keep working
+ * — one that existed before the question was ever asked. "Absent" is therefore observed
+ * rather than arranged.
+ *
+ * Nothing here had a check to invert. Progress is new, so no existing assertion claimed
+ * that reaching the top of the scale leaves a goal open; the closing behaviour is asserted
+ * from scratch below rather than by flipping something.
+ */
+
+await seedGoals()
+const AREA_G = AREAS[3].id
+await goto(`/areas/${AREA_G}/`)
+await waitForText('Finish the portfolio')
+
+/** The dots, as painted: how many are filled, and whether every box is the same size. */
+const dots = async () =>
+  evaluate(`(() => {
+    const host = document.querySelector('main .scale-toggle') || document.querySelector('main form');
+    if (!host) return null;
+    const marks = [...host.querySelectorAll('span[aria-hidden="true"]')];
+    const seen = marks.map((el) => {
+      const s = getComputedStyle(el);
+      const r = el.getBoundingClientRect();
+      return {
+        background: s.backgroundColor,
+        borderWidth: s.borderTopWidth,
+        borderColor: s.borderTopColor,
+        w: Math.round(r.width),
+        h: Math.round(r.height),
+      };
+    });
+    return {
+      total: seen.length,
+      filled: seen.filter((d) => d.background !== 'rgba(0, 0, 0, 0)').length,
+      boxes: [...new Set(seen.map((d) => d.w + 'x' + d.h))],
+      first: seen[0],
+      last: seen[seen.length - 1],
+    };
+  })()`)
+
+/** Picks the nth point without saving it — which is the distinction this whole section is about. */
+async function pick(n) {
+  await evaluate(`document.querySelectorAll('main form input[type="radio"]')[${n - 1}].click()`)
+  await sleep(200)
+}
+
+const restingDots = await dots()
+check(
+  '50a. a goal written before this feature shows an empty scale, and holds no rating',
+  restingDots?.total === 5 && restingDots.filled === 0 && !(await raw()).includes('.progress'),
+  `${restingDots?.filled}/${restingDots?.total} filled`,
+)
+
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+const beforePick = await raw()
+await pick(3)
+screen = await text()
+/**
+ * **The check this section exists for.**
+ *
+ * Picking is a thought and saving is an act. A radio that wrote on change would look
+ * identical on screen and be a different product — one that records a passing impression of
+ * your own life the moment you touch it. Byte-identical, not "no new fact": a rewrite that
+ * happened to keep the count would pass the weaker form.
+ */
+check(
+  '50b. choosing a point writes nothing at all until it is confirmed',
+  (await raw()) === beforePick && screen.includes(EN.progress3),
+  (await raw()) === beforePick ? `store untouched, and it says “${EN.progress3}”` : 'STORE CHANGED',
+)
+
+/**
+ * Rating gives the goal the page, the way removing one already did.
+ *
+ * Asserted on **button text**, not on the page's words: `manageDone` is "Back", and the back
+ * link at the top of every nested page reads "Back to your life areas" — so a `screen`
+ * substring test passes whatever the footer does. The kind of needle that guards nothing
+ * while looking like it guards something.
+ */
+const whileRating = await evaluate(`(() => {
+  const main = document.querySelector('main');
+  return {
+    buttons: [...main.querySelectorAll('button')].map((b) => b.innerText.trim()).filter(Boolean),
+    cards: main.querySelectorAll('ol > li').length,
+  };
+})()`)
+check(
+  '50c. and while it is open, the goal has the page — no siblings, no entry controls, no footer',
+  whileRating?.cards === 1 &&
+    ![EN.addEntry, EN.goalAdd, EN.manageDone].some((label) => whileRating.buttons.includes(label)) &&
+    !(await ariaLabels()).some(
+      (l) => l.startsWith('Change this goal:') || l.startsWith('Remove goal:'),
+    ),
+  `${whileRating?.cards} card(s): ${whileRating?.buttons.join(' / ')}`,
+)
+
+await click(EN.cancel)
+await sleep(250)
+check(
+  '50d. cancelling leaves the store byte-identical',
+  (await raw()) === beforePick,
+  (await raw()) === beforePick ? 'untouched' : 'STORE CHANGED',
+)
+
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+await pick(3)
+await click(EN.progressSave)
+await sleep(300)
+const rated = JSON.parse(await raw()).facts.filter((f) => f.key.endsWith('.progress'))
+check(
+  '50e. confirming writes one fact, keyed on the goal, holding the number',
+  rated.length === 1 && rated[0].key === `area.${AREA_G}.goal.${G1}.progress` && rated[0].value === '3',
+  rated.map((f) => `${f.key}=${f.value}`).join(', ') || 'nothing written',
+)
+
+await goto(`/areas/${AREA_G}/`)
+await waitForText('Finish the portfolio')
+const afterReload = await dots()
+check(
+  '50f. it survives a reload and the scale shows it',
+  afterReload?.filled === 3,
+  `${afterReload?.filled}/5 filled`,
+)
+
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+const reopened = await evaluate(`(() => {
+  const inputs = [...document.querySelectorAll('main form input[type="radio"]')];
+  const save = [...document.querySelectorAll('main form button')].find((b) => b.type === 'submit');
+  return {
+    checked: inputs.findIndex((i) => i.checked) + 1,
+    named: inputs.every((i) => (i.closest('label')?.innerText || i.labels?.[0]?.textContent || '').trim().length > 0),
+    saveDisabled: save?.disabled === true,
+  };
+})()`)
+check(
+  '50g. reopening starts from what is stored, with the save already available',
+  reopened?.checked === 3 && reopened.saveDisabled === false,
+  JSON.stringify(reopened),
+)
+
+await pick(2)
+await click(EN.progressSave)
+await sleep(300)
+const two = JSON.parse(await raw()).facts.filter((f) => f.key.endsWith('.progress'))
+/**
+ * Appended, not replaced. This is the check that keeps "progress over time" possible without
+ * anything today reading it: the log holds every rating with its own `learnedAt`, and only
+ * the newest is shown.
+ */
+check(
+  '50h. a later answer is appended, and the newest one wins',
+  two.length === 2 && two.map((f) => f.value).join('') === '32' && (await dots())?.filled === 2,
+  two.map((f) => f.value).join(' → '),
+)
+
+const beforeRepeat = await raw()
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+await pick(2)
+await click(EN.progressSave)
+await sleep(300)
+/**
+ * Saying the same thing twice writes nothing.
+ *
+ * The guard is in the writer rather than at the two call sites, so this holds from the start
+ * page too. What it costs is recorded in `docs/goals-and-areas.md`: the log now holds
+ * *changes*, not check-ins, and "when did they last confirm this was still a 2" has no
+ * answer. A future periodic check-in wants its own key, not this one relaxed.
+ */
+check(
+  '50i. confirming the value it already holds writes nothing',
+  (await raw()) === beforeRepeat,
+  (await raw()) === beforeRepeat ? 'no duplicate appended' : 'STORE CHANGED',
+)
+
+/**
+ * The `GOAL_KEY` trap, asserted rather than trusted.
+ *
+ * That pattern is what discovers which goals exist, so a field added to it makes any fact
+ * under a goal id conjure a goal with no words — from a hand-edited or partially-synced
+ * store. `pinned` is excluded for this reason and `progress` follows it; this is what would
+ * notice if either were ever folded back in.
+ */
+await goto('/')
+const ghostAt = '2026-03-01T00:00:00.000Z'
+await evaluate(
+  `localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, ${JSON.stringify(
+    JSON.stringify({
+      version: 1,
+      consentAt: ghostAt,
+      locale: 'en',
+      facts: [
+        { id: 'x1', key: 'introduction_done', value: 'yes', source: 'goals', learnedAt: ghostAt },
+        { id: 'x2', key: `area.${AREA_G}.review`, value: 'yes', source: 'goals', learnedAt: ghostAt },
+        { id: 'x3', key: `area.${AREA_G}.goal.real.text`, value: 'A real goal', source: 'goals', learnedAt: ghostAt },
+        { id: 'x4', key: `area.${AREA_G}.goal.ghost.progress`, value: '4', source: 'goals', learnedAt: ghostAt },
+      ],
+    }),
+  )})`,
+)
+await goto(`/areas/${AREA_G}/`)
+await waitForText('A real goal')
+check(
+  '50j. a rating with no goal behind it does not conjure one',
+  (await count('main ol > li')) === 1 && !(await text()).includes(EN.progress4),
+  `${await count('main ol > li')} goal cards`,
+)
+
+// --- the fifth point ------------------------------------------------------
+
+await seedGoals()
+await goto(`/areas/${AREA_G}/`)
+await waitForText('Finish the portfolio')
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+const beforeFive = await raw()
+await pick(5)
+screen = await text()
+check(
+  '50k. reaching the top of the scale asks rather than acts, and still writes nothing',
+  (await raw()) === beforeFive &&
+    screen.includes(EN.reachedQuestion) &&
+    screen.includes(EN.progressQuestion) &&
+    screen.includes(EN.goalCloseNote),
+  (await raw()) === beforeFive ? 'asked, nothing written' : 'STORE CHANGED',
+)
+
+await pick(4)
+screen = await text()
+/**
+ * The scale stays on screen while it asks, which is the whole reason the question is not a
+ * screen of its own: changing your mind costs one tap on another dot rather than a trip out
+ * through Cancel and back in.
+ */
+check(
+  '50l. picking a lower point takes the question back',
+  !screen.includes(EN.reachedQuestion) && screen.includes(EN.progress4),
+  'back to an ordinary save',
+)
+
+await pick(5)
+await click(EN.reachedNo)
+await sleep(300)
+check(
+  '50m. declining the question leaves the goal exactly as it was',
+  (await raw()) === beforeFive && (await text()).includes('Finish the portfolio'),
+  (await raw()) === beforeFive ? 'untouched, goal still there' : 'STORE CHANGED',
+)
+
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+await pick(5)
+await click(EN.reachedYes)
+await sleep(400)
+screen = await text()
+/**
+ * Two facts, in causal order — "I got there", then "so this is done".
+ *
+ * The fixture already writes `text` and `why` under this goal, so the filter is on the two
+ * fields the act produces rather than on the goal id; asserting a count over everything
+ * under `goal.<gid>.` would have counted the seed and passed for the wrong reason.
+ *
+ * `state` is written by the same `completeGoal` the "I have reached this" control uses, so
+ * the cascade, `activeGoals` and `/data/stored/` all behave as they already did.
+ */
+const closing = JSON.parse(await raw()).facts.filter(
+  (f) => f.key.startsWith(`area.${AREA_G}.goal.${G1}.`) && /\.(progress|state)$/.test(f.key),
+)
+check(
+  '50n. confirming records the five and closes the goal, in that order',
+  closing.length === 2 &&
+    closing[0].key.endsWith('.progress') &&
+    closing[0].value === '5' &&
+    closing[1].key.endsWith('.state') &&
+    closing[1].value === 'done',
+  closing.map((f) => `${f.key.split('.').pop()}=${f.value}`).join(' → '),
+)
+/**
+ * The congratulation has the page, and does not quote the goal back.
+ *
+ * Both halves are deliberate. It stays generic because quoting a half-typed goal at someone
+ * is slightly absurd and the moment does not need the app to prove it was listening — so the
+ * check asserts the words are **gone**, which also proves the list stood down rather than
+ * merely losing one row. Reaching the last goal in an area is what makes that matter: without
+ * it, "there is nothing to see here yet" and an offer to create a goal land directly under a
+ * celebration.
+ *
+ * The way on is primary, because with everything else hidden it is the only thing to do.
+ */
+const celebration = await evaluate(`(() => {
+  const main = document.querySelector('main');
+  const on = [...main.querySelectorAll('a, button')].find(
+    (el) => el.innerText.trim() === ${JSON.stringify('Continue')},
+  );
+  return {
+    buttons: [...main.querySelectorAll('button')].map((b) => b.innerText.trim()).filter(Boolean),
+    primary: on?.classList.contains('btn-primary') ?? null,
+  };
+})()`)
+check(
+  '50o. it says so without quoting the goal, and takes the page while it does',
+  screen.includes(EN.congrats) &&
+    screen.includes(EN.congratsAny) &&
+    !screen.includes('Finish the portfolio') &&
+    !screen.includes(EN.emptyNote) &&
+    celebration?.primary === true &&
+    celebration.buttons.length === 1,
+  `${celebration?.buttons.join(' / ')} — primary ${celebration?.primary}`,
+)
+
+await click(EN.congratsClose)
+await sleep(300)
+check(
+  '50o2. and dismissing it gives the page back',
+  (await text()).includes(EN.emptyNote),
+  'the area is itself again',
+)
+
+/**
+ * The cascade, observed rather than assumed: an entry leaves the open set when the goal it
+ * serves closes, by derivation and with no second write. It is the reason the confirmation
+ * states a consequence, so it had better be true.
+ */
+await goto('/')
+await sleep(400)
+check(
+  '50p. what was being tried for it leaves the start page with it',
+  !(await text()).includes('Pick the three best pieces'),
+  'entries gone with the goal',
+)
+
+// --- the start page -------------------------------------------------------
+
+await seedGoals()
+await goto('/')
+await click(EN.viewGoals)
+await sleep(300)
+const starsBefore = (await ariaLabels()).filter(
+  (l) => l.startsWith('Pin:') || l.startsWith('Unpin:'),
+).length
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+const beforeHome = await raw()
+await pick(2)
+const starsDuring = (await ariaLabels()).filter(
+  (l) => l.startsWith('Pin:') || l.startsWith('Unpin:'),
+).length
+/**
+ * **That** row's star comes down, not every row's.
+ *
+ * A count rather than an absence, because the other goals are still listed and still
+ * starrable — they are different goals, not the surrounding detail of this one, so hiding
+ * them would be a different and wrong idea of focus. Asserting "no stars at all" would have
+ * demanded exactly that.
+ */
+check(
+  '50q. the start page holds the choice unsaved, and takes down that row’s star only',
+  (await raw()) === beforeHome && starsDuring === starsBefore - 1 && starsBefore > 1,
+  (await raw()) === beforeHome
+    ? `nothing written, stars ${starsBefore} → ${starsDuring}`
+    : 'STORE CHANGED',
+)
+
+await click(EN.progressSave)
+await sleep(300)
+const fromHome = JSON.parse(await raw()).facts.filter((f) => f.key.endsWith('.progress'))
+/**
+ * The first goal on the start page is the **legacy** one, and that makes this the better
+ * case rather than the wrong one.
+ *
+ * Its words live at the old bare `area.<a>.goal` key and always will — moving them would
+ * split its wording history at the seam. Its newer fields live under the reserved gid like
+ * any other goal's, which is the whole point of putting the id in the key: a goal can grow
+ * a field without its text having to move. This is that claim, exercised on the one goal
+ * where it is not obvious.
+ */
+check(
+  '50r. and confirming from there writes the same key — including for the legacy goal',
+  fromHome.length === 1 &&
+    fromHome[0].key === `area.${AREAS[0].id}.goal.legacy.progress` &&
+    fromHome[0].value === '2',
+  fromHome.map((f) => `${f.key}=${f.value}`).join(', ') || 'nothing written',
+)
+
+/**
+ * Two states, two differences, identical metrics — the rule `components/progress-marks.tsx`
+ * follows and the reason this reuses its vocabulary rather than inventing a second one. §17
+ * forbids carrying meaning by colour alone, so fill and border width both have to change;
+ * the boxes have to stay one size, or every rating would reflow the row.
+ */
+await goto('/')
+await sleep(300)
+const painted50 = await dots()
+check(
+  '50s. filled and empty marks are one size and differ in more than colour',
+  painted50?.boxes.length === 1 &&
+    painted50.first.background !== painted50.last.background &&
+    painted50.first.borderWidth !== painted50.last.borderWidth,
+  `${painted50?.boxes.join(',')} — ${painted50?.first.borderWidth} vs ${painted50?.last.borderWidth}`,
+)
+
+/**
+ * The radios are native on purpose: `components/menu.tsx` sets the rule that claiming a role
+ * without implementing its keyboard behaviour is worse than not claiming it, and nothing in
+ * this project implements roving focus. So the browser does it — which only holds while they
+ * really are inputs in a named group.
+ */
+await goto('/')
+await click(EN.viewGoals)
+await sleep(300)
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+const keyboard = await evaluate(`(() => {
+  const group = document.querySelector('main form fieldset');
+  const inputs = [...(group?.querySelectorAll('input[type="radio"]') || [])];
+  return {
+    grouped: Boolean(group?.querySelector('legend')?.textContent?.trim()),
+    sameName: new Set(inputs.map((i) => i.name)).size === 1,
+    named: inputs.every((i) => (i.closest('label')?.innerText || '').trim().length > 0),
+    count: inputs.length,
+  };
+})()`)
+check(
+  '50t. every point is a real radio in a named group, each with its own name',
+  keyboard?.count === 5 && keyboard.grouped && keyboard.sameName && keyboard.named,
+  JSON.stringify(keyboard),
+)
+
+/**
+ * Memory mode. `setGoalProgress` goes through `remember()` like everything else, so the
+ * consent gate applies — but "it goes through `remember()` so it must be gated" is an
+ * argument, not a check, which is the same reasoning 5e already records one level up.
+ */
+await clearStorage()
+await goto('/')
+await click(EN.no)
+await type('Not for me.')
+await click(EN.cont)
+await click(EN.contYes)
+await click(EN.introOk)
+await runArea('Sleep before midnight', ['Phone out of the bedroom'])
+await declineRest()
+await click(EN.toHome)
+await click(EN.viewGoals)
+await sleep(300)
+await clickSelector('main .scale-toggle')
+await waitForText(EN.progressQuestion)
+await pick(3)
+await click(EN.progressSave)
+await sleep(300)
+check(
+  '50u. rating works with nothing being saved, and saves nothing',
+  (await dots())?.filled === 3 && (await keys()).length === 0,
+  `${(await keys()).length} localStorage keys`,
 )
 
 check(

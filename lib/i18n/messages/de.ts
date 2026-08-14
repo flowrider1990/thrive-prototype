@@ -218,6 +218,24 @@ export const de: Messages = {
     goalCloseCancel: 'Noch nicht',
     looseLabel: 'Gerade keinem Ziel zugeordnet',
 
+    progressQuestion: 'Wie nah bist du diesem Ziel?',
+    /** Antworten auf die Frage darüber, nicht Beschreibungen eines Zustands. */
+    progress1: 'Überhaupt nicht',
+    progress2: 'Ein wenig',
+    progress3: 'Einigermaßen',
+    progress4: 'Ziemlich',
+    progress5: 'Ziel erreicht',
+    progressNone: 'Noch nicht beantwortet',
+    progressOn: '{goal}: Wie nah bist du diesem Ziel? {value}',
+    /** „Bestätigen“, nicht „Weiter“ — nach diesem Knopf kommt kein weiterer Schritt. */
+    progressSave: 'Bestätigen',
+    reachedQuestion: 'Dieses Ziel als erreicht markieren?',
+    reachedYes: 'Ja, ich habe es erreicht',
+    congrats: 'Herzlichen Glückwunsch!',
+    congratsAny: 'Du hast eines deiner Ziele erreicht.',
+    /** „Weiter“, weil danach die Seite zurückkommt — anders als beim Speichern der Skala. */
+    congratsClose: 'Weiter',
+
     reviewEdit: 'Ändern',
     editQuestion: 'Was soll stattdessen dastehen?',
     editSubmit: 'Speichern',
@@ -260,6 +278,7 @@ export const de: Messages = {
       retired: 'beiseitegelegt',
       goalReached: 'erreicht',
       goalPriority: 'zurzeit zuerst',
+      goalProgress: 'wie nah es sich anfühlte: {value}',
       why: 'warum es zählt: {why}',
       edited: 'umformuliert aus: {text}',
       noGoal: 'Kein Ziel notiert',

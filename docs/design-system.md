@@ -421,6 +421,38 @@ It is a real `role="progressbar"` with `aria-valuenow` and a translated
 measures is **areas looked at** — "not right now" advances it exactly as much as
 setting a goal does.
 
+### The same marks, on a goal
+
+`components/goal-progress.tsx` draws how close a goal feels, and reuses this vocabulary
+exactly — `border-2 border-accent bg-accent` filled, `border border-line-strong` empty, 12px
+in both. Two states rather than three, so the *current* ring does not appear.
+
+**`ProgressMarks` itself is not reused, and the reason is a trap rather than a preference.**
+It is a `role="progressbar"`, and `__progress()` in `scripts/verify.mjs` reads *the*
+progressbar on a page as `[...el.children]`. A second one inside a button would not fail §31;
+it would make §31 measure the wrong element, which is the kind of breakage nothing reports.
+Each file carries a comment pointing at the other so the pair stays in step by hand.
+
+Two other rules land the same way here. §50s asserts the filled and empty marks have
+identical rects and differ in fill *and* border width, not colour alone. And the row of five
+is `aria-hidden` inside a named button — the icon-only rule below, since the glyphs are the
+control's whole content.
+
+### The fourth icon-only control
+
+`.scale-toggle` joins the theme toggle, the collapsed-nav trigger and `.pin-toggle`: same
+`border border-line-strong … hover:border-muted` at rest, because a control edge is what says
+"this is pressable". Wider padding, since the content is five glyphs on a row rather than one.
+It sets no colour of its own — unlike `.pin-toggle-on` it has no on/off state to mark, and
+what it shows is *how many* are filled.
+
+`.scale-option` is one point inside the open panel: a `sr-only` radio and a visible dot. The
+radio stays a real `<input>` so the browser supplies arrow-key navigation, group semantics and
+"3 of 5" — the parts that are expensive to hand-roll, and the same argument `.disclosure`
+makes for native `<details>`. The cost is that the global `:focus-visible` outline lands on a
+1px clipped input and is invisible, so the label takes it through `:has(input:focus-visible)`.
+Padding, not size, makes the target big enough: the dot stays 12px in every state.
+
 ## Disclosure
 
 `.disclosure` styles a native `<details>`, and native is the whole point: the

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { AreaIcon, GoalIcon } from '@/components/area-icon'
 import { Choice } from '@/components/choice'
+import { GoalProgress, GoalReached } from '@/components/goal-progress'
 import { Star } from '@/components/icons'
 import { OptionList } from '@/components/option-list'
 import { TextAnswer } from '@/components/text-answer'
@@ -62,6 +63,16 @@ export function NextSteps() {
   const { m, t } = useI18n()
   const person = usePerson()
   const [busy, setBusy] = useState<Busy | null>(null)
+  /**
+   * Which goal's rating panel is open, keyed by **area and goal**.
+   *
+   * The goal id alone would not do: `LEGACY_GID` is the literal `'legacy'`, so two areas can
+   * each hold a goal by that id, and one tap would open two panels. The area page can key on
+   * the id because it only ever shows one area.
+   */
+  const [evaluating, setEvaluating] = useState<string | null>(null)
+  /** The words of the goal just reached — it has left `activeGoals`, so its id resolves to nothing. */
+  const [reached, setReached] = useState<string | null>(null)
   /**
    * Which of the two questions this page is answering — **remembered**.
    *
@@ -173,15 +184,32 @@ export function NextSteps() {
       </div>
 
       {showing === 'goals' ? (
-        goalRows.length === 0 ? (
+        <div className="space-y-6">
+        {/**
+         * Outside the empty/list branch below, deliberately.
+         *
+         * Reaching your only goal empties the list, which would swap this whole subtree for
+         * "no goals yet" — taking the congratulation with it in the same render that earned
+         * it. Mounted here it survives that, and its live region exists from the moment the
+         * goals view does, which is what makes the announcement a change rather than an
+         * insertion.
+         */}
+        <GoalReached goalText={reached} onClose={() => setReached(null)} />
+        {/* The list stands down while the congratulation is up — the same focus rule the area
+            page follows, and for the same reason: reaching the last goal would otherwise put
+            "no goals yet" directly under it. */}
+        {reached !== null ? null : goalRows.length === 0 ? (
           <p className="text-sm text-muted">{m.home.goalsEmpty}</p>
         ) : (
           /* The goals themselves and nothing else: no area, no counts, no state. Seeing
              them as a plain list is the point — anything more would make this a second
              areas page. */
           <ul className="space-y-4">
-            {goalRows.map(({ goal, state }) => (
-              <li key={`${state.area}-${goal.id}`} className="flex items-start gap-x-2.5">
+            {goalRows.map(({ goal, state }) => {
+              const key = `${state.area}-${goal.id}`
+              const rating = evaluating === key
+              return (
+              <li key={key} className="flex flex-wrap items-start gap-x-2.5 gap-y-3">
                 <span aria-hidden="true" className="mt-1 shrink-0 text-lg leading-none text-muted">
                   &bull;
                 </span>
@@ -208,22 +236,52 @@ export function NextSteps() {
                     {goal.text}
                   </Link>
                 </p>
-                <button
-                  type="button"
-                  className={`pin-toggle shrink-0 ${goal.pinned ? 'pin-toggle-on' : ''}`}
-                  aria-label={t(goal.pinned ? m.manage.unpinOn : m.manage.pinOn, {
-                    text: goal.text,
-                  })}
-                  onClick={() =>
-                    goal.pinned ? unpinGoal(state.area, goal.id) : pinGoal(state.area, goal.id)
-                  }
-                >
-                  <Star filled={goal.pinned} />
-                </button>
+                {/**
+                 * The same control the area page shows, from the same component — a goal
+                 * rated here has to mean what it means there, and two implementations of one
+                 * scale are two things to keep in step.
+                 *
+                 * Left of the star, so the row's controls read as a group. Open, its `w-full`
+                 * form wraps onto its own line inside this row — which is why the row gained
+                 * `flex-wrap` and a row gap.
+                 */}
+                <GoalProgress
+                  area={state.area}
+                  goal={goal}
+                  open={rating}
+                  hasEntries={state.open.some((step) => step.goalId === goal.id)}
+                  className="mt-0.5"
+                  // Level with the goal's words rather than with the bullet before them:
+                  // the panel belongs to that goal, and starting it further left would sit
+                  // it outside the row it is about.
+                  panelClassName="ps-7"
+                  onOpen={() => setEvaluating(key)}
+                  onClose={() => setEvaluating(null)}
+                  onReached={setReached}
+                />
+                {/* Down while this row is being rated — one question at a time, the same
+                    rule the area page follows. Only *this* row's: the others are different
+                    goals, not the surrounding detail of this one. */}
+                {!rating && (
+                  <button
+                    type="button"
+                    className={`pin-toggle shrink-0 ${goal.pinned ? 'pin-toggle-on' : ''}`}
+                    aria-label={t(goal.pinned ? m.manage.unpinOn : m.manage.pinOn, {
+                      text: goal.text,
+                    })}
+                    onClick={() =>
+                      goal.pinned ? unpinGoal(state.area, goal.id) : pinGoal(state.area, goal.id)
+                    }
+                  >
+                    <Star filled={goal.pinned} />
+                  </button>
+                )}
               </li>
-            ))}
+              )
+            })}
           </ul>
-        )
+        )}
+        </div>
       ) : (
         <>
       {/*

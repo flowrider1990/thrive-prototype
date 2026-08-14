@@ -37,10 +37,11 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 219/219** (25 at the
+the two the plan singles out. **The current count is 270/270** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
-the UX/UI rework, 181 after the Supabase foundation); the script itself is the only
-authority on that number, so treat any count written in prose as a snapshot.
+the UX/UI rework, 181 after the Supabase foundation, 248 after the less-friction
+iteration); the script itself is the only authority on that number, so treat any count
+written in prose as a snapshot.
 
 **Pass the base URL explicitly.** The default is `http://localhost:4321`, which is
 not safe on a machine running a second worktree — a stale or foreign server there
@@ -1362,6 +1363,95 @@ made that guarantee unreachable rather than merely untested.
 stacked on a phone — the layout being undone. It now measures what the new row claims: one
 block with the action larger than its metadata, the control attached to the right edge and
 level with the action's first line, and a row under 2.8 line-heights on a phone.
+
+## Goal progress (branch `feature/verify-area-agnostic`)
+
+An optional self-report on one goal — *How close are you to reaching this goal?* on five
+points — on the goal cards on `/areas/<id>/` and in the start page's "My goals" view. One
+new fact key, one new component shared by both hosts, no schema change, no `version` bump.
+**270/270 checks pass**; §50 is twenty-two of them.
+
+`docs/goals-and-areas.md` holds the model and `docs/design-system.md` the visual side. What
+belongs here is what was learned.
+
+### The `GOAL_KEY` trap has teeth, and now has a check
+
+`/^area\.([^.]+)\.goal\.([^.]+)\.(text|why|state)$/` is what *discovers which goals exist*.
+Adding `progress` to it would have let a store holding a rating and no text render a goal
+with no words — silently, and only for stores that got into that state. `pinned` was already
+excluded with a comment saying so; the comment is now a check (§50j) that seeds exactly that
+store and asserts one card renders, not two.
+
+The general form, worth stating once: **every field added under a goal id has to answer
+whether it is, on its own, enough to mean a goal is there.** For `text`, yes. For everything
+else so far, no.
+
+### The page that promises to show everything would have hidden this
+
+`isAreaKey()` keeps every `area.*` fact out of the generic list on `/data/stored/`, because
+those keys carry internal ids; life-area facts render through `readAreaDetail()` instead. So
+a new key that is not explicitly rendered there is **stored and invisible** — on the one page
+whose entire job is to make the privacy promise checkable. Rendering it was part of the
+change rather than a follow-up, and `GoalDetail` grew `progressAt` so it could be dated the
+way a goal's state already is.
+
+### Confirm-to-save changed the element, and simplified the hard case
+
+The requirement arrived mid-build: no value saves without a confirm. That settled a question
+that had been open on style grounds — native `<input type="radio">` in a `<fieldset>` is
+*correct* here rather than merely convenient, because a radio is a held selection waiting to
+be committed and `OptionList` fires on tap. It also made the fifth point simpler: the plan
+had *Reached* swapping the scale for its own confirmation screen, and with a confirm button
+already present the question just changes what that button says, with the scale still on
+screen. Picking a lower point now undoes the choice in one tap, where a separate screen would
+have hidden the control that undoes it.
+
+§50b asserts the store is **byte-identical** while a point is selected. "No new fact" would
+have been the weaker form, satisfied by a rewrite that happened to keep the count.
+
+### Three checks failed for reasons that had nothing to do with the product
+
+All three are the same family — an assertion that would have passed while guarding nothing:
+
+- **`EN.manageDone` is `'Back'`,** and every nested page's back link reads "Back to your life
+  areas". A `screen.includes` test for the footer therefore passes whatever the footer does.
+  Rewritten to read button *text*, plus a card count.
+- **"no stars at all" was the wrong claim.** Rating one goal takes down *that* row's star; the
+  other goals are still listed and still starrable. The check now asserts the count drops by
+  exactly one, which is the actual rule.
+- **The filter caught the fixture.** `key.includes('goal.<gid>.')` matched the seeded `text`
+  and `why` alongside the two facts the act produces, so a count over it would have been
+  right for the wrong reason.
+
+One more turned out to be a *better* test than intended: the first goal on the start page is
+the **legacy** one, whose words live at the old bare `area.<a>.goal` key. Its rating lands
+under the reserved gid like any other goal's, which is exactly the claim that putting the id
+in the key buys — a goal can grow a field without its text having to move. §50r now asserts
+that deliberately.
+
+### Saying the same thing twice writes nothing
+
+The write guard lives in `setGoalProgress` rather than at the two call sites, so it cannot
+drift between the area page and the start page. `finishIntroduction(person)` already had the
+shape for a guarded write.
+
+The cost is recorded rather than discovered later: the log now holds *changes*, not
+check-ins, so "when did they last confirm this was still a 3" has no answer. A periodic
+check-in wants the opposite and should get its own key.
+
+### Two lint rules were right
+
+`Math.random()` for the congratulation's emoji is a hydration mismatch in a render body, and
+picking one in an effect trips `react-hooks/set-state-in-effect` — which exists because it
+costs a second render pass. Deriving it from the goal's own words is pure, needs no effect,
+and is just as unguessable from the reader's side, which is all "random" was asking for.
+
+### Nothing had to be inverted
+
+The established habit here is to **invert** a check that defends a reversed rule rather than
+delete it. There was nothing to invert: progress is new, so no existing assertion claimed the
+top of the scale leaves a goal open. §50 says so in a comment, because "no check changed" is
+otherwise indistinguishable from "we forgot to look".
 
 ## The repository
 

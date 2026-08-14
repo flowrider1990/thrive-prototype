@@ -628,6 +628,90 @@ export const en = {
     /** Only ever shown when there is one, and there should not be. */
     looseLabel: 'Not tied to a goal right now',
 
+    /**
+     * An optional check-in on one goal — the first thing in this app that asks how
+     * something is going rather than what you want to do.
+     *
+     * A question rather than a metric, and five words rather than five numbers. "60%" would
+     * be a figure the app invented from an answer that was never a figure, and
+     * `docs/design-system.md` already rejected percentages one level up for the same reason:
+     * they frame looking at your own life as a task to complete.
+     */
+    progressQuestion: 'How close are you to reaching this goal?',
+    /**
+     * The five points, written as **answers to the question above them**.
+     *
+     * "Feels far away", "Getting closer", "Almost there" were descriptions of a state — the
+     * app narrating your situation back at you. "Not at all" and "kind of" are what a person
+     * says when someone asks them how close they are, so the pair reads as an exchange
+     * rather than as a form: *How close are you to reaching this goal?* — *Kind of.*
+     *
+     * That is also why they are short. An answer is short; a label explains itself.
+     *
+     * Each has to stand alone, because they carry the whole scale now — the two ends are no
+     * longer labelled, so the only words are the one naming the current pick and the ones
+     * spoken for each option.
+     */
+    progress1: 'Not at all',
+    progress2: 'A little bit',
+    progress3: 'Kind of',
+    progress4: 'Very close',
+    /** The one that closes the goal, so it claims the whole thing rather than a degree of it. */
+    progress5: 'I am there',
+    /** Never asked is not the same as far away, and the control has to say which it is. */
+    progressNone: 'Not answered yet',
+    /**
+     * The whole control is a row of dots, so the **button** carries the name and the glyphs
+     * are hidden — the same rule the star follows. It names the goal because a page can hold
+     * three, and three buttons saying "how close are you?" are three identical controls to
+     * anyone listening.
+     */
+    progressOn: '{goal}: how close are you to reaching it? {value}',
+    /**
+     * Picking a dot writes nothing; this does.
+     *
+     * "Confirm" rather than "Continue" for the reason that settled the same question during
+     * goal creation, and it applies harder here: nothing follows this button, so "Continue"
+     * would promise a screen that does not exist.
+     */
+    progressSave: 'Confirm',
+    /**
+     * What the save turns into when the fifth point is picked.
+     *
+     * Reaching a goal closes it, which is more than a rating — so the button stops saying
+     * "Confirm" and asks the real question instead. The scale stays on screen underneath,
+     * so picking a different dot takes it straight back to an ordinary save; a separate
+     * confirmation screen would have hidden the one control that undoes the choice.
+     *
+     * The consequence is stated with the existing `goalCloseNote`, and only when there is
+     * one — with nothing being tried for the goal there is nothing to set aside.
+     */
+    reachedQuestion: 'Mark this goal as reached?',
+    reachedYes: 'Yes, I reached it',
+    /**
+     * Said once, plainly, and then it waits to be dismissed.
+     *
+     * No confetti, no sound, no points. Reaching something you set out to do is worth
+     * marking, and the app's job is to say so and get out of the way — celebration that
+     * performs is the engagement mechanic this product does not build.
+     *
+     * **It deliberately does not name the goal.** It used to read "You reached „…"", quoting
+     * the sentence back — which is fine for a considered goal and slightly absurd for a
+     * half-typed one, and the moment does not need the app to prove it was paying attention.
+     * Generic and true beats specific and brittle: whatever was written, one of your goals
+     * is what you reached.
+     */
+    congrats: 'Congratulations!',
+    congratsAny: 'You have reached one of your goals.',
+    /**
+     * "Continue", not "Confirm" — and here that is right where it was wrong on the scale.
+     *
+     * Something *does* follow this button: dismissing it gives the page back. It is the way
+     * on from a moment, not the commit of a choice, and it takes the primary weight because
+     * while this is on screen it is the only thing to do.
+     */
+    congratsClose: 'Continue',
+
     reviewEdit: 'Edit',
     editQuestion: 'What should it say instead?',
     editSubmit: 'Save',
@@ -723,6 +807,16 @@ export const en = {
       goalReached: 'reached',
       /** A pointer, not a fact about the goal — so `standing()` gives it no date. */
       goalPriority: 'first for now',
+      /**
+       * The newest self-reported rating, as the word that was chosen rather than as the
+       * digit that was stored — `'3'` is a token the app wrote, and this page never prints
+       * one of those.
+       *
+       * Past tense on purpose: this is a record of how it felt when it was said, not a
+       * claim about now. A goal closed through the fifth point shows this *and* "reached",
+       * which is two facts about one act rather than the same one twice.
+       */
+      goalProgress: 'how close it felt: {value}',
       /** Only rendered when there is one; an absent reason is not an empty one. */
       why: 'why it matters: {why}',
       edited: 'reworded from: {text}',

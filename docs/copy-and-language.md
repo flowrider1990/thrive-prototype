@@ -96,6 +96,40 @@ expected. Saving now closes the field; adding another is the choice that follows
 field, where it answered a question nobody had asked yet, to under the list, where there
 is a first entry to add to.
 
+## A question and its answers are written as a pair
+
+`CLAUDE.md` §3 sets the standard — inside a flow, aim for an exchange that reads as dynamic
+and organic, using both questions and answers. This is what that looks like in the catalogs.
+
+The worked example is the goal check-in. The question is `manage.progressQuestion` ("How
+close are you to reaching this goal?") and the five replies are `manage.progress1`…`5`. They
+were first written as *Feels far away · Still some way to go · Getting closer · Almost there ·
+Reached* — descriptions of a state, which is the app narrating your situation back at you.
+They are now *Not at all · A little bit · Kind of · Very close · I am there*: what a person
+says when someone asks them that.
+
+Three things follow, and they generalise:
+
+- **An answer is short.** A label has to explain itself; a reply does not, because the
+  question just did. Every word an option can drop is one the question already carried.
+- **The answer set decides how the question has to be worded**, not the other way round. Write
+  them together or one will end up carrying both jobs.
+- **What comes afterwards should sound like it heard the answer.** `manage.progress5` is "I am
+  there", and what follows is "Mark this goal as reached?" — the question the answer implies,
+  not a generic confirmation.
+
+One thing this does *not* mean: echoing the person's words back at them. `manage.congratsAny`
+says "You have reached one of your goals" rather than quoting the goal, because a
+congratulation that repeats a half-typed sentence is proving the app was listening rather than
+saying the thing worth saying. Generic and true beats specific and brittle.
+
+The same pair shows up in the accessible name: `manage.progressOn` renders as *„Sleep
+better": how close are you to reaching it? Kind of* — question and answer in one string,
+because out loud there is no layout to carry the relationship.
+
+**This is a wording rule, not licence to ask more.** `CLAUDE.md` §2 and §5 still decide
+whether a question exists at all; this governs the ones that already do.
+
 ## Rules for adding copy
 
 1. Add the key to `en.ts` first, then `de.ts` — the build will not let you forget.

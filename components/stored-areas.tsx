@@ -143,10 +143,16 @@ export function StoredAreas() {
                   {m.areas[detail.area]}
                 </h2>
                 {/* What a closed area still tells you: which goal it is about, and
-                    that there is history behind it worth opening. */}
+                    that there is history behind it worth opening.
+
+                    A star is said alongside rather than instead — it is a preference, not
+                    an outcome, so it carries no date, the same rule an entry's pin follows.
+                    It has to appear *somewhere*: an area whose only fact is a star would
+                    otherwise be held and never shown, on the page that promises otherwise. */}
                 <span className="min-w-0 text-sm leading-relaxed text-muted">
                   {goal ?? m.stored.areas.noGoal}
                   {detail.steps.length > 0 && ` · ${count}`}
+                  {detail.pinned && ` · ${m.stored.areas.areaPinned}`}
                 </span>
               </summary>
 

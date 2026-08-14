@@ -37,7 +37,7 @@ it is the first outward-facing action, so it waits for a decision.
 `pnpm verify` automates the plan's browser checks: it drives real headless Chrome
 over the DevTools protocol against the *served static export*, with no packages
 added (Node 22 has a global `WebSocket`). It covers plan items 4–10 — including
-the two the plan singles out. **The current count is 275/275** (25 at the
+the two the plan singles out. **The current count is 280/280** (25 at the
 foundation, 39 after the header controls, 78 after the first product loop, 123 after
 the UX/UI rework, 181 after the Supabase foundation, 248 after the less-friction
 iteration); the script itself is the only authority on that number, so treat any count
@@ -1536,6 +1536,45 @@ progress marks keep their 1px/2px pair — that difference is the second, non-co
 `rounded-lg border border-line bg-surface px-4 py-4 sm:px-5` appeared twice in JSX. It is one
 class now, so the next card does not have to guess the recipe and "the cards look fragile" is
 one edit.
+
+## Starring a life area (branch `feature/verify-area-agnostic`)
+
+`/areas/` can be starred, and starred areas lead the list. **280/280 checks pass.**
+
+### The blocker was structural, and the answer was to stop trying to nest
+
+This was flagged and skipped once, on the grounds that "each row is a single `<Link>`, so a
+button cannot live inside it". True — a `<button>` inside an `<a>` is invalid and would
+navigate on press — but it was the wrong conclusion. The button does not have to be inside
+the row; it has to be **over** it. Positioned against the `<li>`, a real sibling of the link,
+its own tab stop after it, with `pe-14` keeping the area name clear.
+
+That preserves what made the objection worth raising: the whole card stays the link, which is
+the page's central affordance. Splitting the row into a link plus a strip for a button would
+have cost more than the star is worth.
+
+### Check 27c was inverted, and half of it was kept
+
+It read *"the rows are links, not buttons — this page changes nothing"* and asserted zero
+buttons on the page. Starring makes the second clause false. The first clause is the part that
+was ever load-bearing — a row navigates, so a row is an `<a>` — and it survives, now joined by
+the structural rule that made the star possible: sibling, never nested. Inverted rather than
+deleted, like 36c, 7f, 29a, 34b, 41g, 42j and 46b before it.
+
+### The same `/data/stored/` trap as goal progress, caught the same way
+
+`isAreaKey()` keeps `area.<a>.pinned` out of the generic list, so an area whose only fact is
+a star would have been held and never shown. `AreaDetail` gained `pinned`, `detail.any`
+counts it, and the summary line says "kept at the top". Two features in a row have hit this;
+it is the standing cost of routing life-area facts through the domain layer, and worth
+checking first rather than last.
+
+### Presentation order and walk order come from one array
+
+`/areas/` sorts a copy. §52c seeds a store holding nothing but a star and asserts the
+introduction still opens on the first area — because a refactor that sorted `areas` itself
+would change who gets asked what first, silently, and only for people who had starred
+something.
 
 ## The repository
 

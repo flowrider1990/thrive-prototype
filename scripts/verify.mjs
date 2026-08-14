@@ -2513,12 +2513,39 @@ check(
   areaHrefs.join(' '),
 )
 
-// Rows navigate rather than select, so they are `<a>`. Nothing on this page changes
-// anything, which is the whole difference from the `.option` buttons elsewhere.
+/**
+ * **Inverted, and the half that mattered is kept.**
+ *
+ * This read "the rows are links, not buttons — this page changes nothing", and asserted
+ * zero buttons on the page. Starring an area makes the second half false: the page does
+ * change something now.
+ *
+ * The first half is the part that was ever load-bearing, and it survives unchanged. A *row*
+ * navigates, so a row is an `<a>` — the whole difference from the `.option` buttons
+ * elsewhere, which select. What this now adds is the structural rule that made the star
+ * possible at all: the button is a **sibling** of the link, never inside it. A `<button>`
+ * within an `<a>` is invalid and would navigate on press, and it is exactly what someone
+ * reaching for "put the star in the row" would write.
+ *
+ * Inverted rather than deleted, as 36c, 7f, 29a, 34b, 41g, 42j and 46b were: quietly
+ * removing a check that says *do not do this* is how a codebase forgets it ever decided.
+ */
+const pickerRows = await evaluate(`(() => {
+  const rows = [...document.querySelectorAll('main ul > li')];
+  return {
+    rows: rows.length,
+    links: rows.filter((li) => li.querySelector(':scope > a[href]')).length,
+    stars: rows.filter((li) => li.querySelector(':scope > button')).length,
+    nested: rows.filter((li) => li.querySelector('a button, button a')).length,
+  };
+})()`)
 check(
-  '27c. and the rows are links, not buttons — this page changes nothing',
-  (await count('main a[href]')) === AREAS.length && (await count('main button')) === 0,
-  `${await count('main a[href]')} link(s), ${await count('main button')} button(s)`,
+  '27c. each row is a link, with its star beside it rather than inside it',
+  pickerRows?.rows === AREAS.length &&
+    pickerRows.links === AREAS.length &&
+    pickerRows.stars === AREAS.length &&
+    pickerRows.nested === 0,
+  JSON.stringify(pickerRows),
 )
 
 // The deep link, cold. This is the half of the original plan's verification item 11
@@ -5252,6 +5279,110 @@ check(
   '51c. the scale marks keep their own two widths, which is how filled is readable',
   edges?.dots.length === 2,
   edges?.dots.join(' / '),
+)
+
+// --- 52. starring a life area moves it, and changes nothing else ---------
+
+/**
+ * The third thing that can be starred, and it means what the other two mean: *show me this
+ * first*. Any number may be set, nothing behaves differently for it, and it orders exactly
+ * one list.
+ *
+ * The order it overrides is presentation rather than data — `lib/areas.ts` drives the
+ * introduction's sequence and nothing else — so this is safe in a way re-ordering stored
+ * things would not be. §52c is the check on that: the *walk* order must not move.
+ */
+await seedGoals()
+await goto('/areas/')
+await waitForText(EN.picker)
+const orderBefore = await evaluate(
+  `[...document.querySelectorAll('main ul > li')].map((li) => li.innerText.replace(/[ ]+/g, ' ').trim())`,
+)
+await clickAria(`Pin: ${AREAS[3].label}`)
+await sleep(350)
+const orderAfter = await evaluate(
+  `[...document.querySelectorAll('main ul > li')].map((li) => li.innerText.replace(/[ ]+/g, ' ').trim())`,
+)
+const starFacts = JSON.parse(await raw()).facts.filter((f) => /^area\.[^.]+\.pinned$/.test(f.key))
+check(
+  '52a. starring an area moves it to the top and writes one fact on the area itself',
+  orderBefore?.[0] !== orderAfter?.[0] &&
+    orderAfter?.[0]?.includes(AREAS[3].label) &&
+    starFacts.length === 1 &&
+    starFacts[0].key === `area.${AREAS[3].id}.pinned` &&
+    starFacts[0].value === 'yes',
+  `${orderBefore?.[0]} → ${orderAfter?.[0]}`,
+)
+check(
+  '52a2. and the areas below it keep the order they had',
+  JSON.stringify(orderAfter?.slice(1)) ===
+    JSON.stringify(orderBefore?.filter((label) => !label.includes(AREAS[3].label))),
+  (orderAfter ?? []).join(' / '),
+)
+
+await goto('/areas/')
+await waitForText(EN.picker)
+const persisted = await evaluate(
+  `document.querySelector('main ul > li').innerText.replace(/[ ]+/g, ' ').trim()`,
+)
+await clickAria(`Unpin: ${AREAS[3].label}`)
+await sleep(350)
+const orderBack = await evaluate(
+  `[...document.querySelectorAll('main ul > li')].map((li) => li.innerText.replace(/[ ]+/g, ' ').trim())`,
+)
+check(
+  '52b. it survives a reload, and unstarring puts the list back as it was',
+  persisted?.includes(AREAS[3].label) && JSON.stringify(orderBack) === JSON.stringify(orderBefore),
+  `${persisted} → ${orderBack?.[0]}`,
+)
+
+/**
+ * The introduction's sequence is **not** the list's order, and starring must not touch it.
+ *
+ * They come from the same array, which is exactly why this is worth asserting rather than
+ * reasoning about: `/areas/` re-orders a copy, and a future refactor that sorted `areas`
+ * itself would change which area someone is asked about first — silently, and only for
+ * people who had starred something.
+ */
+await clearStorage()
+await goto('/')
+await evaluate(
+  `localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, ${JSON.stringify(
+    JSON.stringify({
+      version: 1,
+      consentAt: '2026-04-01T00:00:00.000Z',
+      locale: 'en',
+      facts: [
+        {
+          id: 'star',
+          key: `area.${AREAS[5].id}.pinned`,
+          value: 'yes',
+          source: 'goals',
+          learnedAt: '2026-04-01T00:00:00.000Z',
+        },
+      ],
+    }),
+  )})`,
+)
+await goto('/')
+await sleep(500)
+// Past the "next we will look at six areas" screen, which is what a store holding nothing
+// but a star opens on.
+await click(EN.introOk)
+await sleep(300)
+screen = await text()
+check(
+  '52c. a starred area does not jump the queue in the introduction',
+  screen.includes(AREAS[0].label) && !screen.includes(AREAS[5].label),
+  screen.replace(NL, ' / ').slice(0, 90),
+)
+
+await goto('/data/stored/')
+await expandAll()
+check(
+  '52d. and the star is shown on the page that promises to show everything',
+  (await text()).includes('kept at the top'),
+  'star rendered rather than silently held',
 )
 
 check(

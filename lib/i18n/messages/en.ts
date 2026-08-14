@@ -575,6 +575,15 @@ export const en = {
     unpin: 'Unpin',
     pinOn: 'Pin: {text}',
     unpinOn: 'Unpin: {text}',
+    /**
+     * The same act one level up, on a life area.
+     *
+     * Named separately from `pinOn` only because the interpolation is the area's name
+     * rather than someone's own words — the word "Pin" is the same on purpose. Three things
+     * can be starred now, and they should not read as three different features.
+     */
+    pinAreaOn: 'Pin: {area}',
+    unpinAreaOn: 'Unpin: {area}',
     addStep: 'Add something',
     /** Three visible "Add" buttons are three identical controls out loud. */
     addStepFor: 'Add something for: {goal}',
@@ -823,6 +832,12 @@ export const en = {
       goalReached: 'reached',
       /** A pointer, not a fact about the goal — so `standing()` gives it no date. */
       goalPriority: 'first for now',
+      /**
+       * The area itself is starred. Said on the area's own summary line, where "kept in
+       * view" is said about an entry — same idea, one level up, and no date, because a
+       * preference is not a thing that happened.
+       */
+      areaPinned: 'kept at the top',
       /**
        * The newest self-reported rating, as the word that was chosen rather than as the
        * digit that was stored — `'3'` is a token the app wrote, and this page never prints

@@ -130,6 +130,8 @@ export type AreaState = {
   area: AreaId
   /** `undefined` means the area has never been asked about. */
   review: Review | undefined
+  /** Starred, so `/areas/` leads with it. Never asked for, and not a ranking. */
+  pinned: boolean
   /** Every goal ever written here, oldest first. */
   goals: Goal[]
   /** Still current, capped at `MAX_GOALS`. */
@@ -157,6 +159,15 @@ export type AreaState = {
 export const LEGACY_GID = 'legacy'
 
 const reviewKey = (area: AreaId) => `area.${area}.review`
+/**
+ * Kept at the top of `/areas/`.
+ *
+ * One segment under the area, where a goal's and an entry's live two and three deep — which
+ * is what keeps it out of `GOAL_KEY` and `STEP_KEY` without either pattern needing to know
+ * about it. Same vocabulary as the other two stars, and the same rule: any number may be
+ * set, and it is a preference about what you want to see rather than a ranking.
+ */
+const areaPinnedKey = (area: AreaId) => `area.${area}.pinned`
 const pinnedKey = (area: AreaId, step: string) => `area.${area}.step.${step}.pinned`
 const goalPinnedKey = (area: AreaId, goal: string) => `area.${area}.goal.${goal}.pinned`
 const goalProgressKey = (area: AreaId, goal: string) => `area.${area}.goal.${goal}.progress`
@@ -361,6 +372,7 @@ export function readArea(person: Person, area: AreaId): AreaState {
   return {
     area,
     review: toReview(person.current(reviewKey(area))?.value),
+    pinned: person.current(areaPinnedKey(area))?.value === 'yes',
     goals,
     activeGoals,
     priority,
@@ -389,6 +401,8 @@ export type GoalDetail = Goal & {
 
 export type AreaDetail = {
   area: AreaId
+  /** Starred on `/areas/`. A preference, so it carries no date — like the priority goal. */
+  pinned: boolean
   /** Newest first. */
   reviews: { value: Review; at: string }[]
   /** Newest first, so the current goal comes before the ones it replaced. */
@@ -439,10 +453,13 @@ export function readAreaDetail(person: Person, area: AreaId): AreaDetail {
 
   return {
     area,
+    pinned: state.pinned,
     reviews,
     goals,
     steps,
-    any: reviews.length > 0 || goals.length > 0 || steps.length > 0,
+    // A star counts. `/data/stored/` promises to show everything the app holds, and an area
+    // whose only fact is a star would otherwise be held and never shown.
+    any: reviews.length > 0 || goals.length > 0 || steps.length > 0 || state.pinned,
   }
 }
 
@@ -619,6 +636,24 @@ export function setGoalProgress(
 ): void {
   if (person.current(goalProgressKey(area, goal))?.value === String(progress)) return
   remember(goalProgressKey(area, goal), String(progress), SOURCE)
+}
+
+/**
+ * Keep a life area at the top of `/areas/`.
+ *
+ * The third thing in this app that can be starred, after entries and goals, and it means
+ * the same thing as the other two: *this is what I want to see first*. Any number may be
+ * set — it is not a ranking, and there is deliberately no "the area I am focused on".
+ *
+ * It changes nothing but the order of one list. No area behaves differently for being
+ * starred, nothing is asked more often, and nothing else in the app reads it.
+ */
+export function pinArea(area: AreaId): void {
+  remember(areaPinnedKey(area), 'yes', SOURCE)
+}
+
+export function unpinArea(area: AreaId): void {
+  remember(areaPinnedKey(area), 'no', SOURCE)
 }
 
 export function completeStep(area: AreaId, step: string): void {

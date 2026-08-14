@@ -98,6 +98,7 @@ through the store's `remember()` with `source: 'goals'`.
 
 ```
 area.<a>.review              'yes' | 'not_now'  — also written when a goal is created
+area.<a>.pinned              'yes' | 'no'         — absent means not starred
 area.<a>.goal                the goal, verbatim   — LEGACY, read but never written
 area.<a>.goal.<gid>.text     the goal, verbatim   — newest wins, history = rewordings
 area.<a>.goal.<gid>.why      why it matters       — READ ONLY, see below
@@ -121,6 +122,30 @@ first overall. Same shape and same reasoning as a step's `pinned`.
 
 It is deliberately **not** in `GOAL_KEY`. That pattern is what discovers which goals exist,
 so a star on its own — from a hand-edited store — must not conjure a goal with no words.
+
+### A life area can be starred too
+
+`area.<a>.pinned` puts an area at the top of `/areas/`. The third thing that can be starred,
+after entries and goals, and it means what the other two mean: *show me this first*. Any
+number may be set, nothing behaves differently for being starred, and it orders exactly one
+list.
+
+**One segment under the area**, where a goal's star is two deep and an entry's three. That is
+what keeps it out of `GOAL_KEY` and `STEP_KEY` without either pattern needing to know it
+exists.
+
+**The order it overrides is presentation, not data.** This file already says the area order
+drives the introduction's sequence and nothing else, so re-ordering the list costs nothing —
+but the two come from the same array, which is why §52c asserts a starred area does *not*
+jump the queue during the introduction. A refactor that sorted `areas` itself rather than a
+copy would change which area someone is asked about first, silently, and only for people who
+had starred something.
+
+**The star is a sibling of the row, never inside it.** The whole card is a link — that is the
+page's central affordance — so the button is positioned over the `<li>` instead. A `<button>`
+inside an `<a>` is invalid and would navigate on press, which is what check 27c now guards.
+That check used to assert the page had *no* buttons at all ("this page changes nothing"); it
+is inverted rather than deleted, and keeps the half that was load-bearing.
 
 ## How close a goal feels
 

@@ -139,6 +139,7 @@ First product loop (see `docs/goals-and-areas.md`):
   saving it carries straight on to the next area,
 - completing a step, then choosing another or not,
 - a small per-area view for changing the goal and the steps,
+- starring an entry, a goal or a life area, which orders the list it appears in,
 - an optional five-point answer to "how close are you to reaching this goal?", offered on
   the area page and the start page, never asked for — and where the top of the scale asks
   whether to mark the goal reached.

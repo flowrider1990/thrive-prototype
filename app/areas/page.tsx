@@ -3,10 +3,11 @@
 import Link from 'next/link'
 import { GoalIcon } from '@/components/area-icon'
 import { AreaLabel } from '@/components/area-label'
+import { Star } from '@/components/icons'
 import { PageShell } from '@/components/page-shell'
 import { areas } from '@/lib/areas'
 import { useI18n } from '@/lib/i18n'
-import { readArea } from '@/lib/person/goals'
+import { pinArea, readArea, unpinArea } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 
 /**
@@ -32,7 +33,19 @@ export default function AreasPage() {
 
   if (status !== 'ready') return <PageShell>{null}</PageShell>
 
-  const states = areas.map((area) => readArea(person, area))
+  /**
+   * Starred areas first, each group keeping the fixed order `lib/areas.ts` defines.
+   *
+   * The same rule the start page uses for goals and entries, and the same meaning: not a
+   * ranking, not a limit, and nothing behaves differently for being starred. It orders one
+   * list, and that is all it does.
+   *
+   * The order it overrides is presentation rather than data — `docs/goals-and-areas.md` is
+   * explicit that the area order drives the introduction's sequence and nothing else — so
+   * re-ordering here costs nothing elsewhere.
+   */
+  const all = areas.map((area) => readArea(person, area))
+  const states = [...all.filter((state) => state.pinned), ...all.filter((state) => !state.pinned)]
 
   return (
     <PageShell>
@@ -65,10 +78,32 @@ export default function AreasPage() {
             // readable and one tap away. See `.option-recede`.
             const quiet = goalCount === 0
             return (
-            <li key={state.area}>
+            <li key={state.area} className="relative">
+              {/**
+               * The star sits **over** the row rather than inside it.
+               *
+               * The whole card is the link — that is the page's central affordance, and
+               * splitting it into a link plus a spare strip to make room for a button would
+               * cost more than the star is worth. A `<button>` inside an `<a>` is also
+               * invalid and would navigate on press, which is what check 37a guards.
+               *
+               * So: positioned against the `<li>`, a real sibling of the link in the DOM, and
+               * therefore its own tab stop after it. `pe-14` on the link keeps the area name
+               * from running under it.
+               */}
+              <button
+                type="button"
+                className={`pin-toggle absolute end-3 top-3 z-10 ${state.pinned ? 'pin-toggle-on' : ''}`}
+                aria-label={t(state.pinned ? m.manage.unpinAreaOn : m.manage.pinAreaOn, {
+                  area: m.areas[state.area],
+                })}
+                onClick={() => (state.pinned ? unpinArea(state.area) : pinArea(state.area))}
+              >
+                <Star filled={state.pinned} />
+              </button>
               <Link
                 href={`/areas/${state.area}`}
-                className={`option block space-y-1.5 ${quiet ? 'option-recede' : ''}`}
+                className={`option block space-y-1.5 pe-14 ${quiet ? 'option-recede' : ''}`}
               >
                 <AreaLabel area={state.area} size="card" />
                 {/**

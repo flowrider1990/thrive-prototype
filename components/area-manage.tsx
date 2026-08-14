@@ -404,40 +404,29 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                         <h2 className="heading text-2xl leading-snug">
                           {t(m.manage.goalQuoted, { text: goal.text })}
                         </h2>
-                        {/* The same bordered circle as the pin, so a row reads as hit
-                            areas rather than as marks. Each is named after the goal it
-                            acts on: three buttons called "Edit" are three identical
-                            controls to anyone listening. */}
-                        {!busyHere && (
-                        <>
-                        <button
-                          type="button"
-                          className="pin-toggle"
-                          aria-label={t(m.manage.goalChangeOn, { goal: goal.text })}
-                          onClick={() => onlyOpen(() => setEditingGoal(goal.id))}
-                        >
-                          <Pencil />
-                        </button>
-                        <button
-                          type="button"
-                          className="pin-toggle"
-                          aria-label={t(m.manage.deleteGoalOn, { goal: goal.text })}
-                          onClick={() => onlyOpen(() => setDeletingGoal(goal.id))}
-                        >
-                          <Cross />
-                        </button>
-                        </>
-                        )}
                         {/**
-                         * How close this feels, at the end of the row the goal's own words
-                         * start.
+                         * How close this feels — **first** in the group of three that sits at
+                         * the end of the row.
+                         *
+                         * Two things decided that order. Edit and remove now land directly
+                         * above the same two controls on every entry below, so the card has
+                         * one column of act-on-this instead of two that nearly line up. And
+                         * the scale is the odd one out — it asks a question where the other
+                         * two act — so it sits on the far side of the group's own gap rather
+                         * than between them and the words.
+                         *
+                         * `ms-auto` lives here and only here. Two auto margins in one flex
+                         * row split the free space between them, which would prise the group
+                         * apart instead of moving it — and this is the one of the three that
+                         * is always present, so it is the reliable anchor.
                          *
                          * A **direct child** of this flex row rather than the far side of a
                          * `justify-between` pair, and that is load-bearing: §48e asserts the
                          * edit and remove controls share a parent with the heading, so
-                         * wrapping them to build two columns would break it. `ms-auto` pushes
-                         * this to the end without restructuring anything, and the row's
-                         * `flex-wrap` lets it drop to its own line at phone width.
+                         * wrapping the trailing group in a div to right-align it would break
+                         * that. Auto margin does the same job and restructures nothing, and
+                         * the row's `flex-wrap` still lets it drop to its own line at phone
+                         * width.
                          *
                          * Open, it takes the same slot and lays out full width beneath the
                          * heading — so the goal being judged stays legible while it is
@@ -454,6 +443,42 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
                           onClose={() => setEvaluating(null)}
                           onReached={setReached}
                         />
+                        {/**
+                         * The same bordered circle as the star on an entry, so a row reads as
+                         * hit areas rather than as marks. Each is named after the goal it
+                         * acts on: three buttons called "Edit" are three identical controls
+                         * to anyone listening.
+                         *
+                         * **At the very end of the row, not beside the words.** They sat
+                         * directly after the goal, which put two controls inside the sentence
+                         * — the quoted line stopped reading as one thing, and where they
+                         * landed moved with the length of what someone had written. Here they
+                         * are also directly above the pencil and cross on every entry in the
+                         * card, so one column acts and nothing nearly-aligns.
+                         *
+                         * `ms-2` sets them off from the scale, which asks rather than acts.
+                         * The spacing is what says so, without a separator.
+                         */}
+                        {!busyHere && (
+                        <>
+                        <button
+                          type="button"
+                          className="pin-toggle ms-2"
+                          aria-label={t(m.manage.goalChangeOn, { goal: goal.text })}
+                          onClick={() => onlyOpen(() => setEditingGoal(goal.id))}
+                        >
+                          <Pencil />
+                        </button>
+                        <button
+                          type="button"
+                          className="pin-toggle"
+                          aria-label={t(m.manage.deleteGoalOn, { goal: goal.text })}
+                          onClick={() => onlyOpen(() => setDeletingGoal(goal.id))}
+                        >
+                          <Cross />
+                        </button>
+                        </>
+                        )}
                       </div>
                     )}
                     {/* Only when it is there. There is no longer any way to write one,

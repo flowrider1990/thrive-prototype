@@ -4534,6 +4534,60 @@ check(
 )
 
 /**
+ * All three of the goal's controls share the row's trailing edge, in the order
+ * **scale · edit · remove**.
+ *
+ * Two claims, and both are layout rather than markup — all three are siblings of the heading
+ * either way, which 48e requires — so this is measured by geometry. Asserting the DOM would
+ * say nothing about where anything appears.
+ *
+ * The order matters twice over. Edit and remove end the row, so they land directly above the
+ * pencil and cross on every entry in the card: one column that acts, rather than two that
+ * nearly line up. And the scale sits on the far side of the group's own wider gap, because it
+ * asks a question where the other two act — that spacing is the only thing saying so.
+ *
+ * They used to follow the quoted goal immediately, which put two controls inside the sentence
+ * and made their position depend on how much someone had written.
+ */
+const trailing = await evaluate(`(() => {
+  const li = document.querySelector('main ol li');
+  const box = (el) => (el ? el.getBoundingClientRect() : null);
+  const named = (prefix) =>
+    [...li.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') || '').startsWith(prefix));
+  const row = box(li.querySelector('h2')?.parentElement);
+  const heading = box(li.querySelector('h2'));
+  const scale = box(li.querySelector('.scale-toggle'));
+  const edit = box(named('Change this goal:'));
+  const remove = box(named('Remove goal:'));
+  // The entry controls one level down, to check the columns really do line up.
+  const entryEdit = box(named('Edit: '));
+  const entryRemove = box(named('Remove: '));
+  if (!row || !heading || !scale || !edit || !remove) return null;
+  return {
+    afterHeading: Math.round(scale.left - heading.right),
+    scaleToEdit: Math.round(edit.left - scale.right),
+    editToRemove: Math.round(remove.left - edit.right),
+    atRightEdge: Math.round(row.right - remove.right),
+    // Rounded to the pixel: same width, same trailing edge, so the centres coincide.
+    editAligned: entryEdit ? Math.round(edit.left) === Math.round(entryEdit.left) : null,
+    removeAligned: entryRemove ? Math.round(remove.left) === Math.round(entryRemove.left) : null,
+  };
+})()`)
+check(
+  '48e2. the goal’s controls end the row as scale · edit · remove, the scale set apart',
+  trailing !== null &&
+    trailing.afterHeading > trailing.scaleToEdit &&
+    trailing.scaleToEdit > trailing.editToRemove &&
+    trailing.atRightEdge <= 1,
+  JSON.stringify(trailing),
+)
+check(
+  '48e3. and edit and remove sit directly above the same two controls on an entry',
+  trailing?.editAligned === true && trailing?.removeAligned === true,
+  `edit ${trailing?.editAligned}, remove ${trailing?.removeAligned}`,
+)
+
+/**
  * One thing open at a time, and a goal's card holds its own entries.
  *
  * Editing an entry used to leave the goal's edit and remove controls up, plus

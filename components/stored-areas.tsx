@@ -153,6 +153,10 @@ export function StoredAreas() {
                   {goal ?? m.stored.areas.noGoal}
                   {detail.steps.length > 0 && ` · ${count}`}
                   {detail.pinned && ` · ${m.stored.areas.areaPinned}`}
+                  {/* The icon they chose is a stored fact, so it has to be reported here
+                      or this page holds something it promises to show. Which emoji it is
+                      needs no words: it is drawn in the heading directly above. */}
+                  {detail.icon && ` · ${m.stored.areas.areaIcon}`}
                 </span>
               </summary>
 

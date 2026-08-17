@@ -109,7 +109,7 @@ export default function AreasPage() {
                 {/**
                  * **Each goal by name, with what is under it.** The row counted them for a
                  * while — "2 Ziele angegeben" — which kept someone's sentences off a screen
-                 * that shows six areas at once, but it also meant the only way to learn what
+                 * that shows every area at once, but it also meant the only way to learn what
                  * you had written was to open every area in turn. Naming them costs the
                  * privacy of a glance and buys the page its purpose back.
                  *

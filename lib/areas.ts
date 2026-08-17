@@ -7,25 +7,33 @@
  * store — no existing key changes — but see `LEGACY_AREAS` below for the thing it
  * used to break instead.
  *
- * Names live in the message catalogs and emoji in `components/area-icon.tsx`, so
+ * Names live in the message catalogs and emoji in `lib/area-icons.ts`, so
  * how an area looks or reads can change freely while what is stored stays put.
  * `body` therefore reads as "Physical Health" while keeping the id it was given.
  *
  * **Order is presentation, not data.** It drives the sequence the introduction asks
  * in and the order of the progress marks, and nothing else. It runs roughly outward
- * from the person — the two health areas adjacent, then the people around them, then
- * what they spend their days on — and ends on `finances`, which reads as "Absicherung &
- * Freiheit" and asks about the longest horizon of the six. Reordering is free; renaming
- * is not.
+ * from the person — the two health areas adjacent, then the people around them, then the
+ * place those people are shared with, then what they spend their days on — and ends on
+ * `finances`, which reads as "Absicherung & Freiheit" and asks about the longest horizon
+ * of them all. Reordering is free; renaming is not.
  *
  * `finances` is the clearest case of why ids and names are separate. Its label no longer
  * mentions money at all, because the area is about what money is *for*; the id stays
- * because thousands of stored keys begin with it.
+ * because thousands of stored keys begin with it. `living` is the same decision taken in
+ * advance: it reads as "Apartment & Living" today, and the id says nothing about renting,
+ * owning, or a home being an apartment.
  */
 export const areas = [
   'body',
   'mind',
   'relationships',
+  // After the people rather than before them: a place is mostly lived in with someone, or
+  // noticed for who is not there, so it reads as the setting those relationships sit in.
+  // Not `home` as an id — the start page, the `home` message group and `homeView` already
+  // hold that word, and a fact key reading `area.home.goal` would be ambiguous in every
+  // conversation about this code.
+  'living',
   'work',
   'creativity',
   'finances',

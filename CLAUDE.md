@@ -132,7 +132,7 @@ Existing foundation:
 - automated verification.
 
 First product loop (see `docs/goals-and-areas.md`):
-- six fixed life areas, reviewed one per screen during onboarding,
+- seven fixed life areas, reviewed one per screen during onboarding,
 - up to three goals per area, where the person wants them — **one** asked for during
   onboarding, more added from the area's own page,
 - up to three prepared next steps per area — again **one** during onboarding, where

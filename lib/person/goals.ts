@@ -1,5 +1,6 @@
 'use client'
 
+import { defaultAreaIcon, isAreaIcon } from '@/lib/area-icons'
 import { LEGACY_AREAS, type AreaId } from '@/lib/areas'
 import { newId, remember, type Person } from './store'
 
@@ -19,6 +20,7 @@ import { newId, remember, type Person } from './store'
  * area.<a>.step.<sid>.goal     <gid>
  * area.<a>.step.<sid>.pinned   'yes' | 'no'         — absent means not pinned
  * area.<a>.goal.<gid>.progress '1'…'5'              — absent means never evaluated
+ * area.<a>.icon                one emoji            — absent means the area's default
  * area.<a>.step_active         <sid>                — LEGACY, read as a pin
  * ```
  *
@@ -168,6 +170,19 @@ const reviewKey = (area: AreaId) => `area.${area}.review`
  * set, and it is a preference about what you want to see rather than a ranking.
  */
 const areaPinnedKey = (area: AreaId) => `area.${area}.pinned`
+/**
+ * Which emoji this area is drawn with.
+ *
+ * The **glyph** is stored, not an index into `areaIcons`. An index is one byte smaller and
+ * wrong: it means nothing without the list it points into, so reordering that list would
+ * silently repoint every stored choice at a different emoji, and there would be no way to
+ * tell a stale index from a current one. The glyph says what it means on its own, and
+ * `isAreaIcon` is what turns an unrecognised one back into the default.
+ *
+ * One segment under the area, like `pinned`, which is what keeps it clear of `GOAL_KEY`
+ * and `STEP_KEY` without either pattern having to know it exists.
+ */
+const iconKey = (area: AreaId) => `area.${area}.icon`
 const pinnedKey = (area: AreaId, step: string) => `area.${area}.step.${step}.pinned`
 const goalPinnedKey = (area: AreaId, goal: string) => `area.${area}.goal.${goal}.pinned`
 const goalProgressKey = (area: AreaId, goal: string) => `area.${area}.goal.${goal}.progress`
@@ -403,6 +418,21 @@ export type AreaDetail = {
   area: AreaId
   /** Starred on `/areas/`. A preference, so it carries no date — like the priority goal. */
   pinned: boolean
+  /**
+   * Whether they ever chose an icon for this area.
+   *
+   * Deliberately **not** `readAreaIcon`'s answer, which is never undefined: this page
+   * reports what is stored, and "we are showing you the default" is not something the
+   * person did. Equally deliberately, it is not *which* emoji — the heading beside it
+   * draws that already.
+   *
+   * And it is the **fact's existence**, not the value's validity. An icon the list no
+   * longer offers still renders as the default, which is correct — but if that also made
+   * this `false`, the fact would sit on the device reported nowhere, and an area holding
+   * nothing else would drop off the page entirely. Showing everything means everything,
+   * including a value we can no longer draw.
+   */
+  icon: boolean
   /** Newest first. */
   reviews: { value: Review; at: string }[]
   /** Newest first, so the current goal comes before the ones it replaced. */
@@ -451,15 +481,23 @@ export function readAreaDetail(person: Person, area: AreaId): AreaDetail {
     }
   })
 
+  // Read straight from the key rather than through `readAreaIcon`, which answers with the
+  // default when nothing is stored — the opposite of what this page needs to know. No
+  // validity check either; see the type.
+  const icon = person.current(iconKey(area)) !== undefined
+
   return {
     area,
     pinned: state.pinned,
+    icon,
     reviews,
     goals,
     steps,
-    // A star counts. `/data/stored/` promises to show everything the app holds, and an area
-    // whose only fact is a star would otherwise be held and never shown.
-    any: reviews.length > 0 || goals.length > 0 || steps.length > 0 || state.pinned,
+    // A star counts, and so does a chosen icon. `/data/stored/` promises to show everything
+    // the app holds, and an area whose only fact is one of those two would otherwise be
+    // held and never shown. **Two features running have hit exactly this**, which makes it
+    // the first thing to check when a life-area fact is added, not the last.
+    any: reviews.length > 0 || goals.length > 0 || steps.length > 0 || state.pinned || icon,
   }
 }
 
@@ -519,6 +557,40 @@ export function finishIntroduction(person: Person): void {
 
 export function setReview(area: AreaId, review: Review): void {
   remember(reviewKey(area), review, SOURCE)
+}
+
+/**
+ * The emoji this area is drawn with, everywhere it is drawn.
+ *
+ * Falls back to the default on anything it does not recognise, which covers a store
+ * written before an emoji was taken out of the list as well as a hand-edited one. That is
+ * the same rule `toReview` and `toState` follow: an unreadable value reads as "nothing was
+ * said", never as a reason to break the page.
+ */
+export function readAreaIcon(person: Person, area: AreaId): string {
+  const stored = person.current(iconKey(area))?.value
+  return isAreaIcon(area, stored) ? stored : defaultAreaIcon(area)
+}
+
+/**
+ * Choosing an icon. **Saying the same thing twice writes nothing.**
+ *
+ * The guard is here rather than at the call site, for the reason `setGoalProgress` gives:
+ * a second caller would otherwise have to remember it, and the two would drift. It matters
+ * more here than it looks — the picker shows the current choice among the options, so
+ * tapping the one already chosen is a perfectly ordinary way to close the panel, and
+ * without this every such tap would leave a fact behind on the page that promises to show
+ * every fact.
+ *
+ * The validity check is a second guard on the same write. The picker can only ever send
+ * one of this area's own emoji, so it should be unreachable — which is exactly why it is
+ * cheap to keep: the one function that can put an emoji on the device refuses to store
+ * something the renderer would then refuse to read.
+ */
+export function setAreaIcon(person: Person, area: AreaId, icon: string): void {
+  if (!isAreaIcon(area, icon)) return
+  if (readAreaIcon(person, area) === icon) return
+  remember(iconKey(area), icon, SOURCE)
 }
 
 /** Returns the new goal's id, because the caller usually wants to act on it. */

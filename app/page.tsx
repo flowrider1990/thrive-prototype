@@ -227,7 +227,7 @@ export default function Home() {
               })}
             />
           }
-          // One goal and one action, then the next area. Six areas is enough of a walk
+          // One goal and one action, then the next area. Seven areas is enough of a walk
           // without each one also being an invitation to fill it.
           guided
           onDone={nextArea}
@@ -242,7 +242,7 @@ export default function Home() {
         // `ack` rather than a screen of its own: that slot exists for exactly this —
         // an acknowledgement riding above what comes next, so there is nothing extra to
         // tap through. Opening with "That is it for now." landed as a dismissal right
-        // after someone had answered questions about six areas of their life.
+        // after someone had answered questions about every area of their life.
         <QuestionCard
           ack={m.complete.ack}
           question={m.complete.title}

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { AreaFlow } from '@/components/area-flow'
-import { AreaIcon, GoalIcon } from '@/components/area-icon'
+import { AreaIconPicker, GoalIcon } from '@/components/area-icon'
 import { GoalProgress, GoalReached } from '@/components/goal-progress'
 import { Cross, Pencil, Star } from '@/components/icons'
 import { TextAnswer } from '@/components/text-answer'
@@ -150,7 +150,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
    * areas.
    *
    * Writing a goal is the reason someone opened the area, so the useful thing to see next
-   * is the goal they just wrote, with its entries under it — not a list of six areas one
+   * is the goal they just wrote, with its entries under it — not a list of areas one
    * of which they were already in. It used to leave the page entirely, which meant the one
    * screen showing what had just been created was the one you were sent away from.
    */
@@ -193,10 +193,25 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
       {/* `subject`, the larger size — the same one `QuestionCard` uses when the area is
           the heading. Both are this page at display scale, so a smaller mark here made the
           icon jump as you moved between them. */}
-      <h1 className="heading flex items-center gap-x-3">
-        <AreaIcon area={area} size="subject" />
-        {m.areas[area]}
-      </h1>
+      {/* The mark is a picker here and only here. Everywhere else the area appears it is
+          read-only — one place to change something is a setting, five places to change the
+          same thing is a decision the reader keeps having to make.
+
+          **It is a sibling of the `h1`, never inside it**, and both reasons are hard rules
+          rather than preferences. A heading's accessible name is built from its
+          descendants', so a button in there with a name of its own turns the heading into
+          "Change the icon for Physical Health Physical Health" — and into that plus all six
+          emoji while the panel is open. And `h1` takes phrasing content, which `Menu`'s
+          wrapper and panel `div`s are not; `stored-areas.tsx` keeps its `h2` clear of a
+          wrapper for exactly that reason.
+
+          `<header>` rather than a bare `div`: it really is this section's header, and it
+          gives the celebration check a truthful way to ask "what is there to do about the
+          goal" without counting the page title's own control. */}
+      <header className="flex items-center gap-x-2">
+        <AreaIconPicker area={area} />
+        <h1 className="heading">{m.areas[area]}</h1>
+      </header>
 
       {/**
        * Directly under the heading, because the goal it names has just left the page — and
@@ -252,7 +267,7 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
              * the start page.
              *
              * The two lists answer different questions. The start page is everything open
-             * across six areas with no inherent order, so putting pinned first is the only
+             * across areas with no inherent order, so putting pinned first is the only
              * thing making it a useful order at all. This is one goal's own short list,
              * where the order already means something — the sequence you wrote them in —
              * and a pin is a marker on an item rather than a sort key over the list.

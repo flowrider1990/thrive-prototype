@@ -7,7 +7,7 @@
  * store — no existing key changes — but see `LEGACY_AREAS` below for the thing it
  * used to break instead.
  *
- * Names live in the message catalogs and emoji in `components/area-icon.tsx`, so
+ * Names live in the message catalogs and emoji in `lib/area-icons.ts`, so
  * how an area looks or reads can change freely while what is stored stays put.
  * `body` therefore reads as "Physical Health" while keeping the id it was given.
  *

@@ -419,13 +419,20 @@ export type AreaDetail = {
   /** Starred on `/areas/`. A preference, so it carries no date — like the priority goal. */
   pinned: boolean
   /**
-   * The emoji they chose, or `undefined` if they never chose one.
+   * Whether they ever chose an icon for this area.
    *
-   * Deliberately **not** `readAreaIcon`'s answer, which is never undefined. This page
+   * Deliberately **not** `readAreaIcon`'s answer, which is never undefined: this page
    * reports what is stored, and "we are showing you the default" is not something the
-   * person did. The heading beside it draws the icon either way.
+   * person did. Equally deliberately, it is not *which* emoji — the heading beside it
+   * draws that already.
+   *
+   * And it is the **fact's existence**, not the value's validity. An icon the list no
+   * longer offers still renders as the default, which is correct — but if that also made
+   * this `false`, the fact would sit on the device reported nowhere, and an area holding
+   * nothing else would drop off the page entirely. Showing everything means everything,
+   * including a value we can no longer draw.
    */
-  icon: string | undefined
+  icon: boolean
   /** Newest first. */
   reviews: { value: Review; at: string }[]
   /** Newest first, so the current goal comes before the ones it replaced. */
@@ -475,9 +482,9 @@ export function readAreaDetail(person: Person, area: AreaId): AreaDetail {
   })
 
   // Read straight from the key rather than through `readAreaIcon`, which answers with the
-  // default when nothing is stored — the opposite of what this page needs to know.
-  const storedIcon = person.current(iconKey(area))?.value
-  const icon = isAreaIcon(area, storedIcon) ? storedIcon : undefined
+  // default when nothing is stored — the opposite of what this page needs to know. No
+  // validity check either; see the type.
+  const icon = person.current(iconKey(area)) !== undefined
 
   return {
     area,
@@ -490,12 +497,7 @@ export function readAreaDetail(person: Person, area: AreaId): AreaDetail {
     // the app holds, and an area whose only fact is one of those two would otherwise be
     // held and never shown. **Two features running have hit exactly this**, which makes it
     // the first thing to check when a life-area fact is added, not the last.
-    any:
-      reviews.length > 0 ||
-      goals.length > 0 ||
-      steps.length > 0 ||
-      state.pinned ||
-      icon !== undefined,
+    any: reviews.length > 0 || goals.length > 0 || steps.length > 0 || state.pinned || icon,
   }
 }
 

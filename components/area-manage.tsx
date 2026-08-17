@@ -195,11 +195,23 @@ export function AreaManage({ area, onDone }: { area: AreaId; onDone: () => void 
           icon jump as you moved between them. */}
       {/* The mark is a picker here and only here. Everywhere else the area appears it is
           read-only — one place to change something is a setting, five places to change the
-          same thing is a decision the reader keeps having to make. */}
-      <h1 className="heading flex items-center gap-x-2">
+          same thing is a decision the reader keeps having to make.
+
+          **It is a sibling of the `h1`, never inside it**, and both reasons are hard rules
+          rather than preferences. A heading's accessible name is built from its
+          descendants', so a button in there with a name of its own turns the heading into
+          "Change the icon for Physical Health Physical Health" — and into that plus all six
+          emoji while the panel is open. And `h1` takes phrasing content, which `Menu`'s
+          wrapper and panel `div`s are not; `stored-areas.tsx` keeps its `h2` clear of a
+          wrapper for exactly that reason.
+
+          `<header>` rather than a bare `div`: it really is this section's header, and it
+          gives the celebration check a truthful way to ask "what is there to do about the
+          goal" without counting the page title's own control. */}
+      <header className="flex items-center gap-x-2">
         <AreaIconPicker area={area} />
-        {m.areas[area]}
-      </h1>
+        <h1 className="heading">{m.areas[area]}</h1>
+      </header>
 
       {/**
        * Directly under the heading, because the goal it names has just left the page — and

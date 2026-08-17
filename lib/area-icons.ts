@@ -27,12 +27,17 @@ import type { AreaId } from '@/lib/areas'
  */
 export const areaIcons = {
   body: ['🩺', '🏃', '💪', '🥗', '🥵', '🫀'],
-  mind: ['😌', '🧠', '🌿', '☯️', '🧘‍♂️', '💭'],
+  mind: ['😌', '🧠', '🌿', '⚖️', '🧘‍♂️', '💭'],
   relationships: ['🫂', '💬', '❤️', '👥', '🤝', '🥂'],
   // 🛋️ leads, so the area's default is the room rather than the way into it.
   living: ['🛋️', '🔑', '🏠', '🪴', '🧹', '🕯️'],
   work: ['💼', '💻', '📈', '🤑', '🎯', '🧑‍💼'],
-  creativity: ['📚', '🍳', '⚽', '✈️', '🎮', '🎨', '🎵', '📷', '🌱'],
+  // 📖 leads, so this is the one area whose default *changed* rather than being kept from
+  // before — it was 🎨. Decided deliberately: nobody who never picked an icon keeps the old
+  // mark here, and there is no migration, because the default is a rendering rule rather
+  // than anything stored. Everyone who did pick is untouched, since the glyph is what is
+  // saved. This is the index-0 hazard the doc above warns about, taken knowingly.
+  creativity: ['📖', '🍳', '⚽', '✈️', '🎮', '🎨', '🎵', '📷', '🌱'],
   finances: ['🌳', '🛡️', '💰', '🔓', '🧭', '🕊️'],
 } as const satisfies Record<AreaId, readonly string[]>
 

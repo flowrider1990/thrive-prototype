@@ -49,11 +49,11 @@ export const areas = ['body', 'mind', 'relationships', 'living', 'work', 'creati
 | id | label | icons — the first is the default |
 | --- | --- | --- |
 | `body` | Physical Health | 🩺 🏃 💪 🥗 🥵 🫀 |
-| `mind` | Mental Wellbeing | 😌 🧠 🌿 ☯️ 🧘‍♂️ 💭 |
+| `mind` | Mental Wellbeing | 😌 🧠 🌿 ⚖️ 🧘‍♂️ 💭 |
 | `relationships` | Relationships & Social Life | 🫂 💬 ❤️ 👥 🤝 🥂 |
 | `living` | Apartment & Living | 🛋️ 🔑 🏠 🪴 🧹 🕯️ |
 | `work` | Work & Career | 💼 💻 📈 🤑 🎯 🧑‍💼 |
-| `creativity` | Hobbies & Creativity | 📚 🍳 ⚽ ✈️ 🎮 🎨 🎵 📷 🌱 |
+| `creativity` | Hobbies & Creativity | 📖 🍳 ⚽ ✈️ 🎮 🎨 🎵 📷 🌱 |
 | `finances` | Security & Freedom | 🌳 🛡️ 💰 🔓 🧭 🕊️ |
 
 Names live in the message catalogs, icons in `lib/area-icons.ts`. So an
@@ -154,6 +154,14 @@ it to the default** — the right failure, but not a visible one. And **index 0 
 default**, so reordering a list is free everywhere except at its head, where it changes
 what everyone who never picked anything sees.
 
+That second one was hit immediately, and knowingly: **Hobbies & Creativity now leads with
+📖 where it used to be 🎨**, the only area whose default changed rather than being carried
+over. It needs no migration — a default is a rendering rule, not a stored value — and
+anyone who has actually picked an icon is untouched, because the glyph is what is saved.
+It is written down here because "the icon quietly changed" is otherwise indistinguishable
+from a bug, and because a review caught it rather than a check: nothing asserts what an
+area's default *is*, and on reflection nothing should. That would be a test of the data.
+
 ### Adding an area is safe for the store, and used to break something else
 
 No existing key changes, so nothing is orphaned — but until `introduction_done`
@@ -162,7 +170,7 @@ already had one. See "Introduction state" below; the short version is that
 `LEGACY_AREAS` must never grow.
 
 **`living` was the first area added since that groundwork, and it cost five edits**:
-`lib/areas.ts`, `components/area-icon.tsx`, both catalogs, and the `AREAS` fixture in
+`lib/areas.ts`, `lib/area-icons.ts`, both catalogs, and the `AREAS` fixture in
 `scripts/verify.mjs`. Nothing in `app/` or `components/` beyond the emoji, no check
 rewritten, and `287/287` passed unchanged — which is what "the suite stopped caring how
 many areas there are" was bought for. `seedLegacyOnboarded()` covers the case that used to

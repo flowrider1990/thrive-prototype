@@ -5179,12 +5179,12 @@ check(
  *
  * The way on is primary, because with everything else hidden it is the only thing to do.
  *
- * **The heading's own control is excluded, and that is not a weakening.** This counted every
- * button in `main`, which was a proxy for "the list stood down" — fine while the only buttons
- * on the page came from the list. The area icon picker put a permanent control in the `h1`,
- * so the proxy started reporting two while the guarantee itself was untouched. Scoping it to
- * the content leaves the claim exactly as strong: one thing to do *about the goal*. A second
- * row appearing under the celebration still fails this.
+ * **The section header's own control is excluded, and that is not a weakening.** This counted
+ * every button in `main`, which was a proxy for "the list stood down" — fine while the only
+ * buttons on the page came from the list. The area icon picker put a permanent control beside
+ * the title, so the proxy started reporting two while the guarantee itself was untouched.
+ * Scoping it to the content leaves the claim exactly as strong: one thing to do *about the
+ * goal*. A second row appearing under the celebration still fails this.
  */
 const celebration = await evaluate(`(() => {
   const main = document.querySelector('main');
@@ -5193,7 +5193,7 @@ const celebration = await evaluate(`(() => {
   );
   return {
     buttons: [...main.querySelectorAll('button')]
-      .filter((b) => !b.closest('h1'))
+      .filter((b) => !b.closest('header'))
       .map((b) => b.innerText.trim())
       .filter(Boolean),
     primary: on?.classList.contains('btn-primary') ?? null,
@@ -5616,13 +5616,36 @@ check(
   `${grid?.count} options, ${grid?.columns} columns, current ${grid?.current.join('')}`,
 )
 
+/**
+ * The picker is beside the title, never inside it.
+ *
+ * A heading's accessible name is composed from its descendants', so a named button in
+ * there makes the `h1` announce as "Change the icon for Physical Health Physical Health"
+ * — and, with the panel open, as that plus every emoji in it. `h1` also takes phrasing
+ * content only, which `Menu`'s wrapper and panel `div`s are not.
+ *
+ * Asserted on the **computed** name rather than on the markup: "the button is not a
+ * descendant" is the current fix, not the guarantee, and a future layout could break the
+ * name some other way.
+ */
+const headingName = await evaluate(`(() => {
+  const h1 = document.querySelector('main h1');
+  return { text: h1.textContent.trim(), holdsButton: h1.querySelector('button') !== null };
+})()`)
+check(
+  '53a2. the picker sits beside the title without becoming part of it',
+  headingName?.text === AREAS[0].label && headingName.holdsButton === false,
+  `h1 reads “${headingName?.text}”, contains a button: ${headingName?.holdsButton}`,
+)
+
 await clickSelector(`[role="group"] button:nth-child(3)`)
 await sleep(300)
+const headingRow = () => evaluate(`document.querySelector('main header').textContent`)
 check(
-  '53b. picking one closes the panel and redraws the heading',
-  (await evaluate(`document.querySelector('h1').textContent`))?.includes(PICKED) === true &&
+  '53b. picking one closes the panel and redraws the mark',
+  (await headingRow())?.includes(PICKED) === true &&
     (await evaluate(`document.querySelectorAll('[role="group"]').length`)) === 0,
-  await evaluate(`document.querySelector('h1').textContent`),
+  await headingRow(),
 )
 
 /**
@@ -5697,11 +5720,29 @@ await evaluate(`(() => {
 })()`)
 await goto(`/areas/${AREAS[0].id}/`)
 await waitForText(AREAS[0].label)
-const heading = await evaluate(`document.querySelector('h1').textContent`)
+const degraded = await headingRow()
 check(
   '53g. an emoji this area does not offer degrades to the default, rather than rendering',
-  heading?.includes('🩺') === true && heading.includes('🏠') === false,
-  heading,
+  degraded?.includes('🩺') === true && degraded.includes('🏠') === false,
+  degraded,
+)
+
+/**
+ * …and the fact is still reported, even though it can no longer be drawn.
+ *
+ * The gap this closes: `isAreaKey()` keeps every `area.*` key out of the generic list, so
+ * a life-area fact appears on `/data/stored/` only if `readAreaDetail` surfaces it. While
+ * that surfacing was conditional on the value being *valid*, an unreadable icon sat on the
+ * device reported nowhere — and an area holding nothing else would have dropped off the
+ * page altogether. Showing everything means everything, including what we cannot draw.
+ * Found in review, not by a check; this is the check.
+ */
+await goto('/data/stored/')
+await expandAll()
+check(
+  '53g2. …and it is still reported as a choice, on the page that shows everything',
+  (await text()).includes('your own icon'),
+  'an undrawable icon is reported rather than silently held',
 )
 
 /** Consent-gated like every other preference: declining keeps it for the visit only. */
@@ -5714,16 +5755,27 @@ await click(EN.contYes)
 await click(EN.introOk)
 await declineRest()
 await click(EN.toHome)
-await goto(`/areas/${AREAS[0].id}/`)
+/**
+ * **Navigated by clicking, never by `goto()`.** A full page load discards the in-memory
+ * store, so the mode falls back to `undecided` — which also writes nothing, so the check
+ * would pass while proving nothing about memory mode. Found in review; the same trap is
+ * commented at the other memory-mode checks, and this one had walked straight into it.
+ * `modeIsMemory` is what makes the premise checkable instead of assumed.
+ */
+// The premise, checked on the one screen that states the mode out loud. Without this the
+// section could drift back into `undecided` and nothing would notice.
+const inMemory = (await text()).includes('Nothing is being saved')
+await click(EN.navAreas)
+await sleep(300)
+await clickSelector(`a[href*="/areas/${AREAS[0].id}"]`)
 await waitForText(AREAS[0].label)
 await clickSelector(ICON_TRIGGER)
 await clickSelector(`[role="group"] button:nth-child(3)`)
 await sleep(300)
 check(
   '53h. and in memory mode it works for the visit and writes no key',
-  (await evaluate(`document.querySelector('h1').textContent`))?.includes(PICKED) === true &&
-    (await keys()).length === 0,
-  `${(await keys()).length} localStorage keys`,
+  inMemory && (await headingRow())?.includes(PICKED) === true && (await keys()).length === 0,
+  `memory mode ${inMemory}, ${(await keys()).length} localStorage keys`,
 )
 
 check(

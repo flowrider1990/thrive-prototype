@@ -698,7 +698,7 @@ const EN = {
   toHome: 'Go to the start page',
   home: 'Your next steps',
   check: 'How is it going?',
-  outcomeDone: 'I have done this',
+  outcomeDone: 'I have internalized that',
   outcomeOngoing: 'Still on it',
   outcomeAside: 'This does not fit me anymore',
   cancel: 'Cancel',
@@ -783,6 +783,7 @@ const AREAS = [
   { id: 'body', label: 'Physical Health', de: 'Körperliche Gesundheit' },
   { id: 'mind', label: 'Mental Wellbeing', de: 'Mentales Wohlbefinden' },
   { id: 'relationships', label: 'Relationships & Social Life', de: 'Beziehungen & Soziales' },
+  { id: 'living', label: 'Apartment & Living', de: 'Wohnung & Wohnen' },
   { id: 'work', label: 'Work & Career', de: 'Beruf & Karriere' },
   { id: 'creativity', label: 'Hobbies & Creativity', de: 'Hobbys & Kreativität' },
   { id: 'finances', label: 'Security & Freedom', de: 'Absicherung & Freiheit' },
@@ -5177,6 +5178,13 @@ check(
  * celebration.
  *
  * The way on is primary, because with everything else hidden it is the only thing to do.
+ *
+ * **The heading's own control is excluded, and that is not a weakening.** This counted every
+ * button in `main`, which was a proxy for "the list stood down" — fine while the only buttons
+ * on the page came from the list. The area icon picker put a permanent control in the `h1`,
+ * so the proxy started reporting two while the guarantee itself was untouched. Scoping it to
+ * the content leaves the claim exactly as strong: one thing to do *about the goal*. A second
+ * row appearing under the celebration still fails this.
  */
 const celebration = await evaluate(`(() => {
   const main = document.querySelector('main');
@@ -5184,7 +5192,10 @@ const celebration = await evaluate(`(() => {
     (el) => el.innerText.trim() === ${JSON.stringify('Continue')},
   );
   return {
-    buttons: [...main.querySelectorAll('button')].map((b) => b.innerText.trim()).filter(Boolean),
+    buttons: [...main.querySelectorAll('button')]
+      .filter((b) => !b.closest('h1'))
+      .map((b) => b.innerText.trim())
+      .filter(Boolean),
     primary: on?.classList.contains('btn-primary') ?? null,
   };
 })()`)
@@ -5412,6 +5423,51 @@ check(
   edges?.dots.join(' / '),
 )
 
+/**
+ * The same claim, for the controls drawn in **JSX** rather than through a component class.
+ *
+ * 51a measures `.btn`, `.pin-toggle`, `.scale-toggle` and `.card` — every one of them a
+ * class in `globals.css`, and every one of them already on the token. So it kept passing
+ * while the header's language pill and theme toggle, the menu panel and the start page's
+ * view toggle were all drawn a full pixel thinner, because those four spell their border
+ * with Tailwind's `border` utility, which hardcodes 1px and cannot see `--edge`. Visible
+ * side by side in the header; invisible to a suite that only ever asked the CSS.
+ *
+ * Selected structurally rather than by the `edge` class, so a control that *forgets* the
+ * class is caught rather than skipped — asking "do the elements with the class have the
+ * width the class sets" would be a check on Tailwind, not on this app.
+ */
+await goto('/')
+await waitForText(EN.home)
+await clickSelector('header button[aria-expanded]')
+await sleep(200)
+const jsxEdges = await evaluate(`(() => {
+  const width = (sel) => {
+    const el = document.querySelector(sel);
+    return el ? getComputedStyle(el).borderTopWidth : null;
+  };
+  return {
+    // The language pill, and the collapsed-nav trigger at phone width.
+    menuTrigger: width('header button[aria-expanded]'),
+    // The panel it opens.
+    menuPanel: width('.menu-panel'),
+    // The theme toggle: the header's other icon pill, which opens nothing.
+    themeToggle: width('header button[aria-label]:not([aria-expanded])'),
+    // The start page's "My next steps / My goals" track.
+    viewToggle: width('main [role="group"]'),
+  };
+})()`)
+const inJsx = Object.values(jsxEdges ?? {})
+check(
+  '51d. and the controls drawn in JSX are on the same edge as the ones drawn in CSS',
+  inJsx.length === 4 &&
+    inJsx.every((value) => value === structural[0]) &&
+    parseFloat(structural[0]) >= 2,
+  Object.entries(jsxEdges ?? {})
+    .map(([name, value]) => `${name} ${value}`)
+    .join(' / ') + ` vs ${structural[0]}`,
+)
+
 // --- 52. starring a life area moves it, and changes nothing else ---------
 
 /**
@@ -5497,7 +5553,7 @@ await evaluate(
 )
 await goto('/')
 await sleep(500)
-// Past the "next we will look at six areas" screen, which is what a store holding nothing
+// Past the "next we will look at the areas" screen, which is what a store holding nothing
 // but a star opens on.
 await click(EN.introOk)
 await sleep(300)
@@ -5514,6 +5570,160 @@ check(
   '52d. and the star is shown on the page that promises to show everything',
   (await text()).includes('kept at the top'),
   'star rendered rather than silently held',
+)
+
+// --- 53. an area can be drawn with an emoji the person picked ------------
+
+/**
+ * The picker is on the area page and nowhere else, but the *choice* is everywhere.
+ *
+ * That split is the whole feature and the whole risk. A change that only reached the page
+ * it was made on would leave the app showing two different icons for one area on two
+ * screens, which reads as a bug rather than as a setting — so 53c is the load-bearing
+ * check here, not 53b.
+ *
+ * The trigger is found by its accessible name rather than by a class: the name is what
+ * says the control belongs to this area, and a selector on the styling would keep passing
+ * if the button lost the name that makes it usable at all.
+ */
+const ICON_TRIGGER = `[aria-label="Change the icon for ${AREAS[0].label}"]`
+const PICKED = '💪'
+
+await seedGoals()
+await goto(`/areas/${AREAS[0].id}/`)
+await waitForText(AREAS[0].label)
+const optionsBefore = await evaluate(`document.querySelectorAll('${ICON_TRIGGER}').length`)
+await clickSelector(ICON_TRIGGER)
+const grid = await evaluate(`(() => {
+  const buttons = [...document.querySelectorAll('[role="group"] button')];
+  return {
+    count: buttons.length,
+    icons: buttons.map((b) => b.textContent.trim()),
+    current: buttons.filter((b) => b.getAttribute('aria-current') === 'true').map((b) => b.textContent.trim()),
+    // Three columns is what makes six a 2x3 and nine a 3x3. Measured rather than assumed:
+    // a grid that collapsed to one column would still pass a count check.
+    columns: getComputedStyle(document.querySelector('[role="group"]')).gridTemplateColumns.split(' ').length,
+  };
+})()`)
+check(
+  '53a. the picker opens on the area’s own six, with the default marked and three across',
+  optionsBefore === 1 &&
+    grid?.count === 6 &&
+    grid.icons[0] === '🩺' &&
+    grid.current.length === 1 &&
+    grid.current[0] === '🩺' &&
+    grid.columns === 3,
+  `${grid?.count} options, ${grid?.columns} columns, current ${grid?.current.join('')}`,
+)
+
+await clickSelector(`[role="group"] button:nth-child(3)`)
+await sleep(300)
+check(
+  '53b. picking one closes the panel and redraws the heading',
+  (await evaluate(`document.querySelector('h1').textContent`))?.includes(PICKED) === true &&
+    (await evaluate(`document.querySelectorAll('[role="group"]').length`)) === 0,
+  await evaluate(`document.querySelector('h1').textContent`),
+)
+
+/**
+ * The one that would have caught a choice that only reached the page it was made on.
+ *
+ * Three surfaces, because they read the icon by three different routes: `/areas/` renders
+ * a list, the start page renders it beside an entry, and `/data/stored/` renders it in a
+ * summary heading. A component that read the store on one path and took a prop on another
+ * would pass on the first and fail here.
+ */
+await goto('/areas/')
+await waitForText(AREAS[0].label)
+const iconOnList = await evaluate(`document.body.innerText.includes('${PICKED}')`)
+await goto('/')
+await waitForText(EN.home)
+const iconOnHome = await evaluate(`document.body.innerText.includes('${PICKED}')`)
+await goto('/data/stored/')
+await expandAll()
+const iconOnStored = await evaluate(`document.body.innerText.includes('${PICKED}')`)
+check(
+  '53c. and the choice is the area’s icon everywhere, not only where it was made',
+  iconOnList === true && iconOnHome === true && iconOnStored === true,
+  `list ${iconOnList} / home ${iconOnHome} / stored ${iconOnStored}`,
+)
+check(
+  '53d. …and the page that promises to show everything says a choice was made',
+  (await text()).includes('your own icon'),
+  'reported rather than silently held',
+)
+
+/** Append-only, so this is one fact and it is the newest for the key — not a rewrite. */
+const iconFacts = await evaluate(`(() => {
+  const store = JSON.parse(localStorage.getItem(${JSON.stringify(STORAGE_KEY)}));
+  return store.facts.filter((f) => f.key === 'area.${AREAS[0].id}.icon');
+})()`)
+check(
+  '53e. it is stored as the glyph, under one key, as an ordinary fact',
+  iconFacts?.length === 1 && iconFacts[0].value === PICKED && iconFacts[0].source === 'goals',
+  `${iconFacts?.length} fact(s), value ${iconFacts?.[0]?.value}`,
+)
+
+/**
+ * Choosing what is already chosen writes nothing.
+ *
+ * Byte-identical rather than "the count did not go up": a rewrite that happened to keep
+ * the number would satisfy the weaker form. This matters more than it looks, because the
+ * picker marks the current option, so tapping it is an ordinary way to close the panel.
+ */
+await goto(`/areas/${AREAS[0].id}/`)
+await waitForText(AREAS[0].label)
+const beforeSame = await raw()
+await clickSelector(ICON_TRIGGER)
+await clickSelector(`[role="group"] button[aria-current="true"]`)
+await sleep(300)
+check(
+  '53f. choosing the one already chosen writes nothing at all',
+  (await raw()) === beforeSame,
+  'store byte-identical',
+)
+
+/**
+ * A value the list no longer offers — a hand-edited store, or one written before an emoji
+ * was taken out — falls back to the default rather than rendering itself. `🏠` is chosen
+ * deliberately: it is a real icon *for another area*, so this also pins that the guard is
+ * per area rather than against the union of all of them.
+ */
+await evaluate(`(() => {
+  const store = JSON.parse(localStorage.getItem(${JSON.stringify(STORAGE_KEY)}));
+  store.facts.push({ id: 'bad-icon', key: 'area.${AREAS[0].id}.icon', value: '🏠',
+    source: 'goals', learnedAt: '2099-01-01T00:00:00.000Z' });
+  localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, JSON.stringify(store));
+})()`)
+await goto(`/areas/${AREAS[0].id}/`)
+await waitForText(AREAS[0].label)
+const heading = await evaluate(`document.querySelector('h1').textContent`)
+check(
+  '53g. an emoji this area does not offer degrades to the default, rather than rendering',
+  heading?.includes('🩺') === true && heading.includes('🏠') === false,
+  heading,
+)
+
+/** Consent-gated like every other preference: declining keeps it for the visit only. */
+await clearStorage()
+await goto('/')
+await click(EN.no)
+await type('Not for me.')
+await click(EN.cont)
+await click(EN.contYes)
+await click(EN.introOk)
+await declineRest()
+await click(EN.toHome)
+await goto(`/areas/${AREAS[0].id}/`)
+await waitForText(AREAS[0].label)
+await clickSelector(ICON_TRIGGER)
+await clickSelector(`[role="group"] button:nth-child(3)`)
+await sleep(300)
+check(
+  '53h. and in memory mode it works for the visit and writes no key',
+  (await evaluate(`document.querySelector('h1').textContent`))?.includes(PICKED) === true &&
+    (await keys()).length === 0,
+  `${(await keys()).length} localStorage keys`,
 )
 
 check(

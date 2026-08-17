@@ -26,8 +26,9 @@ a colour.** That is what makes a new theme or skin a change to one file.
 ### `--edge`: how thick a structural line is
 
 One value, `2px`, for everything that draws a **control** or a **card** — `.btn`, `.field`,
-`.option`, `.switch-track`, `.pin-toggle`, `.scale-toggle`, `.card`. So "the app looks
-fragile" is one edit rather than a sweep.
+`.option`, `.switch-track`, `.pin-toggle`, `.scale-toggle`, `.card`, the header's two pills,
+the menu panel and the start page's view toggle. So "the app looks fragile" is one edit
+rather than a sweep.
 
 At 1px those edges were the same weight as a decorative rule, which is what made controls
 feel provisional: a button and a line between paragraphs were the same kind of mark.
@@ -38,9 +39,20 @@ pixels, so it showed on a retina screen and nowhere else. §51a therefore assert
 width rather than the presence of a declaration; a check that the rule exists would have
 passed throughout.
 
-Declared as `border-width: var(--edge)` beside the `@apply`, not inside it: Tailwind's
-`border` utility hardcodes 1px, while the colour utilities (`border-line-strong`,
-`border-transparent`) set only `border-color` and compose cleanly.
+**Ask for it by name: the `edge` utility, never Tailwind's `border`.** `@utility edge` in
+`globals.css` sets width and style only, so it composes with the colour utilities
+(`border-line-strong`, `border-line`, `border-transparent`) exactly as `border` did, and it
+is what `.btn`, `.field` and the rest `@apply` too — one spelling of the rule rather than
+two.
+
+That utility exists because of how the token leaked. `border` hardcodes 1px and cannot see
+`--edge`, so any control drawn in JSX rather than through a component class silently opted
+out — which is what happened to the language pill, the theme toggle, the menu panel and the
+view toggle. They sat a full pixel thinner than the buttons and dials beside them, in the
+header, for weeks. §51a could not see it: every element it measures is a class in this
+file, and every one of them was already on the token. **§51d measures the JSX-drawn
+controls**, selected structurally rather than by the `edge` class — asking whether elements
+with the class have the width the class sets would be a check on Tailwind, not on this app.
 
 **Three things deliberately stay off it**, and §51b/§51c guard two of them:
 

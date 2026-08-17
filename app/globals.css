@@ -257,6 +257,26 @@
   }
 }
 
+/**
+ * A structural edge, at the one width the app draws them.
+ *
+ * This exists because Tailwind's `border` utility hardcodes 1px, so any control drawn in
+ * JSX rather than through a component class silently opted out of `--edge` — which is
+ * exactly what happened to the header's two pills, the menu panel and the view toggle.
+ * They read as hairlines beside the buttons, cards and dial next to them.
+ *
+ * Use `edge` wherever `border` would have gone on a **control or a container**. It sets
+ * width and style only, so it composes with the colour utilities (`border-line-strong`,
+ * `border-line`, `border-transparent`) the same way `border` did.
+ *
+ * Separators keep the bare `border-t` / `border-s-2` utilities: a hairline is a different
+ * thing from an edge and the difference is the point — see `--edge`.
+ */
+@utility edge {
+  border-width: var(--edge);
+  border-style: solid;
+}
+
 @layer components {
   /**
    * Every page's title. One class rather than the same six utilities repeated at
@@ -294,9 +314,7 @@
      thing saying "you can type here", so it is a control boundary and carries the
      3:1 floor. Separators elsewhere stay on `--color-line`. */
   .field {
-    @apply w-full rounded-md border-line-strong bg-surface px-4 py-3 text-ink;
-    border-width: var(--edge);
-    border-style: solid;
+    @apply edge w-full rounded-md border-line-strong bg-surface px-4 py-3 text-ink;
     @apply leading-relaxed shadow-none transition-colors;
   }
 
@@ -308,9 +326,7 @@
     @apply inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm;
     /* A transparent border on every button so the disabled and quiet variants
        can take a visible one without shifting the layout by a pixel. */
-    @apply border-transparent transition-colors disabled:cursor-not-allowed;
-    border-width: var(--edge);
-    border-style: solid;
+    @apply edge border-transparent transition-colors disabled:cursor-not-allowed;
   }
 
   .btn-primary {
@@ -367,9 +383,7 @@
    * this, selecting it chooses something; it never spends anything.
    */
   .option {
-    @apply w-full rounded-md border-line-strong bg-surface px-4 py-3 text-start;
-    border-width: var(--edge);
-    border-style: solid;
+    @apply edge w-full rounded-md border-line-strong bg-surface px-4 py-3 text-start;
     @apply leading-relaxed text-ink transition-colors;
   }
 
@@ -456,9 +470,7 @@
 
   .switch-track {
     @apply relative inline-flex h-5 w-9 shrink-0 items-center rounded-full;
-    @apply border-line-strong transition-colors;
-    border-width: var(--edge);
-    border-style: solid;
+    @apply edge border-line-strong transition-colors;
   }
   .switch:hover:not(:disabled) .switch-track {
     border-color: var(--color-muted);
@@ -493,10 +505,8 @@
    */
   .pin-toggle {
     @apply inline-flex shrink-0 items-center justify-center rounded-full p-1.5;
-    @apply border-line-strong text-muted transition-colors;
+    @apply edge border-line-strong text-muted transition-colors;
     @apply hover:border-muted hover:text-ink;
-    border-width: var(--edge);
-    border-style: solid;
   }
   /**
    * A class rather than an attribute selector, because the obvious hooks are both
@@ -530,10 +540,8 @@
    */
   .scale-toggle {
     @apply inline-flex shrink-0 items-center gap-x-1 rounded-full px-2.5 py-1.5;
-    @apply border-line-strong transition-colors;
+    @apply edge border-line-strong transition-colors;
     @apply hover:border-muted;
-    border-width: var(--edge);
-    border-style: solid;
   }
 
   /**
@@ -573,9 +581,7 @@
    * one edit and because the next card should not have to guess the recipe.
    */
   .card {
-    @apply rounded-lg border-line bg-surface px-4 py-4 sm:px-5;
-    border-width: var(--edge);
-    border-style: solid;
+    @apply edge rounded-lg border-line bg-surface px-4 py-4 sm:px-5;
   }
 
   .link-inline {

@@ -107,6 +107,14 @@ export const en = {
      * medical claims.
      */
     mind: 'Mental Wellbeing',
+    /**
+     * Where you live and how it is to be there — space, order, light, noise, whether it
+     * feels like yours. Deliberately not "Home": that word carries a family and a
+     * settled life for some readers and a sore spot for others, and the app assumes
+     * neither. "Apartment" is the plain physical thing, and "Living" is what it is like
+     * to be in it, which is the half the area is actually about.
+     */
+    living: 'Apartment & Living',
     relationships: 'Relationships & Social Life',
     work: 'Work & Career',
     creativity: 'Hobbies & Creativity',
@@ -121,7 +129,12 @@ export const en = {
   intro: {
     // The thanks is the consent acknowledgement above this question, so it is
     // not repeated here.
-    question: 'Next we will look at six areas of your life, one at a time.',
+    //
+    // **No number in it.** It said "six areas" until a seventh was added, at which point
+    // the app was stating a count it no longer had. The progress marks say how many there
+    // are, continuously and without anyone having to maintain a word — so this sentence
+    // says what is about to happen and leaves the arithmetic to the thing that can count.
+    question: 'Next we will look at the areas of your life, one at a time.',
     note: 'You do not need a goal in every one. "Not right now" is a real answer, and anything you note can be changed later.',
     submit: 'Okay',
   },
@@ -160,8 +173,8 @@ export const en = {
      * The same slot, on an area opened on purpose.
      *
      * "Not sure yet" is the honest way out of a question you were *asked* — the
-     * introduction walks up with six areas and being unsure about one of them is a real
-     * answer worth naming. Nobody is unsure here: they tapped this area to give it a
+     * introduction walks up with one area after another, and being unsure about one of
+     * them is a real answer worth naming. Nobody is unsure here: they tapped this area to give it a
      * goal, so the only thing the quiet control does is undo that tap, and it says so.
      *
      * Kept as its own key rather than reusing `manage.back` ("Back to your life areas"),
@@ -254,7 +267,7 @@ export const en = {
      * Said before the closing sentence, not instead of it.
      *
      * The screen used to open with "That is it for now.", which lands as a dismissal
-     * directly after someone has answered questions about six areas of their life.
+     * directly after someone has answered questions about every area of their life.
      * A short thanks first makes it a close rather than a stop. Deliberately one short
      * line and not a screen of its own — warmth here is a sentence, not a step.
      */
@@ -359,7 +372,15 @@ export const en = {
      * use, still kept, as everywhere else — and then choosing something else is
      * offered. That covers both readings without a second semantic path.
      */
-    outcomeDone: 'I have done this',
+    /**
+     * "Internalized", not "done". Half of what people write here is not a task that
+     * gets finished — it is a way of doing something that either takes hold or does
+     * not. Saying it has taken hold covers the one-off too (you did it, and you are
+     * no longer carrying it around), where "done" cannot describe the ongoing case
+     * at all. The stored value is unchanged: `state = 'done'` is a token nobody
+     * reads, which is exactly what lets the copy say this.
+     */
+    outcomeDone: 'I have internalized that',
     outcomeOngoing: 'Still on it',
     outcomeAside: 'This does not fit me anymore',
     cancel: 'Cancel',
@@ -392,6 +413,15 @@ export const en = {
      */
     back: 'Back to your life areas',
     /**
+     * The picker's accessible name, and its tooltip.
+     *
+     * Names the area, because the control is an emoji and its name is the only thing
+     * saying which of seven it belongs to. It is also the only string this feature needs:
+     * the options are emoji, and an emoji's accessible name comes from the character
+     * itself — so a picker of nine costs one line of copy rather than nine.
+     */
+    iconChange: 'Change the icon for {area}',
+    /**
      * The same link when the area was opened from the start page.
      *
      * Two labels because a back link should name where it goes; one that said "Back to
@@ -408,7 +438,7 @@ export const en = {
      * first, and before that a status line — "No goal yet" or an echo of the review answer.
      * Both made a row a small summary of the area. A row is a door: it says which area it
      * is and how much is behind it, and the words someone wrote are on the other side of
-     * it. That also keeps six areas' worth of someone's ambitions off one screen, where a
+     * it. That also keeps every area's worth of someone's ambitions off one screen, where a
      * glance over a shoulder reads all of them at once.
      *
      * Three strings rather than one with a plural rule, matching `trying`/`tryingOne`
@@ -455,7 +485,7 @@ export const en = {
      * **Says what to do, not what you have failed to do.**
      *
      * It used to read "you have not decided yet what could help" — accurate, and phrased
-     * as an absence on the person's part, on a page listing six areas where several could
+     * as an absence on the person's part, on a page listing every area, where several could
      * carry it at once. An instruction is the same information pointed forwards.
      *
      * Two forms because the row's goals are counted: one goal or several.
@@ -847,6 +877,14 @@ export const en = {
        */
       areaPinned: 'kept at the top',
       /**
+       * That they picked the area's icon themselves.
+       *
+       * Says only *that*, never which — the chosen emoji is already drawn in the heading
+       * on the same line, so naming it would be the page reading its own illustration
+       * aloud. No date, like the star: it is a preference, not a thing that happened.
+       */
+      areaIcon: 'your own icon',
+      /**
        * The newest self-reported rating, as the word that was chosen rather than as the
        * digit that was stored — `'3'` is a token the app wrote, and this page never prints
        * one of those.
@@ -1000,7 +1038,7 @@ export const en = {
   about: {
     title: 'About {app}',
     isTitle: 'What this is',
-    isP1: '{app} is a prototype of an app meant to support a person in living and thriving. What you have seen is its beginning: a question about consent, and six areas of a life to look at one at a time.',
+    isP1: '{app} is a prototype of an app meant to support a person in living and thriving. What you have seen is its beginning: a question about consent, and a handful of areas of a life to look at one at a time.',
     /**
      * "For now" and "at the moment" carry the same weight here as "currently" does in
      * the `data` group. These are the strongest claims the app makes about itself, and

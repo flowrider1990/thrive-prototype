@@ -56,7 +56,7 @@ export function ActionEntry({
   /**
    * Saving the first action ends the screen, instead of showing what you have.
    *
-   * Set only by the **introduction**, where the point is to walk six areas once and come
+   * Set only by the **introduction**, where the point is to walk every area once and come
    * out understanding the shape of the thing — not to fill one area up. One goal and one
    * action per area is enough to teach that, and the list, the cap notice, the per-entry
    * Edit and the offer of a second are all answers to questions someone has only after

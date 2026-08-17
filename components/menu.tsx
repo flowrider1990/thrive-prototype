@@ -2,6 +2,10 @@
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 
+/** The default trigger: the header's language and nav pills, which is what this started as. */
+const PILL =
+  'edge inline-flex items-center gap-1.5 rounded-full border-line-strong px-3 py-1.5 text-xs text-muted transition-colors hover:border-muted hover:text-ink'
+
 /**
  * A small disclosure dropdown: a trigger, and a panel that closes on Escape, on a
  * click outside, and when something inside it is chosen.
@@ -18,12 +22,31 @@ export function Menu({
   label,
   trigger,
   align = 'end',
+  triggerClassName = PILL,
+  triggerTitle,
   children,
 }: {
   /** Accessible name for the trigger — it has an icon or a code, not a sentence. */
   label: string
   trigger: ReactNode
   align?: 'start' | 'end'
+  /**
+   * Replaces the pill entirely, for a trigger that is not one.
+   *
+   * Only the header's two triggers are pills. The area icon picker's trigger is the
+   * area's own mark at heading scale, and a pill around it would make an `h1` look
+   * like a button — see `components/area-icon.tsx`, which explains why that one
+   * carries no edge at rest.
+   */
+  triggerClassName?: string
+  /**
+   * A hover tooltip, for a trigger that has no border to say it is one.
+   *
+   * Off by default: the header's pills look like controls already, and a tooltip
+   * repeating a label you can see is noise. The area icon picker sets it, because there
+   * the glyph is a page heading first and a control second.
+   */
+  triggerTitle?: string
   children: (close: () => void) => ReactNode
 }) {
   const [open, setOpen] = useState(false)
@@ -69,10 +92,11 @@ export function Menu({
         ref={triggerRef}
         type="button"
         aria-label={label}
+        title={triggerTitle}
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((wasOpen) => !wasOpen)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-line-strong px-3 py-1.5 text-xs text-muted transition-colors hover:border-muted hover:text-ink"
+        className={triggerClassName}
       >
         {trigger}
       </button>
@@ -80,7 +104,7 @@ export function Menu({
       {open && (
         <div
           id={panelId}
-          className={`menu-panel absolute top-full z-10 mt-2 min-w-36 rounded-lg border border-line-strong bg-surface p-1 shadow-lg ${
+          className={`menu-panel edge absolute top-full z-10 mt-2 min-w-36 rounded-lg border-line-strong bg-surface p-1 shadow-lg ${
             align === 'end' ? 'end-0' : 'start-0'
           }`}
         >

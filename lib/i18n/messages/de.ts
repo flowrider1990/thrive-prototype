@@ -79,6 +79,10 @@ export const de: Messages = {
     // "Mentales", nicht "Psychisches": psychisch ist die klinische Ebene, und die App
     // erhebt keine medizinischen Ansprüche.
     mind: 'Mentales Wohlbefinden',
+    // Nicht „Zuhause“: das Wort setzt für manche eine Familie und ein angekommenes Leben
+    // voraus und trifft für andere einen wunden Punkt. „Wohnung“ ist schlicht der Ort,
+    // „Wohnen“ ist, wie es sich darin lebt — und darum geht es hier eigentlich.
+    living: 'Wohnung & Wohnen',
     relationships: 'Beziehungen & Soziales',
     work: 'Beruf & Karriere',
     creativity: 'Hobbys & Kreativität',
@@ -89,7 +93,7 @@ export const de: Messages = {
   },
 
   intro: {
-    question: 'Als Nächstes schauen wir uns sechs Bereiche deines Lebens an, einen nach dem anderen.',
+    question: 'Als Nächstes schauen wir uns die Bereiche deines Lebens an, einen nach dem anderen.',
     note: 'Du brauchst nicht in jedem ein Ziel. „Gerade nicht“ ist eine echte Antwort, und alles, was du notierst, kannst du später ändern.',
     submit: 'Okay',
   },
@@ -147,7 +151,7 @@ export const de: Messages = {
     unfinishedLink: 'Zu den Lebensbereichen',
     check: 'Wie läuft’s?',
     checkOn: 'Wie läuft’s mit: {text}',
-    outcomeDone: 'Das habe ich gemacht',
+    outcomeDone: 'Das habe ich verinnerlicht',
     outcomeOngoing: 'Bin noch dran',
     outcomeAside: 'Das passt für mich nicht mehr',
     cancel: 'Abbrechen',
@@ -164,6 +168,7 @@ export const de: Messages = {
 
   manage: {
     back: 'Zurück zu deinen Lebensbereichen',
+    iconChange: 'Symbol für {area} ändern',
     backHome: 'Zurück zur Startseite',
     pickerTitle: 'Deine Lebensbereiche',
     pickerNote: 'Öffne einen, um sein Ziel zu ändern — oder was du ausprobieren willst.',
@@ -277,6 +282,7 @@ export const de: Messages = {
       goalReached: 'erreicht',
       goalPriority: 'zurzeit zuerst',
       areaPinned: 'ganz oben',
+      areaIcon: 'eigenes Symbol',
       goalProgress: 'wie nah es sich anfühlte: {value}',
       why: 'warum es zählt: {why}',
       edited: 'umformuliert aus: {text}',
@@ -321,7 +327,7 @@ export const de: Messages = {
   about: {
     title: 'Über {app}',
     isTitle: 'Was das hier ist',
-    isP1: '{app} ist der Prototyp einer App, die einen Menschen dabei unterstützen soll, gut zu leben. Was du gesehen hast, ist ihr Anfang: die Frage nach deinem Einverständnis und sechs Lebensbereiche, die man sich nacheinander ansieht.',
+    isP1: '{app} ist der Prototyp einer App, die einen Menschen dabei unterstützen soll, gut zu leben. Was du gesehen hast, ist ihr Anfang: die Frage nach deinem Einverständnis und einige Lebensbereiche, die man sich nacheinander ansieht.',
     isP2: 'Sie läuft vorerst vollständig in deinem Browser. Derzeit gibt es keinen Server, kein Konto, keine Auswertung und keine KI. Nichts, was du schreibst, wird irgendwohin geschickt, und auf dein Gerät wird nichts geschrieben, solange du nicht ja gesagt hast.',
     isP3: 'Was du erzählst, bleibt in deinen eigenen Worten. Antworten werden ergänzt statt überschrieben, damit eine spätere Antwort eine frühere nie löscht — wie sich etwas verändert hat, ist ja das Interessante.',
     isNotTitle: 'Was sie noch nicht ist',

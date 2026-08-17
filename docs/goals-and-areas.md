@@ -1,6 +1,6 @@
 # Life areas, goals, and what to try
 
-Six fixed life areas. In each, up to three current goals and at most three prepared
+Seven fixed life areas. In each, up to three current goals and at most three prepared
 things to try **across the area**, any number of which can be pinned. That is the
 whole feature.
 
@@ -43,26 +43,27 @@ A code-level rename stays cheap and available. A **key** rename is a migration.
 `lib/areas.ts` holds ids and nothing else:
 
 ```ts
-export const areas = ['body', 'mind', 'relationships', 'work', 'finances', 'creativity'] as const
+export const areas = ['body', 'mind', 'relationships', 'living', 'work', 'creativity', 'finances'] as const
 ```
 
-| id | label |
-| --- | --- |
-| `body` | Physical Health |
-| `mind` | Mental Wellbeing |
-| `relationships` | Relationships & Social Life |
-| `work` | Work & Career |
-| `finances` | Finances |
-| `creativity` | Hobbies & Creativity |
+| id | label | icons — the first is the default |
+| --- | --- | --- |
+| `body` | Physical Health | 🩺 🏃 💪 🥗 🥵 🫀 |
+| `mind` | Mental Wellbeing | 😌 🧠 🌿 ☯️ 🧘‍♂️ 💭 |
+| `relationships` | Relationships & Social Life | 🫂 💬 ❤️ 👥 🤝 🥂 |
+| `living` | Apartment & Living | 🛋️ 🔑 🏠 🪴 🧹 🕯️ |
+| `work` | Work & Career | 💼 💻 📈 🤑 🎯 🧑‍💼 |
+| `creativity` | Hobbies & Creativity | 📚 🍳 ⚽ ✈️ 🎮 🎨 🎵 📷 🌱 |
+| `finances` | Security & Freedom | 🌳 🛡️ 💰 🔓 🧭 🕊️ |
 
-Names live in the message catalogs, emoji in `components/area-icon.tsx`. So an
+Names live in the message catalogs, icons in `lib/area-icons.ts`. So an
 area can be renamed or redrawn freely — but **the ids themselves cannot change**.
 They are persisted inside fact keys, which puts them under the same rule as
 `STORAGE_KEY`: renaming one orphans everything stored under it, invisibly. That is
 a migration, not an edit. `body` reads as "Physical Health" while keeping the id it
 was given, which is exactly the separation this rule buys.
 
-### Why these six
+### Why these seven
 
 **Physical and mental are separate on purpose.** Physical health is one input to
 wellbeing; wellbeing is also downstream of relationships, work and circumstance.
@@ -76,12 +77,82 @@ the areas they belong to. "Wellbeing" rather than "Health", and `Mentales` rathe
 than `Psychisches`, because this is not a clinical category and the app makes no
 medical claims.
 
-Six is the cap. Growth/Learning is the most defensible seventh and is absorbed by
-Work and Creativity; Home/Environment is excluded outright.
+**`living` was the excluded one, and it is now in.** This section used to read *"Six is
+the cap. Growth/Learning is the most defensible seventh and is absorbed by Work and
+Creativity; Home/Environment is excluded outright."* The owner asked for it, which settles
+it — recorded here rather than quietly deleted, because the reasoning against it is still
+the reasoning to weigh for the next candidate.
+
+What makes it hold its own: where you live is a **circumstance**, not a pursuit, and it is
+the one circumstance a person can often actually change. Space, order, light, noise,
+whether it feels like yours — those have nowhere else to go. The overlap risk is with
+Mental Wellbeing, since a flat that grinds you down surfaces as mood; that is the same
+shape as the work/loneliness overlap already handled above, and the same answer applies —
+Mental Wellbeing is scoped to inner life and leaves causes with the areas that own them.
+
+The label avoids "Home" in both languages. That word carries a family and a settled life
+for some readers and a sore spot for others, and §7's rule against assuming lifestyle
+applies to a heading as much as to a question. "Apartment & Living" / "Wohnung & Wohnen"
+names the place and what it is like to be in it, and assumes nothing about who is there.
+
+The id is `living`, not `home`: the start page, the `home` message group and `homeView`
+already hold that word, and `area.home.goal` would be ambiguous in every conversation
+about this code.
+
+**Growth/Learning remains absorbed** by Work and Creativity. There is still no cap written
+down, and adding one should still have to argue for itself.
 
 **Order is presentation, not data.** It drives the sequence the introduction asks in
 and the order of the progress marks, and nothing else. `mind` sits at index 1 so the
-two health areas are adjacent, which is the only thing the ordering says.
+two health areas are adjacent; `living` sits after `relationships`, so the walk runs
+outward from the person — body, inner life, the people around them, the place those
+people are shared with, then what the days go on.
+
+`living` was first placed before `relationships` and moved on the owner's call, which
+cost three edits and no thought about data — that is the rule above doing its job. The
+reading it takes: a place is mostly lived in with someone, or noticed for who is not
+there, so it lands better as the setting relationships sit in than as a circumstance
+encountered before them.
+
+### An area can be drawn with an emoji the person picked
+
+Tapping the icon on `/areas/<id>/` opens a grid of that area's alternatives, the first of
+which is the default. `area.<a>.icon` holds the choice. Additive: no new storage key, no
+`version` bump, no migration, no change to the consent gate.
+
+- **The glyph is stored, not an index.** An index means nothing without the list it points
+  into, so reordering `lib/area-icons.ts` would silently repoint every stored choice at a
+  different emoji with no way to tell stale from current. A glyph says what it means on its
+  own, and `isAreaIcon` turns an unrecognised one back into the default — covering both a
+  hand-edited store and one written before an emoji was taken out of a list.
+- **The guard is per area, not against the union.** `🏠` under Physical Health would be a
+  real bug, and a check that accepted it would hide one. §53g pins this with that exact
+  value.
+- **Picked in one place, true in all of them.** The picker is only on the area's own page;
+  the choice shows on `/areas/`, the start page, `/data/stored/` and the introduction. That
+  is what makes `AreaIcon` read the store, which costs it its purity — it is a client
+  component subscribed to the person, at five call sites. Affordable only because every
+  page rendering an area already waits for `status === 'ready'`, so the default is never
+  painted and then swapped, which would be the §9 flash. **§53c is the load-bearing check**,
+  not §53b: a change reaching only the page it was made on would leave two icons for one
+  area on two screens, which reads as a bug rather than a setting.
+- **The emoji lists moved to `lib/`.** They were in `components/area-icon.tsx` under the
+  rule that the stored model owes nothing to how an area is drawn. That rule held while the
+  emoji was decoration; a *stored* icon has to be validated in `lib/person/goals.ts`, and a
+  `lib/` module importing from `components/` is the layering backwards. The important half
+  survives: `lib/areas.ts` still holds ids and nothing else.
+- **Saying the same thing twice writes nothing.** In `setAreaIcon`, not at the call site —
+  and it matters more here than it looks, because the picker marks the current choice, so
+  tapping the one already chosen is an ordinary way to close the panel. §53f asserts the
+  store is byte-identical, which "no new fact" would not.
+- **One string of copy.** The trigger needs a name; the options do not, because a button
+  whose only content is an emoji takes its accessible name from the character. A picker of
+  nine costs one line rather than nine, in each language.
+
+Two costs worth knowing. **Removing an emoji from a list silently returns anyone who chose
+it to the default** — the right failure, but not a visible one. And **index 0 is the
+default**, so reordering a list is free everywhere except at its head, where it changes
+what everyone who never picked anything sees.
 
 ### Adding an area is safe for the store, and used to break something else
 
@@ -89,6 +160,24 @@ No existing key changes, so nothing is orphaned — but until `introduction_done
 existed, adding an area silently un-finished the introduction for every store that
 already had one. See "Introduction state" below; the short version is that
 `LEGACY_AREAS` must never grow.
+
+**`living` was the first area added since that groundwork, and it cost five edits**:
+`lib/areas.ts`, `components/area-icon.tsx`, both catalogs, and the `AREAS` fixture in
+`scripts/verify.mjs`. Nothing in `app/` or `components/` beyond the emoji, no check
+rewritten, and `287/287` passed unchanged — which is what "the suite stopped caring how
+many areas there are" was bought for. `seedLegacyOnboarded()` covers the case that used to
+break: a store written before the area existed stays finished rather than being walked
+back into onboarding.
+
+Two things that are **not** in that list, and were still needed:
+
+- **the copy that stated a count.** `intro.question` said "six areas of your life" and
+  `about.isP1` said "six areas of a life", in both languages. Neither is derived, so both
+  became false on the same commit. They no longer carry a number at all — the progress
+  marks already say how many there are, continuously, without anyone maintaining a word.
+- **nothing else.** Worth stating, because the obvious worry is per-area copy. There is
+  none: every question in the flow is written for any area and takes the name from the
+  catalog, which is why an area is a label, an emoji and an id.
 
 ## The keys
 
@@ -255,7 +344,7 @@ the act rather than at the navigation. Guarded on the current value, because app
 means an unguarded write would add a duplicate on every goal added during the
 introduction, where the question was already answered.
 
-The introduction still asks. There an area arrives unbidden, six in a row, so whether this
+The introduction still asks. There an area arrives unbidden, seven in a row, so whether this
 one is worth a goal at all is a real question and "Not right now" is a real answer.
 
 ### `why` is a read path now
@@ -458,7 +547,7 @@ writes **one goal and one action per area**, and then moves on: saving the actio
 way to the next area. Both are optional — "Not sure yet" and "I do not know yet" each write
 nothing at all.
 
-The reason is what a first pass is for. Six areas is enough of a walk without each one also
+The reason is what a first pass is for. Seven areas is enough of a walk without each one also
 being an invitation to fill it, and everything the ceiling holds back — a second goal, a
 second action, the numbered list, the cap notice, editing what you just wrote — are answers
 to questions someone only has once they have used the app. Learning the shape is the job;
@@ -498,9 +587,16 @@ offers three answers. They map onto the existing writers with no new fact values
 
 | answer | writer | what is stored |
 | --- | --- | --- |
-| I have done this | `completeStep` | `state = 'done'` |
+| I have internalized that | `completeStep` | `state = 'done'` |
 | Still on it | — | **nothing** — see below |
 | This does not fit me anymore | `retireStep` | `state = 'retired'` |
+
+**The first answer says "internalized", and the store still says `'done'`.** That is the
+internal-vs-UI naming gap working as intended: `state` is a token nobody reads, so the
+copy is free to describe the outcome in the terms the person experiences it. And those
+terms are not completion — half of what people write here is a way of doing something
+rather than a task that finishes, and "done" cannot describe that at all. Taking hold
+covers the one-off too. Nothing about the model changed.
 
 **It was four.** "I would rather do something else" and "This does not fit anymore"
 were two labels for one state — *this is not right for me now* — and offering both made

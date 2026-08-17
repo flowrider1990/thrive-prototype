@@ -184,7 +184,7 @@ export function NextSteps() {
         <div
           role="group"
           aria-label={m.home.viewLabel}
-            className="inline-flex items-center gap-x-1 rounded-full border border-line-strong p-1"
+            className="edge inline-flex items-center gap-x-1 rounded-full border-line-strong p-1"
         >
           {(['steps', 'goals'] as const).map((option) => (
             <button

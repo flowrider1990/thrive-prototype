@@ -101,6 +101,18 @@ export const en = {
     conflict: {
       title: 'There is something here, and something in your account.',
       body: 'They are not the same, so nothing has been changed yet. Whichever you keep replaces the other.',
+      /**
+       * The same question, asked for a different reason, so it gets different words.
+       *
+       * This device is holding a dataset that was already decided against somewhere else —
+       * and it also has something of its own that never got uploaded. Adopting the account
+       * silently would throw that away; merging would revive the copy somebody chose to
+       * discard. Saying what happened is the only honest way in, and "from another device"
+       * is what makes it make sense rather than feel arbitrary.
+       */
+      supersededTitle: 'Your data was replaced from another device.',
+      supersededBody:
+        'What is here is from before that, and some of it never reached your account. Nothing has been changed yet — whichever you keep replaces the other.',
       here: 'On this device: {count}',
       there: 'In your account: {count}',
       keepDevice: 'Keep what is on this device',

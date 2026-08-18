@@ -814,6 +814,60 @@ conflict resolution, and account deletion end to end. Four departures, each one 
 place where the brief and this document disagreed, and each decided rather than
 drifted into.
 
+### 0. Generations, which §13 did not anticipate
+
+§13 says conflicts are impossible, and as a statement about *data* it is still true:
+append-only facts with client-generated ids cannot contradict each other, so a set
+union loses nothing. What it missed is that the argument assumes the two sides are
+**peers** — that neither has been declared wrong. Replace semantics break that
+assumption, and the failure it produces is specific:
+
+> Device A signs in, chooses "keep what is on this device", and the account's copy is
+> replaced. Device B, offline at the time, still holds the copy that was discarded. B
+> reconnects, unions, and every discarded fact is alive again.
+
+Append-only data has no way to say "this is gone", so the union has no way to know.
+Per-fact tombstones were the obvious fix and were rejected in O2 for good reasons; this
+is the cheaper one.
+
+**A generation is a stamp on the dataset as a whole.** `person_generations` is an
+append-only log, one row per deliberate replacement; the current generation is the
+newest row. Every fact carries the generation it was appended under, and **a fact is
+active only while its generation is the current one**.
+
+Why that closes it, and why it is still append-only: a row's generation is fixed when
+it is inserted, and there is no `UPDATE` anywhere in this schema. A superseded fact
+therefore *cannot* be promoted back into the current generation — not by a stale client,
+not by a buggy one, not by a race. The guarantee is structural rather than a rule
+somebody has to keep remembering. `pnpm check:sync` C12 is the proof: a stale device
+pushes the whole discarded dataset, the rows are accepted, and the active set does not
+move.
+
+Three consequences worth having in mind:
+
+- **The primary key is `(id, generation)`**, so the same fact can exist in two
+  generations at once. That is what lets a replace stage the winning dataset *before*
+  clearing the old one, so the account never holds less than it did a moment ago. Push
+  idempotency becomes per-generation, which is exactly right.
+- **Emptying an account mints one too.** Without it, another device would find the
+  generation it already knew, conclude it was a peer of an account that had merely lost
+  rows, and upload all of them again — the same bug wearing a different hat.
+- **`null` and "an empty generation" are different states.** The first means the account
+  has never held a dataset, and a device should upload; the second means it was reset,
+  and a device should stand down. Collapsing them would make every deletion bounce.
+
+The insert policy requires only that the generation **belongs to the caller**, not that
+it is the newest. Stricter sounds better and buys nothing: a stale device writing into
+its own superseded generation is writing rows that are inert by definition. What does
+need preventing is stamping a row with somebody else's generation, which the foreign key
+alone would allow — `check:sync` C14.
+
+Client side: `lib/cloud/generations.ts`, and one `reconcile()` in `sync.ts` that every
+entry point goes through. It adopts silently when this device's copy is wholly
+superseded and it has nothing unsynced of its own, and asks otherwise — including the
+guard that **an empty authoritative dataset is never adopted silently over a device that
+holds something**, since that state is indistinguishable from a replace still in flight.
+
 ### 1. Conflict resolution is a **choice**, not a union (§13 said conflicts were impossible)
 
 §13 is still true about the *data*: append-only facts with client-generated ids

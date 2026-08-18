@@ -346,6 +346,13 @@ immediately, and the app is fully usable with no account and no network.
   "sign out" are the same function reached from two places.
 - **`MEMORY_ONLY_KEYS` are filtered where rows are built**, so `consent_concern`
   is never uploaded. Asserted by `pnpm check:sync`, not assumed.
+- **A union is only safe between peers.** Merging two devices by set union is
+  lossless right up until one copy has been *declared wrong* by somebody choosing
+  which wins. `person_generations` is what tells the two situations apart: a fact
+  is active only while its generation is the newest, and because a row's
+  generation is fixed on insert and nothing may `UPDATE`, a discarded dataset
+  cannot come back. Do not add an `UPDATE` policy to either table without
+  understanding that this is what it would break.
 - `theme`, `locale`, `homeView` and `consentAt` stay device-local (decision D5).
 - Whatever a screen claims about where data lives must stay true in all four
   states — undecided, memory, local, and cloud. `/data/`, `/data/stored/`,

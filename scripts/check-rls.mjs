@@ -69,14 +69,34 @@ async function sessionFor(email, password) {
   return { client, userId: data.user.id }
 }
 
-const fact = (overrides = {}) => ({
+const fact = (generation, overrides = {}) => ({
   id: randomUUID(),
   key: 'area.body.goal',
   value: 'walk somewhere green',
   source: 'rls-check',
   learned_at: new Date().toISOString(),
+  // Not optional since the generations migration: a fact belongs to a dataset, and the
+  // insert policy requires that dataset to be one of yours.
+  generation,
   ...overrides,
 })
+
+/**
+ * A dataset generation, minted through the person's own session.
+ *
+ * Through their session and not through admin, for the same reason every assertion below
+ * is: a row created with admin rights proves nothing about whether the policies would
+ * have allowed it.
+ */
+async function generationFor(client) {
+  const { data, error } = await client
+    .from('person_generations')
+    .insert({ id: randomUUID() })
+    .select('id')
+    .single()
+  if (error) throw new Error(`could not mint a generation: ${error.message}`)
+  return data.id
+}
 
 // Admin client. Used for exactly two things: createUser and deleteUser.
 const admin = createClient(url, secretKey, {
@@ -112,10 +132,19 @@ try {
     `A=${a.userId.slice(0, 8)}… B=${b.userId.slice(0, 8)}…`,
   )
 
+  // Every fact belongs to a generation, so each user needs one before they can write.
+  const aGeneration = await generationFor(a.client)
+  const bGeneration = await generationFor(b.client)
+  check(
+    '0b. each user can mint a dataset generation of their own',
+    Boolean(aGeneration) && Boolean(bGeneration) && aGeneration !== bGeneration,
+    'two distinct generations, each created through its owner’s session',
+  )
+
   // --- allowed access works -------------------------------------------------
 
   // B goes first so that A always has someone else's row to fail against.
-  const bRow = fact({ value: "B's own answer" })
+  const bRow = fact(bGeneration, { value: "B's own answer" })
   const bInsert = await b.client.from('person_facts').insert(bRow).select()
   check(
     '1. B can insert a fact for itself',
@@ -128,7 +157,7 @@ try {
     `stored user_id = ${bInsert.data?.[0]?.user_id?.slice(0, 8)}…`,
   )
 
-  const aRow = fact({ value: "A's own answer" })
+  const aRow = fact(aGeneration, { value: "A's own answer" })
   const aInsert = await a.client.from('person_facts').insert(aRow).select()
   check(
     '2. A can insert a fact for itself',
@@ -162,7 +191,10 @@ try {
   )
 
   // I3: the spoof. This is what `with check` is for.
-  const spoof = await a.client.from('person_facts').insert(fact({ user_id: b.userId })).select()
+  const spoof = await a.client
+    .from('person_facts')
+    .insert(fact(aGeneration, { user_id: b.userId }))
+    .select()
   check(
     'I3. A cannot insert a row owned by B',
     Boolean(spoof.error),
@@ -194,6 +226,48 @@ try {
     }`,
   )
 
+  // --- G1-G4: the generations table is a second table, and gets the same treatment --
+  //
+  // It decides which facts are live, so a hole here would be worse than a hole in the
+  // facts table: reading somebody else's generations leaks nothing on its own, but being
+  // able to *mint* one in their account would let a stranger blank their data.
+
+  const aSeesGenerations = await a.client.from('person_generations').select('*')
+  check(
+    'G1. A sees only its own generations',
+    !aSeesGenerations.error &&
+      (aSeesGenerations.data ?? []).every((row) => row.user_id === a.userId) &&
+      !(aSeesGenerations.data ?? []).some((row) => row.id === bGeneration),
+    aSeesGenerations.error
+      ? aSeesGenerations.error.message
+      : `${aSeesGenerations.data.length} row(s), none of them B's`,
+  )
+
+  const spoofGeneration = await a.client
+    .from('person_generations')
+    .insert({ id: randomUUID(), user_id: b.userId })
+    .select()
+  check(
+    'G2. A cannot mint a generation in B’s account',
+    Boolean(spoofGeneration.error),
+    spoofGeneration.error
+      ? `rejected: ${spoofGeneration.error.code ?? '?'}`
+      : 'ACCEPTED — a stranger could blank someone’s data',
+  )
+
+  const crossGenerationDelete = await a.client
+    .from('person_generations')
+    .delete()
+    .eq('id', bGeneration)
+    .select()
+  check(
+    'G3. A deleting B’s generation affects nothing',
+    !crossGenerationDelete.error && (crossGenerationDelete.data?.length ?? 0) === 0,
+    crossGenerationDelete.error
+      ? `refused: ${crossGenerationDelete.error.message}`
+      : `${crossGenerationDelete.data.length} row(s) deleted`,
+  )
+
   // --- forbidden access with no session at all (I6, I7) ---------------------
 
   // "Returns no rows" is too weak an assertion here, and the first version of
@@ -217,7 +291,7 @@ try {
     anonRead.error?.message ?? 'no error at all',
   )
 
-  const anonInsert = await anon.from('person_facts').insert(fact()).select()
+  const anonInsert = await anon.from('person_facts').insert(fact(aGeneration)).select()
   check(
     'I7. an unauthenticated client cannot insert',
     Boolean(anonInsert.error),
@@ -227,6 +301,13 @@ try {
     'I7b. and that refusal is also at the privilege level',
     deniedByPrivilege(anonInsert.error),
     anonInsert.error?.message ?? 'no error at all',
+  )
+
+  const anonGenerations = await anon.from('person_generations').select('*')
+  check(
+    'G4. an unauthenticated client is refused outright, at the privilege level',
+    Boolean(anonGenerations.error) && deniedByPrivilege(anonGenerations.error),
+    anonGenerations.error?.message ?? 'no error at all',
   )
 
   // --- I8: signing out actually revokes the access -------------------------
@@ -248,7 +329,7 @@ try {
 
   // --- I9: B, asked as B, is untouched by everything above -----------------
 
-  const bFinal = await b.client.from('person_facts').select('*')
+  const bFinal = await b.client.from('person_facts').select('*').eq('generation', bGeneration)
   check(
     'I9. B still has exactly its one original row, unmodified',
     !bFinal.error &&

@@ -1677,6 +1677,52 @@ registration**. Anyone with the URL can create an empty account of their own. RL
 means they reach nobody else's rows and the built-in sender is rate-limited, but if
 an allow-list is wanted it should exist before the deployed URL is shared.
 
+## Dataset generations: closing stale-device resurrection (2026-08-19)
+
+A review of the cloud-sync work called out one significant edge case, and it was a real
+one: replace semantics plus a set-union merge means a device that was offline during a
+"keep what is on this device" brings the discarded dataset back the moment it
+reconnects. `pnpm check:sync` is now **20/20** and C12 is that exact scenario, run
+against the real database.
+
+The fix is a **generation**: `person_generations` is an append-only log, one row per
+deliberate replacement, and `person_facts.generation` says which dataset a fact belongs
+to. A fact is active only while its generation is the newest one.
+
+**It is a structural guarantee rather than a rule.** A row's generation is set on insert
+and there is no `UPDATE` anywhere in this schema, so nothing can move a fact from a dead
+generation into the live one. A stale device's push is accepted and lands inert; the
+device discovers it is stale at its next reconcile and either adopts the account's copy
+or asks, depending on whether it has unsynced work of its own.
+
+Four things that only became clear while building it:
+
+- **The primary key had to become `(id, generation)`.** With `id` alone, writing the
+  winning dataset into the new generation is a primary-key conflict, which forces
+  delete-then-insert — and that ordering leaves a window where the account holds an empty
+  current generation while a device is still uploading. Another device arriving inside
+  that window would adopt an empty dataset. Composite, the account never holds less than
+  it did a moment ago.
+- **Deleting the data has to mint a generation too**, and mint it *before* the delete.
+  Otherwise another device finds the generation it already knew, concludes it is a peer
+  of an account that merely lost rows, and helpfully uploads everything back. Deletion
+  that bounces is worse than deletion that fails.
+- **`null` and "an empty generation" must stay distinguishable.** The first means "never
+  used, upload what you have"; the second means "this was reset, stand down". That is
+  why "delete my data" leaves exactly one fresh empty generation behind rather than
+  clearing the table.
+- **A stricter insert policy was tempting and wrong.** Requiring `generation = the newest
+  one` would make every legitimate upload race the mint in front of it, and it prevents
+  nothing: a stale device writing into its own dead generation writes rows that cannot
+  ever be read. The policy checks ownership of the stamp instead.
+
+The one accepted limitation: a device that is **live** when another replaces the dataset
+keeps writing into the old generation until it next reconciles — on load, on regaining a
+connection, or on sign-in. Those writes are inert rather than wrong, and nothing is lost,
+because the device still holds them locally and the conflict question is put to the
+person when it reconnects. Detecting it mid-session would mean polling the generation on
+a timer, which is a cost with no correctness gain.
+
 ## The repository
 
 <https://github.com/flowrider1990/thrive-prototype>, **public**, and live at

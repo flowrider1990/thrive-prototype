@@ -17,6 +17,7 @@ type PersonStore = {
   homeView?: 'goals'       // absent = the start page opens on next steps
   cloud?: {                // absent = never signed in, which is the ordinary state
     userId: string         // whose account these markers describe
+    generation?: string    // which dataset generation this device is a copy of
     synced: string[]       // fact ids known to be in that generation
     at?: string            // when the device last agreed with the server
   }
@@ -84,6 +85,17 @@ signed in" rather than rejecting the store, the same rule as every optional fiel
 Ids rather than a timestamp high-water mark, deliberately: `learnedAt` comes from whichever
 device wrote it, and one skewed clock would make a mark quietly skip everything after it.
 
+`generation` is the third job, and the one that keeps the other two honest. It says which
+*dataset* these ids describe. When somebody chooses one copy over the other, the account
+mints a new generation; a device still marked with the old one learns on reconnecting that
+its copy was superseded, instead of merging it back in — which is what a union would do,
+and what would bring a deliberately discarded dataset back to life. The marker is **reset
+rather than extended** when the generation changes, because ids from a replaced dataset say
+nothing about what the new one holds; carrying them over would leave a device believing its
+facts were safely uploaded when they had in fact been thrown away.
+
+Absent means "no idea", which reconciles as a first contact rather than as a peer — the safe
+reading, since it asks rather than assumes, and the reason this did not need a `version: 2`.
 
 It is written only by `lib/cloud/sync.ts`, through named functions on the store
 (`beginCloud`, `markSynced`, `mergeFromCloud`, `replaceWithCloud`, `endCloud`) — so the

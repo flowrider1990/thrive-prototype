@@ -119,9 +119,19 @@ export function SignInDialog() {
 
           {conflict ? (
             <div className="space-y-5">
-              <p className="max-w-prose leading-relaxed text-ink">{m.auth.conflict.title}</p>
+              {/* Two reasons to be asking, and they are not interchangeable: one is "we
+                  have never met", the other is "what you have here was replaced from
+                  somewhere else". Someone who is told the second can make sense of the
+                  choice; someone told the first when the second happened cannot. */}
+              <p className="max-w-prose leading-relaxed text-ink">
+                {conflict.reason === 'superseded'
+                  ? m.auth.conflict.supersededTitle
+                  : m.auth.conflict.title}
+              </p>
               <p className="max-w-prose text-sm leading-relaxed text-muted">
-                {m.auth.conflict.body}
+                {conflict.reason === 'superseded'
+                  ? m.auth.conflict.supersededBody
+                  : m.auth.conflict.body}
               </p>
 
               {/* Both options carry their own consequence, and neither is emphasised over

@@ -55,6 +55,9 @@ export const de: Messages = {
     conflict: {
       title: 'Hier liegt etwas, und in deinem Konto liegt etwas.',
       body: 'Die beiden sind nicht gleich, deshalb wurde noch nichts geändert. Was du behältst, ersetzt das andere.',
+      supersededTitle: 'Deine Daten wurden von einem anderen Gerät aus ersetzt.',
+      supersededBody:
+        'Was hier liegt, ist von davor — und einiges davon ist nie in deinem Konto angekommen. Geändert wurde noch nichts: Was du behältst, ersetzt das andere.',
       here: 'Auf diesem Gerät: {count}',
       there: 'In deinem Konto: {count}',
       keepDevice: 'Das von diesem Gerät behalten',

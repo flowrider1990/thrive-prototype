@@ -119,7 +119,9 @@ Prefer meaningful actions completed outside the app.
 
 ## 4. Current Product Stage
 
-The repository contains the trusted shell plus the first product loop, and nothing beyond it.
+The repository contains the trusted shell, the first product loop, and — since the
+cloud-sync phase — an optional account that mirrors the same data to Supabase. Nothing
+beyond that.
 
 Existing foundation:
 - consent flow,
@@ -166,7 +168,12 @@ Built (approved and implemented — §4):
 - an optional five-point self-report on how close a goal feels, where the top of the
   scale offers to close the goal,
 - mobile-first responsive UI,
-- light and dark monochrome themes.
+- light and dark monochrome themes,
+- an **optional** account (email one-time code) that mirrors the same facts to
+  Supabase, with an explicit choice when the device and the account disagree, and
+  with signing out, deleting the data, and deleting the account kept as three
+  distinct acts. Off by default, never prompted for, and the app is complete
+  without it.
 
 Still not built, and each needs its own approval:
 - lightweight daily check-in,
@@ -296,11 +303,10 @@ Current stack:
 - static export hosted/planned for GitHub Pages,
 - Git / GitHub.
 
-`@supabase/supabase-js` is the one runtime dependency beyond the framework, added
-for cloud connectivity (decision D3 in `docs/supabase-migration.md`). Nothing in
-`app/` or `components/` imports it yet, so it is not in the shipped bundle.
-Beyond that, there are deliberately no additional runtime dependencies at the
-current stage.
+`@supabase/supabase-js` is the one runtime dependency beyond the framework
+(decision D3 in `docs/supabase-migration.md`). It **is** in the shipped bundle now:
+`lib/cloud/` uses it for email sign-in and cloud sync. Beyond that, there are
+deliberately no additional runtime dependencies at the current stage.
 
 ### Supabase secret handling
 - Client/runtime code may use only the Supabase publishable key.
@@ -325,6 +331,26 @@ themselves. Cleanup must run even when the assertions fail.
 - Memory mode must remain genuinely non-persistent.
 - Facts are append-only; current state is derived from the newest fact for a key.
 
+### Cloud sync, and what it does not change
+Signing in adds a **mirror**, never a second source of truth (decision D1). The
+device stays authoritative, every write lands locally first and is acknowledged
+immediately, and the app is fully usable with no account and no network.
+
+- `lib/cloud/` is the only place that talks to the network:
+  `account.ts` (sessions), `facts.ts` (rows), `compare.ts` (are two datasets the
+  same?), `sync.ts` (when any of that happens). No component performs a database
+  write, and `sync.ts` renders nothing.
+- **Cloud requires device consent first** (decision D2). Staying signed in means
+  keeping a token on the device, so it is never offered to someone who declined.
+- **Signed in means syncing.** There is one state, not two: "turn sync off" and
+  "sign out" are the same function reached from two places.
+- **`MEMORY_ONLY_KEYS` are filtered where rows are built**, so `consent_concern`
+  is never uploaded. Asserted by `pnpm check:sync`, not assumed.
+- `theme`, `locale`, `homeView` and `consentAt` stay device-local (decision D5).
+- Whatever a screen claims about where data lives must stay true in all four
+  states — undecided, memory, local, and cloud. `/data/`, `/data/stored/`,
+  `/about` and the start page each carry a cloud variant for exactly that reason.
+
 ### Current static-export constraint
 The current iteration has **no server-side application runtime**.
 
@@ -341,6 +367,14 @@ Therefore do not introduce:
 unless the task explicitly changes the architecture.
 
 The current “no server” rule describes **this implementation phase**, not an irreversible lifetime product decision.
+
+One narrow exception exists and is not a precedent: `supabase/functions/delete-account/`
+holds the privileged credential needed to delete an `auth.users` row, which a browser
+must never hold (decisions D9 and D10). It takes no parameters, reads the caller's
+identity from the verified bearer token, and deletes exactly that one account. It is
+deployed to Supabase, not to Pages, so the export is unaffected. **A second Edge
+Function, or any widening of this one, is a new architectural decision needing its own
+approval.**
 
 A future backend such as Supabase may be introduced only as an explicit architectural change. If that happens:
 1. review the existing persistence/consent guarantees,
@@ -583,7 +617,17 @@ Prefer decisions that are easy to change while the product is young.
 The existing verification suite is part of the product contract.
 
 Current known verification:
-- `scripts/verify.mjs`,
+- `pnpm verify` — `scripts/verify.mjs`, the browser suite,
+- `pnpm check:schema` — every table in the exposed schemas has RLS, real policies,
+  no grant to `anon`, and every view is `security_invoker`. Catches the table
+  somebody adds later, which a behavioural test cannot,
+- `pnpm check:rls` — the policies on `person_facts`, as two real users,
+- `pnpm check:sync` — the sync contract against the real database: idempotent
+  push, congruence, both conflict resolutions, isolation, and that
+  `consent_concern` never lands,
+- `pnpm check:bundle` — no privileged credential in `out/`, with the publishable
+  key as the positive control,
+- `pnpm check:supabase` — connectivity,
 - all automated checks currently pass — the script is the authority on the count, not this file,
 - it drives real headless Chrome against the served static export,
 - declining persistence leaves `localStorage` completely empty, even after the whole area flow,
@@ -591,7 +635,10 @@ Current known verification:
 - a step's internal id never reaches the screen,
 - missing German keys fail the build,
 - corrupt persisted data degrades rather than white-screening,
-- no unexpected external requests,
+- **no external request at all in local or memory mode** — the guarantee that
+  signing in is genuinely opt-in, and the one the cloud work had to preserve
+  rather than retire,
+- opening the sign-in dialog reaches no server and writes nothing,
 - rename rehearsal succeeds.
 
 Preserve these guarantees.
@@ -661,23 +708,11 @@ Current known state:
 - i18n is complete for English and German,
 - `useSyncExternalStore` is intentionally used for browser-backed external state,
 - static-export verification is implemented in `scripts/verify.mjs`,
-- the verification suite currently passes every check.
-
-Important implementation details:
-- `lib/i18n/locale.ts` holds the shared `Locale` type and avoids circular imports.
-- `lib/person/goals.ts` is the only module that knows the life-area fact-key shape;
-  a next step's id lives inside its keys, which is what leaves a fact's single value
-  free to be the person's own words. See `docs/goals-and-areas.md`.
-- `scripts/verify.mjs` drives real headless Chrome against the served static export without adding a browser-test dependency.
-- On this Windows setup, plain `corepack enable pnpm` can fail with `EPERM`; the documented non-admin workaround is:
-  `corepack enable pnpm --install-directory "$env:APPDATA\npm"`.
-
-Current remaining work from the original foundation plan:
-1. push the existing commits when explicitly approved,
-2. enable GitHub Pages,
-3. verify the deployed URL,
-4. verify subpath asset loading,
-5. verify a deep-link reload such as `/you/`.
+- the verification suite currently passes every check,
+- cloud sync is implemented: `lib/cloud/`, `supabase/migrations/`,
+  `supabase/functions/delete-account/`, and the check scripts in §16.
+  **The Edge Function and the `config.toml` auth changes still need deploying** —
+  see `docs/supabase-migration.md`.
 
 Use `docs/progress.md` for live implementation status. If this section becomes stale, `docs/progress.md` and the repository itself take precedence.
 

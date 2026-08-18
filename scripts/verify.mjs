@@ -749,7 +749,22 @@ const EN = {
   unpin: 'Unpin',
   storageOptionLocal: 'Save on this device',
   storageOptionCloud: 'Sync with Cloud',
-  cloudDevOnly: 'Cloud sync is currently available to developers only.',
+  /**
+   * The two mutually exclusive reasons the cloud switch can be inoperable. There is no
+   * "not built yet" note any more — the control works — so what is left is the two
+   * states in which it cannot: a build with no project attached, and somebody who asked
+   * for nothing to be written to this device.
+   */
+  cloudUnavailable: 'This version of the app has no cloud to sync with.',
+  cloudNeedsSaving: 'This needs saving on this device first',
+  signIn: 'Sign in',
+  signOut: 'Sign out',
+  /** Matched on the half that carries the commitment, not on the whole sentence. */
+  authNote: 'one is created when you sign in',
+  authUpload: 'What is on this device is added to your account when you sign in.',
+  authEmailQuestion: 'Which email address should we send a code to?',
+  authSend: 'Send me a code',
+  deleteAccount: 'Delete account',
   storageOnDone: 'Saving is on now.',
   dataDelete: 'Delete my data',
   progressQuestion: 'How close are you to reaching this goal?',
@@ -3041,14 +3056,22 @@ await setViewport(1200, 800)
 await seedOnboarded()
 await goto('/data/')
 const cloudOff = await switchState(EN.storageOptionCloud)
+/**
+ * Whether this build has a project attached at all.
+ *
+ * Both answers are legitimate — a Pages build without the repository variables set is a
+ * perfectly good static export of an app with no cloud — so the check asserts the
+ * *pairing* rather than one state: operable and silent, or inoperable and saying why.
+ * Asserting one arm would make the suite pass or fail on which `.env.local` happened to
+ * be present at build time, which is a test of the machine rather than of the app.
+ */
+const CLOUD_BUILD = !(await text()).includes(EN.cloudUnavailable)
 check(
-  '36a. cloud sync is present, off, and says why it cannot be turned on',
+  '36a. cloud sync is present, off, and either operable or explained',
   cloudOff?.checked === 'false' &&
-    // Not operable yet, and the page says so rather than leaving a dead control.
-    cloudOff.disabled === true &&
     cloudOff.says.includes('OFF') &&
-    (await text()).includes(EN.cloudDevOnly),
-  JSON.stringify(cloudOff),
+    (CLOUD_BUILD ? cloudOff.disabled === false : cloudOff.disabled === true),
+  `${CLOUD_BUILD ? 'cloud build' : 'no project attached'}: ${JSON.stringify(cloudOff)}`,
 )
 
 check(
@@ -4218,6 +4241,177 @@ check(
   '46d. following it reaches the beginning, without needing a reload',
   (await text()).includes(EN.consent),
   (await text()).replace(NL, ' / ').slice(0, 120),
+)
+
+// --- 54. signing in: offered, optional, and never switched on by accident ---
+//
+// Everything here runs **signed out**, because that is the state the whole product has
+// to keep working in. Nothing in this section submits an address, so nothing in it can
+// reach the network — which is itself asserted at the end, and again by check 9.
+//
+// The section is written to pass on a build with no Supabase project attached as well as
+// on one with. Both are legitimate outputs of `pnpm build`, and a suite that only passes
+// with a particular `.env.local` present is testing the machine.
+
+/** The switch is a button whose text runs its label together with ON/OFF. */
+const clickSwitch = (label) =>
+  evaluate(
+    `(() => {
+       const row = [...document.querySelectorAll('[role="switch"]')]
+         .find((el) => el.textContent.includes(${JSON.stringify(label)}));
+       if (!row) throw new Error('no switch: ' + ${JSON.stringify(label)});
+       row.click();
+       return true;
+     })()`,
+  )
+
+/** What the platform thinks of the dialog, which is the part worth asserting. */
+const dialogState = () =>
+  evaluate(
+    `(() => {
+       const dialog = document.querySelector('dialog');
+       if (!dialog) return { present: false };
+       return {
+         present: true,
+         open: dialog.open,
+         // ':modal' is true only for showModal(), never for a dialog merely shown. It is
+         // the difference between a trapped focus scope and a box with a shadow.
+         modal: dialog.matches(':modal'),
+         focusInside: dialog.contains(document.activeElement),
+         labelled: Boolean(dialog.getAttribute('aria-labelledby')),
+       };
+     })()`,
+  )
+
+await setViewport(1200, 800)
+await clearStorage()
+await seedOnboarded()
+await goto('/data/')
+
+// The same question 36a answers, asked again here so this section stands on its own.
+const cloudBuild = !(await text()).includes(EN.cloudUnavailable)
+
+check(
+  '54a. signed out, the footer offers signing in and never claims otherwise',
+  (await visible(EN.signIn)) === cloudBuild && !(await visible(EN.signOut)),
+  cloudBuild ? 'offered' : 'no project attached, so nothing offered',
+)
+
+check(
+  '54b. and deleting an account is not offered to somebody who has none',
+  !(await visible(EN.deleteAccount)),
+  'Delete account absent while signed out',
+)
+
+const beforeSignIn = await raw()
+const eventsBefore = events.length
+
+if (cloudBuild) {
+  await clickSwitch(EN.storageOptionCloud)
+  await sleep(300)
+  const opened = await dialogState()
+  const stillOff = await switchState(EN.storageOptionCloud)
+
+  check(
+    '54c. turning the switch on does not turn it on — it asks first',
+    opened.open === true && opened.modal === true && stillOff?.checked === 'false',
+    `dialog ${JSON.stringify(opened)}, switch ${stillOff?.checked}`,
+  )
+
+  check(
+    '54d. and the dialog is a real modal: named, and holding focus',
+    opened.labelled === true && opened.focusInside === true,
+    `labelled ${opened.labelled}, focus inside ${opened.focusInside}`,
+  )
+
+  // The one screen in the app where somebody hands over something about themselves, so
+  // what it commits to has to be on it *before* the field, not after the button.
+  const shown = await text()
+  check(
+    '54e. it says an account may be created, and what is uploaded, before the field',
+    shown.includes(EN.authNote) &&
+      shown.includes(EN.authUpload) &&
+      shown.includes(EN.authEmailQuestion) &&
+      shown.indexOf(EN.authEmailQuestion) < shown.indexOf(EN.authSend),
+    shown.includes(EN.authNote) ? 'both notes present' : 'MISSING the account note',
+  )
+
+  await clickText(EN.cancel)
+  await sleep(300)
+  const afterCancel = await dialogState()
+  const offAfterCancel = await switchState(EN.storageOptionCloud)
+  check(
+    '54f. cancelling leaves sync off and the stored data byte-identical',
+    afterCancel.open === false &&
+      offAfterCancel?.checked === 'false' &&
+      (await raw()) === beforeSignIn,
+    `dialog open ${afterCancel.open}, switch ${offAfterCancel?.checked}, store ${
+      (await raw()) === beforeSignIn ? 'untouched' : 'CHANGED'
+    }`,
+  )
+
+  // Escape is the platform's own way out, and it has to end in the same state as the
+  // button — otherwise there are two cancels and only one of them was thought about.
+  await clickSwitch(EN.storageOptionCloud)
+  await sleep(250)
+  await send('Input.dispatchKeyEvent', {
+    type: 'rawKeyDown',
+    key: 'Escape',
+    code: 'Escape',
+    windowsVirtualKeyCode: 27,
+    nativeVirtualKeyCode: 27,
+  })
+  await send('Input.dispatchKeyEvent', {
+    type: 'keyUp',
+    key: 'Escape',
+    code: 'Escape',
+    windowsVirtualKeyCode: 27,
+    nativeVirtualKeyCode: 27,
+  })
+  await sleep(300)
+  const afterEscape = await dialogState()
+  check(
+    '54g. Escape ends in exactly the same state as Cancel',
+    afterEscape.open === false &&
+      (await switchState(EN.storageOptionCloud))?.checked === 'false' &&
+      (await raw()) === beforeSignIn,
+    `dialog open ${afterEscape.open}`,
+  )
+} else {
+  check('54c. (skipped: no Supabase project attached to this build)', true, 'skipped')
+  check('54d. (skipped: no Supabase project attached to this build)', true, 'skipped')
+  check('54e. (skipped: no Supabase project attached to this build)', true, 'skipped')
+  check('54f. (skipped: no Supabase project attached to this build)', true, 'skipped')
+  check('54g. (skipped: no Supabase project attached to this build)', true, 'skipped')
+}
+
+/**
+ * The load-bearing one, and the reason the rest of this section is safe to have written.
+ *
+ * Opening the sign-in must not itself talk to a server. Check 9 covers the whole run, but
+ * it is computed further down and its failure would name the request without naming what
+ * caused it; this one is scoped to the clicks above.
+ */
+const duringSignIn = events
+  .slice(eventsBefore)
+  .filter((e) => e.method === 'Network.requestWillBeSent')
+  .map((e) => e.params.request.url)
+  .filter((url) => !url.startsWith(BASE) && !url.startsWith('data:'))
+check(
+  '54h. opening and cancelling the sign-in reached no server at all',
+  duringSignIn.length === 0,
+  duringSignIn.length ? [...new Set(duringSignIn)].join(', ') : 'no external requests',
+)
+
+/**
+ * And the store is where it was. Not "still has a key" — byte-identical, because a
+ * rewrite that happened to produce a different key order would satisfy the weaker
+ * assertion while proving that something wrote when nothing should have.
+ */
+check(
+  '54i. nothing about the device changed by looking at the sign-in',
+  (await raw()) === beforeSignIn && (await keys()).length === 1,
+  `${(await keys()).length} key(s), store ${(await raw()) === beforeSignIn ? 'untouched' : 'CHANGED'}`,
 )
 
 // --- 9. nothing leaves the browser ---------------------------------------

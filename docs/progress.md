@@ -9,7 +9,7 @@ product behaviour — it still describes a name question and a single open quest
 both since removed. For what the app does today, read this file and the repository
 itself.
 
-Last worked: 2026-08-11.
+Last worked: 2026-08-18.
 
 ## State: steps 0–11 done, verification 1–10 and 12 passing
 
@@ -1599,6 +1599,83 @@ half it was written for.
 **The three checks were confirmed by reverting the fix**: 49f and 49g both fail without it and
 49h still passes, so none of them is passing for an unrelated reason. Worth doing every time —
 several checks in this branch initially passed while guarding nothing.
+
+## Cloud sync and accounts (2026-08-18)
+
+The phase `docs/supabase-migration.md` was written for. Sign-in, continuous sync,
+conflict resolution and account deletion, against the real project — no mocks
+anywhere. `pnpm verify` is **306/306** (297 before, plus nine new), `pnpm check:rls`
+17/17, `pnpm check:schema` 7/7, `pnpm check:sync` 14/14, `pnpm check:bundle` 4/4.
+
+What is in the app:
+
+- **`lib/cloud/`, four modules with one job each** — `account.ts` (sessions),
+  `facts.ts` (rows), `compare.ts` (are two datasets the same?), `sync.ts` (when
+  any of it happens). No component performs a database write and `sync.ts`
+  renders nothing, which is what keeps either testable on its own.
+- **Email one-time code.** No password, no OAuth, no separate "create account":
+  an address nobody has used becomes an account when its owner proves they can
+  read the code.
+- **One `<dialog>`, mounted once in `PageShell`**, reached from the cloud switch
+  and from the footer. Native `showModal()` rather than a hand-rolled trap —
+  focus containment, inertness, Escape and the backdrop all come from the
+  platform, at no dependency cost.
+- **`Delete account` under `Delete data`, and they stay different acts.** One
+  empties the account, the other ends it.
+
+### Four things worth remembering from doing it
+
+- **A closed `<dialog>` still has its children in the DOM**, and that cost three
+  failures in a section about writing down next steps. The unopened sign-in left
+  an `<input>` and a "Cancel" button on every page in the app; `verify.mjs`
+  counted them and section 29 started failing. The fix is to render the contents
+  only while open. The same hazard reaches autofill and password managers, which
+  walk the DOM rather than the screen — so this was a real defect that happened to
+  be caught by a test about something else.
+- **The pre-change baseline had to be measured, not assumed.** Those three
+  failures looked unrelated to sync, so the tree was stashed, rebuilt and re-run
+  to establish 297/297 clean. Without that, "probably pre-existing" would have
+  shipped a bug.
+- **`sb_secret_` appears in every bundle**, and it is not a leak — it is a prefix
+  test inside `@supabase/supabase-js`. `scripts/check-bundle.mjs` therefore
+  matches the prefix *plus enough characters to be a key*, and decodes JWTs to
+  read the role rather than pattern-matching them. A guard that fired on the bare
+  prefix would be switched off within a week.
+- **Node will not `spawnSync` a `.cmd` shim** (EINVAL, since the argument-injection
+  fix), so `check-schema.mjs` runs the Supabase CLI's own JS entry point with
+  `process.execPath` instead of going through `npx`.
+
+### The schema audit found nothing, which is the point of having run it
+
+`pnpm check:schema` asks a question `check:rls` cannot: *is there anything here
+without policies at all?* One table, RLS on, three policies, all `to authenticated`
+and all scoped to `auth.uid() = user_id`; no policy open to `anon` or `public`; no
+`using (true)`; `anon` holds no privilege on anything; no views, so no missing
+`security_invoker`. It is committed so that the next table added has to pass it.
+
+Deliberately **no `UPDATE` policy**, and that is not an omission: `person_facts` is
+append-only (D6), a correction is a newer fact, and `check-rls.mjs` I5 asserts that
+even a row's own owner cannot edit it.
+
+### Not done here, and needing a person
+
+Three deploy steps, none of them in the repository:
+
+1. **`supabase config push`** — sign-up is back on in `config.toml` and does
+   nothing until pushed. Read the diff the CLI prints; §3 records what a previous
+   push silently overwrote.
+2. **`supabase functions deploy delete-account`**, plus
+   `supabase secrets set SUPABASE_SERVICE_ROLE_KEY=…`. Until then "Delete account"
+   fails cleanly and deletes nothing.
+3. **The OTP email template.** `config.toml` now points at
+   `supabase/templates/magic_link.html`, which carries `{{ .Token }}`. Supabase's
+   stock template has only a link, so without this the email arrives with no code
+   in it. Confirm it in the dashboard after pushing.
+
+Open, and a product decision rather than a technical one: sign-up is now **open
+registration**. Anyone with the URL can create an empty account of their own. RLS
+means they reach nobody else's rows and the built-in sender is rate-limited, but if
+an allow-list is wanted it should exist before the deployed URL is shared.
 
 ## The repository
 

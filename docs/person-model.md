@@ -15,6 +15,11 @@ type PersonStore = {
   locale?: 'de' | 'en'     // absent = follow the browser
   theme?: 'light' | 'dark' // absent = follow the operating system
   homeView?: 'goals'       // absent = the start page opens on next steps
+  cloud?: {                // absent = never signed in, which is the ordinary state
+    userId: string         // whose account these markers describe
+    synced: string[]       // fact ids known to be in that generation
+    at?: string            // when the device last agreed with the server
+  }
   facts: PersonFact[]
 }
 ```
@@ -58,6 +63,31 @@ only a non-null choice is persisted.
 An invalid `locale` in a stored file now reads as unset rather than rejecting the store.
 Rejecting threw away every real answer in it over one bad field, which is the opposite
 of degrading gracefully.
+
+### `cloud` is bookkeeping, not data
+
+Every value in it can be thrown away and rebuilt by reading the account once, which is
+what makes it safe to keep beside real answers — and why a malformed one reads as "never
+signed in" rather than rejecting the store, the same rule as every optional field above.
+
+`synced` is doing two jobs at once, and the second is the interesting one:
+
+- **it is the push queue, derived.** What is outstanding is the facts whose ids are not
+  in this set (`pendingForCloud()`), so there is no queue to lose, corrupt, or forget to
+  enqueue into. A write made in a tunnel is indistinguishable from one made a second ago,
+  which is why offline needs no separate code path at all.
+- **it is the loop guard.** A fact pulled from the cloud is written *and* added to this
+  set in the same commit, so the change notification it causes finds nothing to push.
+  Nothing has to know whether a change was a real edit or hydration, because a hydrated
+  fact is already where a push would send it.
+
+Ids rather than a timestamp high-water mark, deliberately: `learnedAt` comes from whichever
+device wrote it, and one skewed clock would make a mark quietly skip everything after it.
+
+
+It is written only by `lib/cloud/sync.ts`, through named functions on the store
+(`beginCloud`, `markSynced`, `mergeFromCloud`, `replaceWithCloud`, `endCloud`) — so the
+store still owns storage and the sync layer still owns *when*.
 
 `forgetEverything()` clears both choices while leaving the language *on screen* alone:
 yanking that away mid-sentence would be its own small betrayal, but "delete my data"

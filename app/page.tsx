@@ -11,6 +11,7 @@ import { ProgressMarks, type MarkState } from '@/components/progress-marks'
 import { QuestionCard } from '@/components/question-card'
 import { TextAnswer } from '@/components/text-answer'
 import { areas, type AreaId } from '@/lib/areas'
+import { useSync } from '@/lib/cloud/sync'
 import { useI18n } from '@/lib/i18n'
 import { finishIntroduction, introductionFinished, readArea } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
@@ -38,6 +39,9 @@ export default function Home() {
   const { m, t, status } = useI18n()
   const person = usePerson()
   const { mode, grantConsent, declineConsent, remember, forgetEverything } = person
+  // Only to keep one sentence honest: with an account, "kept on this device only" is not
+  // what is happening. Nothing else on this page changes.
+  const { syncing } = useSync()
 
   // `null` means "wherever the person left off"; once they answer anything, the
   // flow drives itself. Derived rather than set from an effect, so there is no
@@ -299,7 +303,11 @@ export default function Home() {
           <p className="flex items-start gap-x-2 border-t border-line pt-6 text-sm leading-relaxed text-muted">
             <Lock className="mt-[0.3em]" />
             <span>
-              {mode === 'local' ? m.home.savedNote : m.home.memoryNote}{' '}
+              {mode === 'local'
+                ? syncing
+                  ? m.home.syncedNote
+                  : m.home.savedNote
+                : m.home.memoryNote}{' '}
               <Link href="/data" className="link-inline">
                 {m.nav.data}
               </Link>

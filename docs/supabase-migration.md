@@ -1,9 +1,16 @@
 # Cloud persistence with Supabase
 
-**Status: direction approved 2026-08-11. Nothing is implemented yet.** No Auth, no
-tables, no migrations, no RLS, no Edge Function, no client code, no sync. The CLI
-is installed and the project is linked (`oejjomqrugsgpunzmhnd`), which is tooling
-and changes nothing about the app.
+**Status: implemented 2026-08-18.** Phases 1 to 6 are done — the table, RLS,
+email-OTP sign-in, import/push/pull, deletion on both sides, and the
+`delete-account` Edge Function. Phase 7 exists in a different shape than planned:
+rather than mirroring the browser suite for cloud mode, the cloud contract is
+covered by `pnpm check:sync` against the real database with two throwaway users,
+and `pnpm verify` covers the screens signed out. See "What was built" below for
+where the implementation departs from this plan, and why.
+
+The sections below are the **approved design**, kept as written so the reasoning
+survives. Where the build differs from them, the difference is recorded rather
+than the plan quietly edited.
 
 This document exists because `CLAUDE.md` §8 requires the migration boundary to be
 proposed before implementation. The approved decisions are recorded below, the
@@ -797,3 +804,87 @@ Three things I deliberately did **not** write, and want your view on: naming
 Supabase as the provider, naming the region more precisely than "Frankfurt", and
 whether to state that the operator (you) could technically read the database. The
 third is the most honest and the most awkward.
+
+---
+
+## What was built, and where it departs from this plan
+
+Implemented 2026-08-18, against a brief that asked for sign-in, continuous sync,
+conflict resolution, and account deletion end to end. Four departures, each one a
+place where the brief and this document disagreed, and each decided rather than
+drifted into.
+
+### 1. Conflict resolution is a **choice**, not a union (§13 said conflicts were impossible)
+
+§13 is still true about the *data*: append-only facts with client-generated ids
+cannot contradict each other, and a union loses nothing. The brief nonetheless
+asked for an explicit "this device" / "my account" choice on first sign-in, with
+replace semantics on both sides. Both are now in the product, and which one runs
+is decided by **whether the two datasets describe the same app**:
+
+- **equivalent** (derived current state matches) → union, silently. No question,
+  nothing discarded. This is §13's behaviour, and it is what runs on every app
+  load with a stored session, which is why two devices do not produce a dialog
+  every morning.
+- **different** → the dialog, and the loser is genuinely replaced.
+
+So the union survives where it is provably safe, and the person is only asked
+where a real disagreement exists. `lib/cloud/compare.ts` is the whole of that
+decision, and `pnpm check:sync` C5–C7 are the tests of it.
+
+`replaceWithCloud()` is the only path in the app that discards facts without
+deleting everything. It is reachable from exactly one dialog, which states the
+consequence.
+
+### 2. Importing local data is no longer a separate confirmation (D7)
+
+D7 said: ask before uploading. The brief said: case A needs no additional
+confirmation. The brief won, and the reason it can is that **the sign-in dialog
+itself carries the sentence** — "What is on this device is added to your account
+when you sign in" — above the field, before anything is typed. That is the same
+consent D7 wanted, asked once rather than twice, on the screen where the person
+is already deciding.
+
+`scripts/verify.mjs` 54e asserts that sentence is on screen before the address
+field. If that copy is ever removed, the check fails, which is the point.
+
+### 3. `theme`, `locale` and `homeView` still do not sync (D5 preserved)
+
+The brief listed "changing settings that are part of the user's persisted app
+state" among the things to sync. D5 decided the opposite for these three, and D5
+stands: a phone at night and a laptop at work legitimately differ, and syncing a
+theme is a bug that looks like a feature. Nothing in the brief's acceptance
+criteria depends on it. Everything a person *entered* syncs; the three device
+preferences do not.
+
+### 4. Phase 7's shape
+
+Planned: the whole browser suite mirrored for cloud mode. Built: `check:sync`,
+which exercises the same rows, policies and comparison logic against the real
+database, plus `check:schema`, which audits every table rather than the one we
+remember. Email OTP itself is not automatable from a script — reading a code out
+of an inbox is the one step a machine here cannot take — so the throwaway users
+in `check-sync.mjs` sign in with a password. What that changes is only how a
+session is obtained.
+
+### The loop guard, which this document did not specify
+
+§14 called for a "pushed marker" rather than a queue. It is `CloudMark.synced` on
+the persisted store: a set of fact ids known to be in the account. Two properties
+fall out of it, and the second is the one worth naming:
+
+- the push queue is **derived** (`pendingForCloud()`), so there is no queue to
+  lose and no enqueue call to forget in a code path written next year;
+- facts pulled from the cloud are written **and marked synced in the same
+  commit**, so the change notification they cause finds nothing to push. There is
+  no "am I hydrating?" flag, because a hydrated fact is already where a push would
+  send it.
+
+### What still needs doing by hand
+
+Nothing in the repository, and three things on the project — all of them listed
+in `docs/progress.md` under the cloud-sync section: pushing the auth config
+(sign-up is on in `config.toml` and must be pushed to take effect), deploying the
+Edge Function with its secret, and confirming the OTP email template carries
+`{{ .Token }}`. Until the first of those, sign-in will refuse new accounts with
+`signup_disabled`; until the last, the email arrives with no code in it.

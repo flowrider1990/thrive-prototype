@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { BackLink } from '@/components/back-link'
 import { PageShell } from '@/components/page-shell'
 import { StoredAreas } from '@/components/stored-areas'
+import { forgetEverywhere, useSync } from '@/lib/cloud/sync'
 import { formatWhen, useI18n } from '@/lib/i18n'
 import { INTRODUCTION_DONE, isAreaKey } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
@@ -35,8 +36,13 @@ type Deleting = 'no' | 'confirming'
 export default function StoredPage() {
   const { m, t, locale, status } = useI18n()
   const { mode, facts, consentAt, forgetEverything } = usePerson()
+  const sync = useSync()
   const [deleting, setDeleting] = useState<Deleting>('no')
   const [deleted, setDeleted] = useState(false)
+  // A boolean rather than the reason: the sentence this shows says the thing that
+  // matters — nothing was deleted, here or there — and which network error caused it
+  // does not change what to do next.
+  const [failed, setFailed] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
   const panel = useRef<HTMLDivElement>(null)
   const opened = useRef(false)
@@ -89,8 +95,16 @@ export default function StoredPage() {
   const tokens: Record<string, Record<string, string | undefined> | undefined> = m.stored.tokens
   const readable = (fact: { key: string; value: string }) =>
     tokens[fact.key]?.[fact.value] ?? fact.value
-  const intro =
-    mode === 'local' ? m.stored.introSaved : mode === 'memory' ? m.stored.introMemory : m.stored.introUnknown
+  // Four states, not three. `introSaved` says "none of it has ever left this browser",
+  // which stops being true the moment there is an account — and a promise that has to be
+  // retracted is worse than one never made.
+  const intro = sync.syncing
+    ? m.stored.introCloud
+    : mode === 'local'
+      ? m.stored.introSaved
+      : mode === 'memory'
+        ? m.stored.introMemory
+        : m.stored.introUnknown
 
   return (
     <PageShell>
@@ -111,6 +125,10 @@ export default function StoredPage() {
                 {t(m.stored.consentAt, { when: formatWhen(consentAt, locale) })}
               </p>
             )}
+            {/* "Everything I know" has to include the boring entries, or the page is
+                making a claim it does not keep. The session token is the one thing on
+                this device that this list cannot show as a fact, so it is named. */}
+            {sync.syncing && <p className="text-sm text-muted">{m.stored.sessionNote}</p>}
           </div>
         </header>
 
@@ -236,22 +254,61 @@ export default function StoredPage() {
               <p className="max-w-prose text-sm leading-relaxed text-muted">
                 {m.data.delete.warnBody}
               </p>
+              {/* The extra half of the consequence, only when there is an extra copy.
+                  Said in the same breath rather than discovered afterwards. */}
+              {sync.syncing && (
+                <p className="max-w-prose text-sm leading-relaxed text-muted">
+                  {m.data.delete.alsoCloud}
+                </p>
+              )}
               <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
                 <button
                   type="button"
                   className="btn btn-quiet"
+                  disabled={sync.busy !== null}
                   onClick={() => {
-                    forgetEverything()
-                    setDeleting('no')
-                    setDeleted(true)
+                    setFailed(false)
+                    if (!sync.syncing) {
+                      forgetEverything()
+                      setDeleting('no')
+                      setDeleted(true)
+                      return
+                    }
+                    // The account's rows go first. If the local copy were cleared first
+                    // and the server step then failed, the data would survive on a
+                    // server the person believes they emptied — which is the one outcome
+                    // this ordering exists to prevent. A failed server step changes
+                    // nothing here and says so.
+                    void forgetEverywhere().then((reason) => {
+                      if (reason) {
+                        setFailed(true)
+                        return
+                      }
+                      setDeleting('no')
+                      setDeleted(true)
+                    })
                   }}
                 >
-                  {m.data.delete.finalConfirm}
+                  {sync.busy === 'deleting' ? m.auth.working : m.data.delete.finalConfirm}
                 </button>
-                <button type="button" className="btn btn-primary" onClick={() => setDeleting('no')}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={sync.busy !== null}
+                  onClick={() => {
+                    setDeleting('no')
+                    setFailed(false)
+                  }}
+                >
                   {m.data.delete.cancel}
                 </button>
               </div>
+              {/* Nothing was deleted, on either side, and the sentence says which. */}
+              {failed && (
+                <p className="max-w-prose text-sm leading-relaxed text-note">
+                  {m.data.delete.cloudFailed}
+                </p>
+              )}
             </div>
           )}
         </section>

@@ -25,6 +25,89 @@ export const en = {
     about: 'About',
     /** Accessible name for the nav dropdown the links collapse into on narrow screens. */
     menu: 'Menu',
+    /**
+     * The footer's one changing item. Two words for two states rather than one word for
+     * a toggle: "Account" would say nothing about which way it goes, and a person
+     * checking whether they are signed in should be able to read the answer rather than
+     * click to find out.
+     */
+    signIn: 'Sign in',
+    signOut: 'Sign out',
+  },
+
+  /**
+   * Signing in, and the one question it sometimes has to ask afterwards.
+   *
+   * Nothing in this group is required to use the app. It is reached from two places —
+   * the cloud switch under Data protection, and the footer — and both of them work
+   * perfectly well never being touched.
+   */
+  auth: {
+    /** Names the dialog for a screen reader, and heads it on screen. */
+    title: 'Sign in',
+    /**
+     * A question rather than a field label, and it says what the address is *for*: this
+     * is the one screen where somebody hands over something about themselves, so it
+     * should read as being asked rather than as a form to fill.
+     */
+    emailQuestion: 'Which email address should we send a code to?',
+    emailPlaceholder: 'you@example.com',
+    send: 'Send me a code',
+    /**
+     * The whole of what signing in commits to, said before the address is typed rather
+     * than after. There is no separate "create an account" step anywhere in the app, so
+     * this sentence is the only place that can say an account may be created.
+     */
+    note: 'If you do not have an account yet, one is created when you sign in. What is synced is then stored with us, and you can delete it again at any time.',
+    /** Said in the same breath, because it is the part that is hard to take back. */
+    noteData: 'What is on this device is added to your account when you sign in.',
+    codeQuestion: 'What is the code?',
+    codeSent: 'We sent one to {email}. It stays valid for about an hour.',
+    codePlaceholder: 'The code from the email',
+    verify: 'Sign in',
+    resend: 'Send another one',
+    otherEmail: 'Use a different address',
+    cancel: 'Cancel',
+    close: 'Close',
+    /** While a request is in the air. The button keeps its size; only the word changes. */
+    working: 'One moment…',
+    signedInAs: 'Signed in as {email}.',
+    done: 'Sync is on. What is here is in your account as well.',
+
+    /**
+     * What went wrong, in the few kinds somebody can act on.
+     *
+     * Every one of them ends by saying that nothing here changed, because that is the
+     * thing a person actually wants to know and the thing this design guarantees: a
+     * failed request never costs an answer.
+     */
+    error: {
+      offline: 'That did not reach us. Nothing here changed — try again when you have a connection.',
+      rejected: 'That code was not accepted. It may have expired, or a newer one may have been sent.',
+      rateLimited: 'That is a lot of attempts in a short time. Wait a minute, then try again.',
+      signupClosed: 'This app is not taking new accounts at the moment.',
+      server: 'Something went wrong at our end. Nothing here changed.',
+      unconfigured: 'Sync is not set up in this version of the app.',
+    },
+
+    /**
+     * The one question sync ever has to ask, and it is asked exactly once: on a device
+     * whose data and whose account disagree about how things stand.
+     *
+     * Two real options, neither pre-chosen, each stating its consequence in the sentence
+     * beside it rather than in fine print underneath. Nothing is merged behind anyone's
+     * back and nothing is decided by a timestamp.
+     */
+    conflict: {
+      title: 'There is something here, and something in your account.',
+      body: 'They are not the same, so nothing has been changed yet. Whichever you keep replaces the other.',
+      here: 'On this device: {count}',
+      there: 'In your account: {count}',
+      keepDevice: 'Keep what is on this device',
+      keepDeviceNote: 'What is on this device now replaces what is stored in your account.',
+      keepAccount: 'Keep what is in my account',
+      keepAccountNote: 'What is stored on this device now is replaced by what is in your account.',
+    },
   },
 
   lang: {
@@ -397,6 +480,12 @@ export const en = {
      * on the start page, and the page that explains properly is one tap away.
      */
     savedNote: 'What you told me is currently kept on this device only.',
+    /**
+     * The same line, made true again once there is an account. The device is still named
+     * first because it is still where the app reads from — the account is the copy, not
+     * the original.
+     */
+    syncedNote: 'What you told me is kept on this device and in your account.',
     memoryNote: 'Nothing is being saved. What you told me stays in this tab.',
     // Parked with the name question — see the note above `name`.
     ack: 'Thank you. That is everything I wanted to ask.',
@@ -792,6 +881,25 @@ export const en = {
       'In your own words, exactly as you gave them. None of it has ever left this browser: there is currently no server and no account, and nothing is sent anywhere.',
     introMemory:
       'You asked for nothing to be saved, so this list lives in this tab only and is gone when you close it. Nothing was written to your device.',
+    /**
+     * The third variant, and the reason this group has variants at all.
+     *
+     * `introSaved` says "none of it has ever left this browser". With sync on that
+     * sentence is **false**, and a promise that has to be retracted is worse than one
+     * never made — so cloud mode gets its own, which names where the data is, who cannot
+     * read it, and who could. The last clause is the awkward one and it stays: RLS stops
+     * other people signed in, it does not stop whoever runs the database, and implying
+     * otherwise would be the exact dishonesty the rest of this file avoids.
+     */
+    introCloud:
+      'In your own words, exactly as you gave them. It is on this device and in your account, on servers in the EU (Supabase). Nobody else signed in can read it. Whoever runs this app could technically look at the database — worth knowing, since no promise can undo it.',
+    /**
+     * What else is on the device, which "everything I know" has to include if the claim
+     * is going to be checkable. Shown only while signed in, because only then does it
+     * exist.
+     */
+    sessionNote:
+      'While you are signed in, this browser also holds a login token for your account, under entries beginning with “sb-”. Signing out removes it.',
     introUnknown: 'We have not talked yet, so there is nothing here.',
     empty: 'Nothing yet.',
     learnedAt: 'noted {when}',
@@ -921,6 +1029,15 @@ export const en = {
      */
     p1: 'What you write here is currently stored only in this browser, on this device.',
     p2: 'It is not sent to us. There is currently no account and no cloud, and nobody else can see it.',
+    /**
+     * `p1`–`p4` describe a device with no account, and every one of them is false while
+     * sync is on. Rather than hedging all four into vagueness, cloud mode replaces the
+     * two that make the claim — the page stays four short sentences either way, and each
+     * of them stays true.
+     */
+    p1Cloud: 'What you write here is stored in this browser, and in your account.',
+    p2Cloud:
+      'Your account is on servers in the EU (Supabase). Nobody else signed in can read it, and it is not used to build a profile of you.',
     p3: 'If you clear your browser data, it is deleted along with everything else.',
     p4: 'Another browser, or another device, will not have it.',
     /** The one thing this page is for, besides being true. */
@@ -965,7 +1082,34 @@ export const en = {
        * and nothing here asks for it.
        */
       optionCloud: 'Sync with Cloud',
-      cloudDevOnly: 'Cloud sync is currently available to developers only.',
+      /**
+       * Why the switch cannot be operated, for the one state where it cannot be.
+       *
+       * Not a policy so much as an unavoidable fact, and it is stated as one: staying
+       * signed in means keeping a token, keeping a token is writing to the device, and
+       * somebody who asked for nothing to be written has already answered that. Decision
+       * D2 in `docs/supabase-migration.md`.
+       */
+      cloudNeedsSaving:
+        'This needs saving on this device first — staying signed in means keeping a token here, and you asked for nothing to be written.',
+      /** For a build with no project attached. Better than a control that can only fail. */
+      cloudUnavailable: 'This version of the app has no cloud to sync with.',
+      /** On, and to what. Naming the address is how you check it is the account you meant. */
+      cloudOn: 'Synced with {email}. What you write here goes to your account as well.',
+      /** Said after turning it off, where the switch is. */
+      cloudOffDone: 'Sync is off and you are signed out. Everything you had is still on this device.',
+      /**
+       * The quiet honesty line: something is written here and is not up there yet.
+       *
+       * Deliberately not an error and not a warning. Nothing is wrong and nothing is
+       * lost; this is the difference between the two copies, stated plainly, so that the
+       * word "synced" never claims more than is true.
+       */
+      cloudPendingOne: 'One entry has not reached your account yet.',
+      cloudPending: '{count} entries have not reached your account yet.',
+      cloudTrouble: 'Your account could not be reached. Everything is still here, and it will be sent when it can be.',
+      cloudRetry: 'Try again now',
+      cloudLastSynced: 'Last agreed with your account {when}.',
 
       /**
        * The label on the one-way opt-in, named as the thing you would be switching
@@ -1032,6 +1176,33 @@ export const en = {
        * begin again.
        */
       restart: 'Start again',
+      /**
+       * The extra half-sentence deletion needs once there is an account — said in the
+       * same breath as the rest of the consequence rather than as a separate warning.
+       */
+      alsoCloud:
+        'This also deletes the copy in your account, and signs you out. Any other device you are signed in on catches up the next time it connects. Your account itself stays.',
+      cloudFailed: 'Your account could not be reached, so nothing was deleted — not here and not there. Try again when you have a connection.',
+    },
+
+    /**
+     * Deleting the account, which is a different act from deleting the data and is never
+     * allowed to blur into it.
+     *
+     * Shown only while signed in, and placed under "Delete my data" because it is the
+     * larger of the two: one empties the account, the other ends it.
+     */
+    account: {
+      title: 'Your account',
+      /** Says which account, so the destructive button below is unambiguous. */
+      signedInAs: 'Signed in as {email}.',
+      delete: 'Delete account',
+      warnTitle: 'Delete your account?',
+      warnBody:
+        'This deletes your account, everything stored in it, and the copy on this device. It cannot be undone.',
+      cancel: 'Keep it',
+      confirm: 'Yes, delete my account',
+      done: 'Your account is gone, and so is everything that was in it.',
     },
   },
 
@@ -1054,6 +1225,13 @@ export const en = {
     whereTitle: 'Where your answers live',
     whereP1: 'For now, in this browser, in a single entry called {key}, on this device. Clearing your browser data removes it, and so does "delete everything" under Data protection.',
     whereP2: 'If you declined, not even that entry exists: the app runs in memory for that visit and writes nothing at all. That has one honest consequence — it cannot remember that you declined, so it will ask again next time.',
+    /**
+     * Appended, not substituted: the two paragraphs above stay true — the device copy is
+     * still there and still the one the app reads — and this says what signing in adds.
+     * Shown only while signed in, so the page never describes a cloud to somebody who
+     * has not asked for one.
+     */
+    whereP3: 'You are signed in, so there is a second copy in your account, on servers in the EU (Supabase). The device copy is still the one the app reads; the account is what lets another device catch up. Turning sync off signs you out and leaves everything here untouched, and “delete everything” removes both copies.',
   },
 }
 

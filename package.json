@@ -10,7 +10,10 @@
     "verify": "node scripts/verify.mjs",
     "check:supabase": "node --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env.local scripts/check-supabase.mjs",
     "check:rls": "node --env-file=.env.local --env-file=supabase/.env.rls-test scripts/check-rls.mjs",
-    "check:sync": "node --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/alias-register.mjs --env-file=.env.local --env-file=supabase/.env.rls-test scripts/check-sync.mjs"
+    "check:schema": "node scripts/check-schema.mjs",
+    "check:sync": "node --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/alias-register.mjs --env-file=.env.local --env-file=supabase/.env.rls-test scripts/check-sync.mjs",
+    "check:delete-account": "node --env-file=.env.local --env-file=supabase/.env.rls-test scripts/check-delete-account.mjs",
+    "check:bundle": "node --env-file-if-exists=.env.local --env-file-if-exists=supabase/.env.rls-test scripts/check-bundle.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.2",

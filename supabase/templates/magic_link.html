@@ -1,0 +1,22 @@
+<!--
+  The sign-in email.
+
+  It carries a **code**, not a link, and that is the whole reason this file exists:
+  Supabase's stock magic-link template contains only {{ .ConfirmationURL }}, so an app
+  that asks for a code would send an email that has none. See docs/supabase-migration.md
+  §3 for why a code and not a link — no redirect URL to allowlist, no callback route, and
+  nothing that can work locally and break under a GitHub Pages subpath.
+
+  Deliberately no link at all. A link in this email would land on the site with tokens in
+  the URL fragment, which the client is configured to ignore (detectSessionInUrl: false),
+  so it would look broken rather than merely redundant.
+-->
+<p>Here is your code for Thrive:</p>
+
+<p style="font-size: 24px; letter-spacing: 0.15em"><strong>{{ .Token }}</strong></p>
+
+<p>Type it into the app to sign in. It stays valid for about an hour.</p>
+
+<p style="color: #6b6862; font-size: 14px">
+  If you did not ask for this, you can ignore it — nothing happens until the code is used.
+</p>

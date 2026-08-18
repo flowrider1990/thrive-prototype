@@ -934,11 +934,35 @@ fall out of it, and the second is the one worth naming:
   no "am I hydrating?" flag, because a hydrated fact is already where a push would
   send it.
 
+### Phase 6 is deployed and tested (2026-08-19)
+
+`delete-account` is live, and `pnpm check:delete-account` proves the §16 requirements
+against it rather than against the source: no token is 401, a malformed one is 401, a
+non-POST method is 405, an unknown origin is not echoed, and — the requirement that
+matters most — a body naming somebody else's account deletes the **caller's** account and
+leaves the named one untouched, because the function reads no body at all.
+
+Two things §16 did not anticipate:
+
+- **The email template cannot be pushed on this plan**, so the sign-in email carries a
+  link and no code. §3 chose codes over links for good reasons that still hold; the
+  obstacle is billing, not design. Custom SMTP or a plan upgrade, and the template in
+  `supabase/templates/magic_link.html` goes live unchanged.
+- **A deleted account's access token stays valid until it expires.** §16 said sessions
+  should be revoked as part of deletion rather than assumed dead, and they are — but
+  revocation stops renewal, not the token already in hand. Measured: it can read nothing,
+  write nothing, and cannot be refreshed.
+
 ### What still needs doing by hand
 
-Nothing in the repository, and three things on the project — all of them listed
-in `docs/progress.md` under the cloud-sync section: pushing the auth config
-(sign-up is on in `config.toml` and must be pushed to take effect), deploying the
-Edge Function with its secret, and confirming the OTP email template carries
-`{{ .Token }}`. Until the first of those, sign-in will refuse new accounts with
-`signup_disabled`; until the last, the email arrives with no code in it.
+Two of the three original items are done: the auth config is pushed (sign-up is on)
+and the Edge Function is deployed and tested. **One remains, and it blocks sign-in for
+real people:** the email carries a link rather than a code, and the template cannot be
+replaced on the free tier with the default sender. Configure custom SMTP or upgrade the
+plan, then uncomment the `[auth.email.template.magic_link]` block in
+`supabase/config.toml` and push.
+
+Also open, and a product decision rather than a technical one: sign-up is now **open
+registration**. Anyone with the URL can create an empty account. RLS keeps them out of
+everybody else's rows, and in practice the template blocker means they cannot finish
+signing in — but that is an accident of the current state, not a control.

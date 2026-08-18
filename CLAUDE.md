@@ -632,6 +632,10 @@ Current known verification:
 - `pnpm check:sync` — the sync contract against the real database: idempotent
   push, congruence, both conflict resolutions, isolation, and that
   `consent_concern` never lands,
+- `pnpm check:delete-account` — the deployed Edge Function, end to end: real
+  accounts made by the app's own sign-in, real one-time codes, real sessions.
+  Includes the one that matters — a body naming somebody else's account deletes
+  the caller's own,
 - `pnpm check:bundle` — no privileged credential in `out/`, with the publishable
   key as the positive control,
 - `pnpm check:supabase` — connectivity,

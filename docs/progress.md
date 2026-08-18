@@ -1723,6 +1723,70 @@ because the device still holds them locally and the conflict question is put to 
 person when it reconnects. Detecting it mid-session would mean polling the generation on
 a timer, which is a cost with no correctness gain.
 
+## The Edge Function is deployed, and sign-in has a blocker (2026-08-19)
+
+`delete-account` is live on the linked project, and `pnpm check:delete-account` is
+**14/14** against it — real accounts created by the app's own `signInWithOtp`, real
+one-time codes, real sessions, real HTTPS through the same gateway a browser uses.
+Sign-up is enabled on the project (`supabase config push`), which the real flow needs.
+
+Deployed with `functions deploy delete-account --use-api`: `--use-api` bundles
+server-side, so no Docker is needed — which matters here, since this machine has none.
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected by the platform at runtime;
+`supabase secrets list` is empty and that is correct, because reserved `SUPABASE_*` names
+cannot be set by hand and do not need to be.
+
+### The blocker: the sign-in email cannot carry a code on this plan
+
+**Nobody can currently complete a sign-in by reading their inbox**, and it is a platform
+limitation rather than anything in the code. Pushing the OTP email template returned:
+
+> Email template modification is not available for free tier projects using the default
+> email provider. Please upgrade your plan or configure a custom SMTP provider.
+
+Supabase's stock magic-link template contains `{{ .ConfirmationURL }}` and no `{{ .Token }}`,
+so the email that goes out has a **link and no code** — and the app deliberately ignores
+links (`detectSessionInUrl: false`, decision D4). The code itself is real and `verifyOtp`
+accepts it; it simply never reaches the person.
+
+Two ways out, both requiring a decision rather than a commit: **configure custom SMTP**
+(which also lifts the template restriction), or **upgrade the plan**. The template is kept
+at `supabase/templates/magic_link.html` and the config block is commented out with the
+reason, because an unpushable template does not fail alone — the CLI sends the whole auth
+block as one update, so it took `enable_signup = true` down with it until it was removed.
+
+### Deleting a user does not invalidate their access token
+
+The Supabase skill warned about this and it is now measured. A JWT is checked by signature
+and expiry, not looked up in a table, so a token issued before deletion stays syntactically
+valid for the rest of its hour (`jwt_expiry = 3600`). The function revokes the *session*
+before deleting, which is the half it can control.
+
+What the residual token can actually do was tested rather than argued, because "it is
+probably harmless" is not a security claim:
+
+- **read nothing** — its rows went with the account, and RLS scopes it to rows that no
+  longer exist (200, zero rows);
+- **write nothing** — a new row would need an owner in `auth.users`, and the foreign key
+  refuses (409);
+- **not be renewed** — the global sign-out killed the refresh token (400), so it expires
+  rather than being extended.
+
+Worth considering, not done: lowering `jwt_expiry` shortens that window for every session,
+at the cost of more refreshes.
+
+### Three smaller things worth remembering
+
+- **`signInWithOtp` creates the account even when the mail cannot be sent.** The throwaway
+  `@example.com` addresses come back with `Email address … is invalid`, and the user exists
+  anyway. Useful for testing — it means the suite creates real accounts without touching
+  the 2-per-hour email budget — and worth knowing before reading that error as a failure.
+- **The whole auth config is one atomic update.** A single rejected field takes every other
+  field with it, silently, and `config push` has no `--dry-run`. Read the diff it prints.
+- **The dangerous test is check 8**, and it is the one to keep: account B calls the function
+  with `{user_id, userId, id, email}` all naming account A. B is deleted and A is untouched,
+  because the function reads no body at all.
+
 ## The repository
 
 <https://github.com/flowrider1990/thrive-prototype>, **public**, and live at

@@ -1,0 +1,6 @@
+{
+  "//": "Marks this directory as Deno rather than Next, for editors and for the Deno language server. The Next tsconfig excludes it for the same reason.",
+  "imports": {
+    "@supabase/supabase-js": "jsr:@supabase/supabase-js@2"
+  }
+}

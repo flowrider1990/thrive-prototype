@@ -648,6 +648,29 @@
   .menu-panel {
     animation: menu-in 120ms ease-out;
   }
+
+  /**
+   * The one modal in the app: a real `<dialog>`, opened with `showModal()`.
+   *
+   * Everything hard about a modal — trapping focus, making the page behind it inert,
+   * closing on Escape, sitting above every stacking context — comes from the element
+   * rather than from code here. §7 of `CLAUDE.md` says to prefer an established headless
+   * primitive over hand-rolled focus management; the platform's own element is that,
+   * with no dependency to add.
+   *
+   * The three resets exist because a `<dialog>` arrives with a UA border, a fixed
+   * `max-width` sized for a paragraph, and `margin: auto` centring it. Everything else
+   * here is the app's ordinary card treatment, so it reads as part of the same product.
+   */
+  .modal {
+    @apply edge m-auto w-[min(32rem,calc(100vw-2rem))] max-h-[calc(100dvh-4rem)] overflow-y-auto rounded-lg border-line bg-surface p-0 text-ink shadow-lg;
+  }
+
+  /* Dimmed rather than opaque: the page you came from should still be visible behind
+     the question, because the question is about that page's data. */
+  .modal::backdrop {
+    background-color: rgb(0 0 0 / 0.4);
+  }
 }
 
 @keyframes menu-in {

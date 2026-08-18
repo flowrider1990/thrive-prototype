@@ -9,7 +9,7 @@ product behaviour — it still describes a name question and a single open quest
 both since removed. For what the app does today, read this file and the repository
 itself.
 
-Last worked: 2026-08-11.
+Last worked: 2026-08-19.
 
 ## State: steps 0–11 done, verification 1–10 and 12 passing
 
@@ -1599,6 +1599,211 @@ half it was written for.
 **The three checks were confirmed by reverting the fix**: 49f and 49g both fail without it and
 49h still passes, so none of them is passing for an unrelated reason. Worth doing every time —
 several checks in this branch initially passed while guarding nothing.
+
+## Cloud sync and accounts (2026-08-18)
+
+The phase `docs/supabase-migration.md` was written for. Sign-in, continuous sync,
+conflict resolution and account deletion, against the real project — no mocks
+anywhere. `pnpm verify` is **306/306** (297 before, plus nine new), `pnpm check:rls`
+17/17, `pnpm check:schema` 7/7, `pnpm check:sync` 14/14, `pnpm check:bundle` 4/4.
+
+What is in the app:
+
+- **`lib/cloud/`, four modules with one job each** — `account.ts` (sessions),
+  `facts.ts` (rows), `compare.ts` (are two datasets the same?), `sync.ts` (when
+  any of it happens). No component performs a database write and `sync.ts`
+  renders nothing, which is what keeps either testable on its own.
+- **Email one-time code.** No password, no OAuth, no separate "create account":
+  an address nobody has used becomes an account when its owner proves they can
+  read the code.
+- **One `<dialog>`, mounted once in `PageShell`**, reached from the cloud switch
+  and from the footer. Native `showModal()` rather than a hand-rolled trap —
+  focus containment, inertness, Escape and the backdrop all come from the
+  platform, at no dependency cost.
+- **`Delete account` under `Delete data`, and they stay different acts.** One
+  empties the account, the other ends it.
+
+### Four things worth remembering from doing it
+
+- **A closed `<dialog>` still has its children in the DOM**, and that cost three
+  failures in a section about writing down next steps. The unopened sign-in left
+  an `<input>` and a "Cancel" button on every page in the app; `verify.mjs`
+  counted them and section 29 started failing. The fix is to render the contents
+  only while open. The same hazard reaches autofill and password managers, which
+  walk the DOM rather than the screen — so this was a real defect that happened to
+  be caught by a test about something else.
+- **The pre-change baseline had to be measured, not assumed.** Those three
+  failures looked unrelated to sync, so the tree was stashed, rebuilt and re-run
+  to establish 297/297 clean. Without that, "probably pre-existing" would have
+  shipped a bug.
+- **`sb_secret_` appears in every bundle**, and it is not a leak — it is a prefix
+  test inside `@supabase/supabase-js`. `scripts/check-bundle.mjs` therefore
+  matches the prefix *plus enough characters to be a key*, and decodes JWTs to
+  read the role rather than pattern-matching them. A guard that fired on the bare
+  prefix would be switched off within a week.
+- **Node will not `spawnSync` a `.cmd` shim** (EINVAL, since the argument-injection
+  fix), so `check-schema.mjs` runs the Supabase CLI's own JS entry point with
+  `process.execPath` instead of going through `npx`.
+
+### The schema audit found nothing, which is the point of having run it
+
+`pnpm check:schema` asks a question `check:rls` cannot: *is there anything here
+without policies at all?* One table, RLS on, three policies, all `to authenticated`
+and all scoped to `auth.uid() = user_id`; no policy open to `anon` or `public`; no
+`using (true)`; `anon` holds no privilege on anything; no views, so no missing
+`security_invoker`. It is committed so that the next table added has to pass it.
+
+Deliberately **no `UPDATE` policy**, and that is not an omission: `person_facts` is
+append-only (D6), a correction is a newer fact, and `check-rls.mjs` I5 asserts that
+even a row's own owner cannot edit it.
+
+### Not done here, and needing a person
+
+Three deploy steps, none of them in the repository:
+
+1. **`supabase config push`** — sign-up is back on in `config.toml` and does
+   nothing until pushed. Read the diff the CLI prints; §3 records what a previous
+   push silently overwrote.
+2. **`supabase functions deploy delete-account`**, plus
+   `supabase secrets set SUPABASE_SERVICE_ROLE_KEY=…`. Until then "Delete account"
+   fails cleanly and deletes nothing.
+3. **The OTP email template.** `config.toml` now points at
+   `supabase/templates/magic_link.html`, which carries `{{ .Token }}`. Supabase's
+   stock template has only a link, so without this the email arrives with no code
+   in it. Confirm it in the dashboard after pushing.
+
+Open, and a product decision rather than a technical one: sign-up is now **open
+registration**. Anyone with the URL can create an empty account of their own. RLS
+means they reach nobody else's rows and the built-in sender is rate-limited, but if
+an allow-list is wanted it should exist before the deployed URL is shared.
+
+## Dataset generations: closing stale-device resurrection (2026-08-19)
+
+A review of the cloud-sync work called out one significant edge case, and it was a real
+one: replace semantics plus a set-union merge means a device that was offline during a
+"keep what is on this device" brings the discarded dataset back the moment it
+reconnects. `pnpm check:sync` is now **20/20** and C12 is that exact scenario, run
+against the real database.
+
+The fix is a **generation**: `person_generations` is an append-only log, one row per
+deliberate replacement, and `person_facts.generation` says which dataset a fact belongs
+to. A fact is active only while its generation is the newest one.
+
+**It is a structural guarantee rather than a rule.** A row's generation is set on insert
+and there is no `UPDATE` anywhere in this schema, so nothing can move a fact from a dead
+generation into the live one. A stale device's push is accepted and lands inert; the
+device discovers it is stale at its next reconcile and either adopts the account's copy
+or asks, depending on whether it has unsynced work of its own.
+
+Four things that only became clear while building it:
+
+- **The primary key had to become `(id, generation)`.** With `id` alone, writing the
+  winning dataset into the new generation is a primary-key conflict, which forces
+  delete-then-insert — and that ordering leaves a window where the account holds an empty
+  current generation while a device is still uploading. Another device arriving inside
+  that window would adopt an empty dataset. Composite, the account never holds less than
+  it did a moment ago.
+- **Deleting the data has to mint a generation too**, and mint it *before* the delete.
+  Otherwise another device finds the generation it already knew, concludes it is a peer
+  of an account that merely lost rows, and helpfully uploads everything back. Deletion
+  that bounces is worse than deletion that fails.
+- **`null` and "an empty generation" must stay distinguishable.** The first means "never
+  used, upload what you have"; the second means "this was reset, stand down". That is
+  why "delete my data" leaves exactly one fresh empty generation behind rather than
+  clearing the table.
+- **A stricter insert policy was tempting and wrong.** Requiring `generation = the newest
+  one` would make every legitimate upload race the mint in front of it, and it prevents
+  nothing: a stale device writing into its own dead generation writes rows that cannot
+  ever be read. The policy checks ownership of the stamp instead.
+
+The one accepted limitation: a device that is **live** when another replaces the dataset
+keeps writing into the old generation until it next reconciles — on load, on regaining a
+connection, or on sign-in. Those writes are inert rather than wrong, and nothing is lost,
+because the device still holds them locally and the conflict question is put to the
+person when it reconnects. Detecting it mid-session would mean polling the generation on
+a timer, which is a cost with no correctness gain.
+
+## The Edge Function is deployed, and sign-in has a blocker (2026-08-19)
+
+`delete-account` is live on the linked project, and `pnpm check:delete-account` is
+**14/14** against it — real accounts created by the app's own `signInWithOtp`, real
+one-time codes, real sessions, real HTTPS through the same gateway a browser uses.
+Sign-up is enabled on the project (`supabase config push`), which the real flow needs.
+
+Deployed with `functions deploy delete-account --use-api`: `--use-api` bundles
+server-side, so no Docker is needed — which matters here, since this machine has none.
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected by the platform at runtime;
+`supabase secrets list` is empty and that is correct, because reserved `SUPABASE_*` names
+cannot be set by hand and do not need to be.
+
+### The blocker: the sign-in email cannot carry a code on this plan
+
+**Nobody can currently complete a sign-in by reading their inbox**, and it is a platform
+limitation rather than anything in the code. Pushing the OTP email template returned:
+
+> Email template modification is not available for free tier projects using the default
+> email provider. Please upgrade your plan or configure a custom SMTP provider.
+
+Supabase's stock magic-link template contains `{{ .ConfirmationURL }}` and no `{{ .Token }}`,
+so the email that goes out has a **link and no code** — and the app deliberately ignores
+links (`detectSessionInUrl: false`, decision D4). The code itself is real and `verifyOtp`
+accepts it; it simply never reaches the person.
+
+Two ways out, both requiring a decision rather than a commit: **configure custom SMTP**
+(which also lifts the template restriction), or **upgrade the plan**. The template is kept
+at `supabase/templates/magic_link.html` and the config block is commented out with the
+reason, because an unpushable template does not fail alone — the CLI sends the whole auth
+block as one update, so it took `enable_signup = true` down with it until it was removed.
+
+### Deleting a user does not invalidate their access token
+
+The Supabase skill warned about this and it is now measured. A JWT is checked by signature
+and expiry, not looked up in a table, so a token issued before deletion stays syntactically
+valid for the rest of its hour (`jwt_expiry = 3600`). The function revokes the *session*
+before deleting, which is the half it can control.
+
+What the residual token can actually do was tested rather than argued, because "it is
+probably harmless" is not a security claim:
+
+- **read nothing** — its rows went with the account, and RLS scopes it to rows that no
+  longer exist (200, zero rows);
+- **write nothing** — a new row would need an owner in `auth.users`, and the foreign key
+  refuses (409);
+- **not be renewed** — the global sign-out killed the refresh token (400), so it expires
+  rather than being extended.
+
+Worth considering, not done: lowering `jwt_expiry` shortens that window for every session,
+at the cost of more refreshes.
+
+### Three smaller things worth remembering
+
+- **`signInWithOtp` creates the account even when the mail cannot be sent.** The throwaway
+  `@example.com` addresses come back with `Email address … is invalid`, and the user exists
+  anyway. Useful for testing — it means the suite creates real accounts without touching
+  the 2-per-hour email budget — and worth knowing before reading that error as a failure.
+- **The whole auth config is one atomic update.** A single rejected field takes every other
+  field with it, silently, and `config push` has no `--dry-run`. Read the diff it prints.
+- **The dangerous test is check 8**, and it is the one to keep: account B calls the function
+  with `{user_id, userId, id, email}` all naming account A. B is deleted and A is untouched,
+  because the function reads no body at all.
+
+## Decision: the prototype stays on the free tier (2026-08-19)
+
+The blocker above is **accepted rather than fixed** — decision D11. No paid plan, no
+custom SMTP, no magic-link rewrite, and the auth/sync architecture stays exactly as it
+is. Real email sign-in therefore does not work, and work continues against the existing
+test suites, which sign in by reading the code out of the admin API.
+
+The rewrite was the tempting one to take, because it is the only option that costs no
+money — and it is the one to keep saying no to. `docs/supabase-migration.md` §3 chose
+codes over links because a link has to return to an allowlisted URL and this app is a
+static export on a GitHub Pages subpath, which is precisely where a link works locally
+and breaks in production.
+
+What the decision changes in the repository: one sentence in the sign-in dialog
+(`m.auth.prototypeNote`) admitting the flow cannot be finished yet, one check asserting
+that sentence stays (§54e2), and the limitation recorded in `CLAUDE.md` so it is not
+rediscovered as a bug. Nothing else — the code was already right.
 
 ## The repository
 

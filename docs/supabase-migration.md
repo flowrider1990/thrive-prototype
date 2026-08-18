@@ -1,9 +1,16 @@
 # Cloud persistence with Supabase
 
-**Status: direction approved 2026-08-11. Nothing is implemented yet.** No Auth, no
-tables, no migrations, no RLS, no Edge Function, no client code, no sync. The CLI
-is installed and the project is linked (`oejjomqrugsgpunzmhnd`), which is tooling
-and changes nothing about the app.
+**Status: implemented 2026-08-18.** Phases 1 to 6 are done — the table, RLS,
+email-OTP sign-in, import/push/pull, deletion on both sides, and the
+`delete-account` Edge Function. Phase 7 exists in a different shape than planned:
+rather than mirroring the browser suite for cloud mode, the cloud contract is
+covered by `pnpm check:sync` against the real database with two throwaway users,
+and `pnpm verify` covers the screens signed out. See "What was built" below for
+where the implementation departs from this plan, and why.
+
+The sections below are the **approved design**, kept as written so the reasoning
+survives. Where the build differs from them, the difference is recorded rather
+than the plan quietly edited.
 
 This document exists because `CLAUDE.md` §8 requires the migration boundary to be
 proposed before implementation. The approved decisions are recorded below, the
@@ -23,6 +30,7 @@ phases are in §20, and the few questions still open are at the end.
 | D8 | The app **keeps working locally** when Supabase is unavailable | §14, §15 |
 | D9 | Full "forget everything" **eventually deletes cloud data and the auth account** | §16 |
 | D10 | A **narrowly scoped Edge Function** may hold the privileged credential for D9 — **for that purpose only**, and this does not open the door to a general server-side architecture | §16, §18 |
+| D11 | The prototype **stays on the free tier with the default email sender**, which means real email sign-in does not work and is knowingly deferred (2026-08-19) | below |
 
 D10 is a deliberately small exception to "no server". The guard against it
 spreading is written into §16 and §18 as requirements, not left to memory.
@@ -797,3 +805,186 @@ Three things I deliberately did **not** write, and want your view on: naming
 Supabase as the provider, naming the region more precisely than "Frankfurt", and
 whether to state that the operator (you) could technically read the database. The
 third is the most honest and the most awkward.
+
+---
+
+## What was built, and where it departs from this plan
+
+Implemented 2026-08-18, against a brief that asked for sign-in, continuous sync,
+conflict resolution, and account deletion end to end. Four departures, each one a
+place where the brief and this document disagreed, and each decided rather than
+drifted into.
+
+### 0. Generations, which §13 did not anticipate
+
+§13 says conflicts are impossible, and as a statement about *data* it is still true:
+append-only facts with client-generated ids cannot contradict each other, so a set
+union loses nothing. What it missed is that the argument assumes the two sides are
+**peers** — that neither has been declared wrong. Replace semantics break that
+assumption, and the failure it produces is specific:
+
+> Device A signs in, chooses "keep what is on this device", and the account's copy is
+> replaced. Device B, offline at the time, still holds the copy that was discarded. B
+> reconnects, unions, and every discarded fact is alive again.
+
+Append-only data has no way to say "this is gone", so the union has no way to know.
+Per-fact tombstones were the obvious fix and were rejected in O2 for good reasons; this
+is the cheaper one.
+
+**A generation is a stamp on the dataset as a whole.** `person_generations` is an
+append-only log, one row per deliberate replacement; the current generation is the
+newest row. Every fact carries the generation it was appended under, and **a fact is
+active only while its generation is the current one**.
+
+Why that closes it, and why it is still append-only: a row's generation is fixed when
+it is inserted, and there is no `UPDATE` anywhere in this schema. A superseded fact
+therefore *cannot* be promoted back into the current generation — not by a stale client,
+not by a buggy one, not by a race. The guarantee is structural rather than a rule
+somebody has to keep remembering. `pnpm check:sync` C12 is the proof: a stale device
+pushes the whole discarded dataset, the rows are accepted, and the active set does not
+move.
+
+Three consequences worth having in mind:
+
+- **The primary key is `(id, generation)`**, so the same fact can exist in two
+  generations at once. That is what lets a replace stage the winning dataset *before*
+  clearing the old one, so the account never holds less than it did a moment ago. Push
+  idempotency becomes per-generation, which is exactly right.
+- **Emptying an account mints one too.** Without it, another device would find the
+  generation it already knew, conclude it was a peer of an account that had merely lost
+  rows, and upload all of them again — the same bug wearing a different hat.
+- **`null` and "an empty generation" are different states.** The first means the account
+  has never held a dataset, and a device should upload; the second means it was reset,
+  and a device should stand down. Collapsing them would make every deletion bounce.
+
+The insert policy requires only that the generation **belongs to the caller**, not that
+it is the newest. Stricter sounds better and buys nothing: a stale device writing into
+its own superseded generation is writing rows that are inert by definition. What does
+need preventing is stamping a row with somebody else's generation, which the foreign key
+alone would allow — `check:sync` C14.
+
+Client side: `lib/cloud/generations.ts`, and one `reconcile()` in `sync.ts` that every
+entry point goes through. It adopts silently when this device's copy is wholly
+superseded and it has nothing unsynced of its own, and asks otherwise — including the
+guard that **an empty authoritative dataset is never adopted silently over a device that
+holds something**, since that state is indistinguishable from a replace still in flight.
+
+### 1. Conflict resolution is a **choice**, not a union (§13 said conflicts were impossible)
+
+§13 is still true about the *data*: append-only facts with client-generated ids
+cannot contradict each other, and a union loses nothing. The brief nonetheless
+asked for an explicit "this device" / "my account" choice on first sign-in, with
+replace semantics on both sides. Both are now in the product, and which one runs
+is decided by **whether the two datasets describe the same app**:
+
+- **equivalent** (derived current state matches) → union, silently. No question,
+  nothing discarded. This is §13's behaviour, and it is what runs on every app
+  load with a stored session, which is why two devices do not produce a dialog
+  every morning.
+- **different** → the dialog, and the loser is genuinely replaced.
+
+So the union survives where it is provably safe, and the person is only asked
+where a real disagreement exists. `lib/cloud/compare.ts` is the whole of that
+decision, and `pnpm check:sync` C5–C7 are the tests of it.
+
+`replaceWithCloud()` is the only path in the app that discards facts without
+deleting everything. It is reachable from exactly one dialog, which states the
+consequence.
+
+### 2. Importing local data is no longer a separate confirmation (D7)
+
+D7 said: ask before uploading. The brief said: case A needs no additional
+confirmation. The brief won, and the reason it can is that **the sign-in dialog
+itself carries the sentence** — "What is on this device is added to your account
+when you sign in" — above the field, before anything is typed. That is the same
+consent D7 wanted, asked once rather than twice, on the screen where the person
+is already deciding.
+
+`scripts/verify.mjs` 54e asserts that sentence is on screen before the address
+field. If that copy is ever removed, the check fails, which is the point.
+
+### 3. `theme`, `locale` and `homeView` still do not sync (D5 preserved)
+
+The brief listed "changing settings that are part of the user's persisted app
+state" among the things to sync. D5 decided the opposite for these three, and D5
+stands: a phone at night and a laptop at work legitimately differ, and syncing a
+theme is a bug that looks like a feature. Nothing in the brief's acceptance
+criteria depends on it. Everything a person *entered* syncs; the three device
+preferences do not.
+
+### 4. Phase 7's shape
+
+Planned: the whole browser suite mirrored for cloud mode. Built: `check:sync`,
+which exercises the same rows, policies and comparison logic against the real
+database, plus `check:schema`, which audits every table rather than the one we
+remember. Email OTP itself is not automatable from a script — reading a code out
+of an inbox is the one step a machine here cannot take — so the throwaway users
+in `check-sync.mjs` sign in with a password. What that changes is only how a
+session is obtained.
+
+### The loop guard, which this document did not specify
+
+§14 called for a "pushed marker" rather than a queue. It is `CloudMark.synced` on
+the persisted store: a set of fact ids known to be in the account. Two properties
+fall out of it, and the second is the one worth naming:
+
+- the push queue is **derived** (`pendingForCloud()`), so there is no queue to
+  lose and no enqueue call to forget in a code path written next year;
+- facts pulled from the cloud are written **and marked synced in the same
+  commit**, so the change notification they cause finds nothing to push. There is
+  no "am I hydrating?" flag, because a hydrated fact is already where a push would
+  send it.
+
+### Phase 6 is deployed and tested (2026-08-19)
+
+`delete-account` is live, and `pnpm check:delete-account` proves the §16 requirements
+against it rather than against the source: no token is 401, a malformed one is 401, a
+non-POST method is 405, an unknown origin is not echoed, and — the requirement that
+matters most — a body naming somebody else's account deletes the **caller's** account and
+leaves the named one untouched, because the function reads no body at all.
+
+Two things §16 did not anticipate:
+
+- **The email template cannot be pushed on this plan**, so the sign-in email carries a
+  link and no code. §3 chose codes over links for good reasons that still hold; the
+  obstacle is billing, not design. Custom SMTP or a plan upgrade, and the template in
+  `supabase/templates/magic_link.html` goes live unchanged.
+- **A deleted account's access token stays valid until it expires.** §16 said sessions
+  should be revoked as part of deletion rather than assumed dead, and they are — but
+  revocation stops renewal, not the token already in hand. Measured: it can read nothing,
+  write nothing, and cannot be refreshed.
+
+### What still needs doing by hand
+
+Nothing. Both remaining items became **decision D11** instead.
+
+## D11: real email sign-in is deferred, knowingly (2026-08-19)
+
+The auth config is pushed and the Edge Function is deployed and tested. The third item —
+an email that carries a code — is **not going to be fixed in the prototype phase**, and
+that was decided rather than postponed by drift.
+
+What was on the table and rejected, for now: a paid plan, a custom SMTP provider, and
+rebuilding sign-in around magic links. The last one is worth naming separately, because
+it is the only one that costs nothing in money: it was rejected because §3's reasoning
+still holds — a link has to come back to an allowlisted URL, and this app is a static
+export on a GitHub Pages subpath, which is exactly the surface where a link works locally
+and breaks in production. Trading a working design for a broken deploy to avoid a bill
+would be the wrong trade.
+
+**So the accepted state is:**
+
+- the sign-in flow is complete, reachable, and **cannot be finished by a real person** —
+  the email arrives with a link and no code;
+- it *can* be finished by a developer, who can read the code out of the admin API, which
+  is how `pnpm check:delete-account` signs in;
+- the dialog says so, in `m.auth.prototypeNote`. A control that cannot succeed must admit
+  it, and `scripts/verify.mjs` §54e2 fails if that sentence disappears;
+- sign-up stays **enabled**, because `check:delete-account` creates its throwaway accounts
+  through the app's own `signInWithOtp`. Turning it off breaks that suite. The exposure is
+  an empty account per stranger, bounded by RLS.
+
+**When this is revisited**, the whole change is: configure SMTP (or upgrade), uncomment
+`[auth.email.template.magic_link]` in `supabase/config.toml`, push, delete
+`m.auth.prototypeNote` from both catalogs and from the dialog, and drop check 54e2. The
+template is already written and already correct.

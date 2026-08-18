@@ -3,7 +3,13 @@
 import { useMemo, useSyncExternalStore } from 'react'
 import { detectLocale, isLocale, type Locale, type LocaleChoice } from '@/lib/i18n/locale'
 import { isTheme, type Theme, type ThemeChoice } from '@/lib/theme'
-import { MEMORY_ONLY_KEYS, STORAGE_KEY, type PersonFact, type PersonStore } from './schema'
+import {
+  MEMORY_ONLY_KEYS,
+  STORAGE_KEY,
+  type CloudMark,
+  type PersonFact,
+  type PersonStore,
+} from './schema'
 
 /**
  * The only place in the app that touches persistent storage.
@@ -16,8 +22,8 @@ import { MEMORY_ONLY_KEYS, STORAGE_KEY, type PersonFact, type PersonStore } from
  * The persisted shape and the storage key live in `./schema`, which server code
  * can import; everything else goes through this module.
  */
-export { STORAGE_KEY } from './schema'
-export type { PersonFact, PersonStore } from './schema'
+export { STORAGE_KEY, MEMORY_ONLY_KEYS } from './schema'
+export type { CloudMark, PersonFact, PersonStore } from './schema'
 
 export type Mode =
   /** Not asked yet, or asked and then forgotten. Nothing is written in this mode. */
@@ -29,7 +35,7 @@ export type Mode =
 
 export type Status = 'loading' | 'ready'
 
-type Snapshot = {
+export type Snapshot = {
   status: Status
   mode: Mode
   consentAt: string | null
@@ -48,6 +54,12 @@ type Snapshot = {
   theme: ThemeChoice
   /** Which view the start page opens on. `'steps'` is the default and is never stored. */
   homeView: 'steps' | 'goals'
+  /**
+   * What this device knows about an account's copy of these facts, or `null` for the
+   * ordinary never-signed-in state. Written by the sync layer through the functions
+   * below and by nothing else — see `lib/cloud/sync.ts`.
+   */
+  cloud: CloudMark | null
   facts: readonly PersonFact[]
 }
 
@@ -79,6 +91,7 @@ const EMPTY: Snapshot = {
   localeChoice: null,
   theme: null,
   homeView: 'steps',
+  cloud: null,
   facts: [],
 }
 
@@ -136,6 +149,7 @@ function loadOnce(): void {
           localeChoice: stored.locale ?? null,
           theme: stored.theme ?? null,
           homeView: stored.homeView === 'goals' ? 'goals' : 'steps',
+          cloud: stored.cloud ?? null,
           facts: stored.facts,
         }
       : {
@@ -149,6 +163,7 @@ function loadOnce(): void {
           localeChoice: null,
           theme: null,
           homeView: 'steps',
+          cloud: null,
           facts: [],
         },
   )
@@ -182,6 +197,22 @@ function isFact(value: unknown): value is PersonFact {
 }
 
 /**
+ * Bookkeeping only, so the guard is correspondingly forgiving: anything unrecognised
+ * reads as "never signed in", which costs one round trip to rebuild and cannot lose an
+ * answer. Individual malformed ids are dropped rather than the whole record.
+ */
+function isCloudMark(value: unknown): value is CloudMark {
+  if (typeof value !== 'object' || value === null) return false
+  const mark = value as Record<string, unknown>
+  if (typeof mark.userId !== 'string' || !mark.userId) return false
+  if (!Array.isArray(mark.synced)) return false
+  if (mark.generation !== undefined && typeof mark.generation !== 'string') delete mark.generation
+  mark.synced = mark.synced.filter((id): id is string => typeof id === 'string')
+  if (mark.at !== undefined && typeof mark.at !== 'string') delete mark.at
+  return true
+}
+
+/**
  * Guarded parse: a corrupt or hand-edited key degrades to "nothing known yet",
  * never a white screen. Individual malformed facts are dropped rather than
  * taking the whole store down with them.
@@ -208,6 +239,10 @@ function parse(raw: string | null): PersonStore | null {
       ...(isTheme(stored.theme) ? { theme: stored.theme } : {}),
       // Anything but the one value reads as the default, like every other optional field.
       ...(stored.homeView === 'goals' ? { homeView: 'goals' as const } : {}),
+      // Same rule again: nonsense here reads as "never signed in", which costs one
+      // reconciliation with the server and loses nothing, where rejecting the store
+      // would throw away every real answer in it over bookkeeping.
+      ...(isCloudMark(stored.cloud) ? { cloud: stored.cloud } : {}),
       facts: stored.facts.filter(isFact),
     }
   } catch {
@@ -230,6 +265,20 @@ function write(state: Snapshot): void {
     ...(state.theme ? { theme: state.theme } : {}),
     // Omitted while it is the default, so never touching the toggle leaves nothing behind.
     ...(state.homeView === 'goals' ? { homeView: 'goals' as const } : {}),
+    // Omitted until there has been an account, so a device that never signed in carries
+    // no trace of the feature — the same rule as every optional field above.
+    //
+    // Only ids that are still here are kept. Otherwise the record grows forever and
+    // starts describing facts this device no longer holds, which is a marker that can
+    // only become wrong.
+    ...(state.cloud
+      ? {
+          cloud: {
+            ...state.cloud,
+            synced: state.cloud.synced.filter((id) => state.facts.some((f) => f.id === id)),
+          },
+        }
+      : {}),
     // Memory-only keys are dropped **here**, at the one function that touches the
     // device, rather than wherever consent happens to be granted. `grantConsent()`
     // persists the snapshot as it stands so that answers given this visit are kept
@@ -338,8 +387,197 @@ export function forgetEverything(): void {
     theme: null,
     // Back to the default view as well: deleting everything includes a preference.
     homeView: 'steps',
+    // The account is not deleted here — that is `deleteAccount()` — but this device's
+    // memory of it is, along with everything else. The sync layer signs out in the same
+    // act, because cloud mode requires consent and this returns the store to
+    // `undecided`; see `docs/supabase-migration.md` §9.
+    cloud: null,
     facts: [],
   })
+}
+
+/**
+ * The store, for a reader that is not a React component.
+ *
+ * `lib/cloud/sync.ts` needs to watch facts appear so it can push them, and it is not a
+ * component — so it gets the same subscription React gets, rather than a second copy of
+ * the state or a callback threaded through every writer. The store still knows nothing
+ * about the cloud: it publishes changes, and something else decides what they mean.
+ */
+export function subscribeStore(listener: () => void): () => void {
+  listeners.add(listener)
+  loadOnce()
+  return () => {
+    listeners.delete(listener)
+  }
+}
+
+/** The current snapshot, for the same non-React readers. */
+export function readStore(): Snapshot {
+  return snapshot
+}
+
+/**
+ * What this device holds that the account does not — the push queue, derived rather
+ * than kept.
+ *
+ * There is no queue to lose, corrupt, or forget to enqueue into: the facts *are* the
+ * queue, and the marker says which of them have landed. A write that happened while the
+ * network was down is indistinguishable from one that happened a second ago, which is
+ * exactly the property offline needs.
+ *
+ * `MEMORY_ONLY_KEYS` is applied **here**, where the rows are chosen, rather than at a
+ * call site that happens to remember. `consent_concern` is what someone said when they
+ * declined saving; uploading it would be a worse version of the local bug `write()`
+ * already guards against, because a copy on a server is not theirs to clear.
+ */
+export function pendingForCloud(state: Snapshot = snapshot): PersonFact[] {
+  const synced = new Set(state.cloud?.synced ?? [])
+  return state.facts.filter((fact) => !synced.has(fact.id) && !MEMORY_ONLY_KEYS.includes(fact.key))
+}
+
+/** Everything that may leave the device, in the order it was learned. */
+export function syncableFacts(state: Snapshot = snapshot): PersonFact[] {
+  return state.facts.filter((fact) => !MEMORY_ONLY_KEYS.includes(fact.key))
+}
+
+/**
+ * Begin tracking an account, discarding any markers that belonged to a different one.
+ *
+ * Signing in as somebody else must not inherit "these ids are already up there" from the
+ * previous account, or the first push would skip everything and the two accounts would
+ * quietly disagree.
+ */
+export function beginCloud(userId: string): void {
+  commit((previous) => ({
+    ...previous,
+    cloud:
+      previous.cloud?.userId === userId ? previous.cloud : { userId, synced: [] },
+  }))
+}
+
+/**
+ * These ids are in the account's current generation now. Called after a push and after a
+ * pull.
+ *
+ * The marker is **reset rather than extended** when the generation changes, because ids
+ * from a superseded dataset say nothing about what the new one holds. Carrying them over
+ * would leave a device believing its facts were safely uploaded when they had in fact
+ * been discarded — which is the quiet half of the resurrection bug, the half that loses
+ * data rather than revives it.
+ */
+export function markSynced(
+  userId: string,
+  generation: string,
+  ids: readonly string[],
+  at = new Date().toISOString(),
+): void {
+  commit((previous) => {
+    const same = previous.cloud?.userId === userId && previous.cloud.generation === generation
+    const known = same ? previous.cloud!.synced : []
+    return {
+      ...previous,
+      cloud: { userId, generation, synced: [...new Set([...known, ...ids])], at },
+    }
+  })
+}
+
+/**
+ * Facts that came from the account, added to what is here.
+ *
+ * The union that `docs/supabase-migration.md` §13 describes: append-only facts with
+ * client-generated ids cannot contradict each other, so "both sides hold everything" is
+ * always a safe answer and never needs a person to arbitrate.
+ *
+ * **The loop guard is that this marks them synced in the same commit.** They arrived
+ * from the cloud, so they are in the cloud, so the push that the resulting change
+ * notification triggers finds nothing to send and stops. Nothing has to know whether a
+ * change was "genuine" or "hydration" — see `CloudMark`.
+ */
+export function mergeFromCloud(
+  userId: string,
+  generation: string,
+  incoming: readonly PersonFact[],
+): void {
+  commit((previous) => {
+    const have = new Set(previous.facts.map((fact) => fact.id))
+    const added = incoming.filter((fact) => !have.has(fact.id))
+    const same = previous.cloud?.userId === userId && previous.cloud.generation === generation
+    const known = same ? previous.cloud!.synced : []
+    return {
+      ...previous,
+      facts: added.length ? [...previous.facts, ...added] : previous.facts,
+      cloud: {
+        userId,
+        generation,
+        synced: [...new Set([...known, ...incoming.map((fact) => fact.id)])],
+        at: new Date().toISOString(),
+      },
+    }
+  })
+}
+
+/**
+ * The account's copy replaces this device's — the "use what is in my account" half of
+ * the conflict choice, and the only path in the app that discards facts without
+ * deleting everything.
+ *
+ * Deliberately **not** reachable except from that choice. It exists because somebody
+ * asked for it in a dialog that spelled out the consequence; nothing automatic may call
+ * it, which is why it is named for the act rather than for the mechanism.
+ *
+ * Memory-only facts survive it. They were never uploaded, so the cloud copy cannot
+ * contain them, and dropping them here would delete something the person is still being
+ * shown this visit for a reason that has nothing to do with them.
+ */
+export function replaceWithCloud(
+  userId: string,
+  generation: string,
+  incoming: readonly PersonFact[],
+): void {
+  commit((previous) => ({
+    ...previous,
+    facts: [
+      ...previous.facts.filter((fact) => MEMORY_ONLY_KEYS.includes(fact.key)),
+      ...incoming,
+    ],
+    cloud: {
+      userId,
+      generation,
+      synced: incoming.map((fact) => fact.id),
+      at: new Date().toISOString(),
+    },
+  }))
+}
+
+/**
+ * This device's facts are now the account's, under a new generation.
+ *
+ * The other half of `replaceWithCloud`, and the reason it is a separate function rather
+ * than a `markSynced` call: the synced set is **replaced**, not extended. Every local
+ * fact has just been written into a brand-new generation, and nothing from the old one
+ * survives — so the marker has to describe the new dataset exactly, or the next push
+ * would skip facts on the strength of a claim about a dataset that no longer exists.
+ */
+export function adoptGeneration(
+  userId: string,
+  generation: string,
+  syncedIds: readonly string[],
+): void {
+  commit((previous) => ({
+    ...previous,
+    cloud: { userId, generation, synced: [...syncedIds], at: new Date().toISOString() },
+  }))
+}
+
+/**
+ * Stop tracking an account, keeping every fact.
+ *
+ * Signing out is not deleting, and the two are never allowed to blur: this drops the
+ * bookkeeping and nothing else. What was written on this device stays on this device.
+ */
+export function endCloud(): void {
+  commit((previous) => (previous.cloud ? { ...previous, cloud: null } : previous))
 }
 
 /**

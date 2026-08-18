@@ -20,6 +20,53 @@ export const de: Messages = {
     data: 'Datenschutz',
     about: 'Über',
     menu: 'Menü',
+    signIn: 'Anmelden',
+    signOut: 'Abmelden',
+  },
+
+  auth: {
+    title: 'Anmelden',
+    emailQuestion: 'An welche E-Mail-Adresse sollen wir einen Code schicken?',
+    emailPlaceholder: 'du@beispiel.de',
+    send: 'Code schicken',
+    note: 'Wenn du noch kein Konto hast, wird beim Anmelden eines angelegt. Was synchronisiert wird, liegt dann bei uns — und du kannst es jederzeit wieder löschen.',
+    noteData: 'Was auf diesem Gerät liegt, kommt beim Anmelden in dein Konto.',
+    prototypeNote:
+      'Hinweis: Das funktioniert noch nicht. In der E-Mail steht kein Code, die Anmeldung lässt sich also nicht abschließen — eine Einschränkung dieses Prototyps, nicht dein Fehler. Auf diesem Gerät ändert sich dadurch nichts.',
+    codeQuestion: 'Wie lautet der Code?',
+    codeSent: 'Wir haben ihn an {email} geschickt. Er gilt etwa eine Stunde.',
+    codePlaceholder: 'Der Code aus der E-Mail',
+    verify: 'Anmelden',
+    resend: 'Neuen Code schicken',
+    otherEmail: 'Andere Adresse verwenden',
+    cancel: 'Abbrechen',
+    close: 'Schließen',
+    working: 'Einen Moment…',
+    signedInAs: 'Angemeldet als {email}.',
+    done: 'Die Synchronisierung läuft. Was hier ist, ist auch in deinem Konto.',
+
+    error: {
+      offline: 'Das hat uns nicht erreicht. Hier hat sich nichts geändert — versuch es noch einmal, wenn du wieder Verbindung hast.',
+      rejected: 'Der Code wurde nicht angenommen. Vielleicht ist er abgelaufen, oder es wurde inzwischen ein neuer geschickt.',
+      rateLimited: 'Das waren viele Versuche in kurzer Zeit. Warte eine Minute und versuch es dann noch einmal.',
+      signupClosed: 'Diese App nimmt gerade keine neuen Konten an.',
+      server: 'Bei uns ist etwas schiefgegangen. Hier hat sich nichts geändert.',
+      unconfigured: 'In dieser Version der App ist die Synchronisierung nicht eingerichtet.',
+    },
+
+    conflict: {
+      title: 'Hier liegt etwas, und in deinem Konto liegt etwas.',
+      body: 'Die beiden sind nicht gleich, deshalb wurde noch nichts geändert. Was du behältst, ersetzt das andere.',
+      supersededTitle: 'Deine Daten wurden von einem anderen Gerät aus ersetzt.',
+      supersededBody:
+        'Was hier liegt, ist von davor — und einiges davon ist nie in deinem Konto angekommen. Geändert wurde noch nichts: Was du behältst, ersetzt das andere.',
+      here: 'Auf diesem Gerät: {count}',
+      there: 'In deinem Konto: {count}',
+      keepDevice: 'Das von diesem Gerät behalten',
+      keepDeviceNote: 'Was jetzt auf diesem Gerät liegt, ersetzt das, was in deinem Konto gespeichert ist.',
+      keepAccount: 'Das aus meinem Konto behalten',
+      keepAccountNote: 'Was jetzt auf diesem Gerät gespeichert ist, wird durch das aus deinem Konto ersetzt.',
+    },
   },
 
   lang: {
@@ -159,6 +206,7 @@ export const de: Messages = {
     newStepQuestion: 'Was könnte dir helfen, diesem Ziel näherzukommen?',
     newStepPlaceholder: 'Etwas Kleines und Konkretes',
     savedNote: 'Was du mir erzählt hast, liegt aktuell nur auf diesem Gerät.',
+    syncedNote: 'Was du mir erzählt hast, liegt auf diesem Gerät und in deinem Konto.',
     memoryNote: 'Es wird nichts gespeichert. Was du mir erzählt hast, bleibt in diesem Tab.',
     ack: 'Danke. Das war alles, was ich fragen wollte.',
     greeting: 'Hallo {name}.',
@@ -251,6 +299,10 @@ export const de: Messages = {
       'In deinen eigenen Worten, genau so, wie du sie gesagt hast. Nichts davon hat diesen Browser jemals verlassen: es gibt aktuell keinen Server und kein Konto, und nichts wird irgendwohin geschickt.',
     introMemory:
       'Du wolltest nicht, dass etwas gespeichert wird — deshalb lebt diese Liste nur in diesem Tab und ist weg, sobald du ihn schließt. Auf dein Gerät wurde nichts geschrieben.',
+    introCloud:
+      'In deinen eigenen Worten, genau so, wie du sie gesagt hast. Es liegt auf diesem Gerät und in deinem Konto, auf Servern in der EU (Supabase). Niemand sonst, der angemeldet ist, kann es lesen. Wer diese App betreibt, könnte technisch in die Datenbank sehen — das gehört dazu, denn kein Versprechen ändert etwas daran.',
+    sessionNote:
+      'Solange du angemeldet bist, liegt in diesem Browser außerdem ein Anmeldetoken für dein Konto, unter Einträgen, die mit „sb-“ beginnen. Beim Abmelden verschwindet es.',
     introUnknown: 'Wir haben noch nicht gesprochen, deshalb ist hier nichts.',
     empty: 'Noch nichts.',
     learnedAt: 'notiert {when}',
@@ -294,6 +346,9 @@ export const de: Messages = {
     title: 'Datenschutz',
     p1: 'Was du hier schreibst, wird aktuell nur in diesem Browser auf diesem Gerät gespeichert.',
     p2: 'Es wird nicht an uns gesendet. Es gibt aktuell kein Konto und keine Cloud, und niemand sonst kann es sehen.',
+    p1Cloud: 'Was du hier schreibst, wird in diesem Browser gespeichert — und in deinem Konto.',
+    p2Cloud:
+      'Dein Konto liegt auf Servern in der EU (Supabase). Niemand sonst, der angemeldet ist, kann es lesen, und es wird kein Profil von dir daraus gebaut.',
     p3: 'Wenn du deine Browserdaten löschst, wird es mit allem anderen zusammen gelöscht.',
     p4: 'Ein anderer Browser oder ein anderes Gerät hat es nicht.',
     show: 'Zeigen, was gespeichert ist',
@@ -303,7 +358,16 @@ export const de: Messages = {
       on: 'EIN',
       off: 'AUS',
       optionCloud: 'Mit der Cloud synchronisieren',
-      cloudDevOnly: 'Cloud-Synchronisierung ist derzeit nur für Entwickler verfügbar.',
+      cloudNeedsSaving:
+        'Dafür muss zuerst auf diesem Gerät gespeichert werden — angemeldet bleiben heißt, ein Token hier zu behalten, und du wolltest, dass nichts geschrieben wird.',
+      cloudUnavailable: 'Diese Version der App hat keine Cloud, mit der sie sich synchronisieren könnte.',
+      cloudOn: 'Synchronisiert mit {email}. Was du hier schreibst, geht auch in dein Konto.',
+      cloudOffDone: 'Die Synchronisierung ist aus und du bist abgemeldet. Alles, was du hattest, liegt weiterhin auf diesem Gerät.',
+      cloudPendingOne: 'Ein Eintrag ist noch nicht in deinem Konto angekommen.',
+      cloudPending: '{count} Einträge sind noch nicht in deinem Konto angekommen.',
+      cloudTrouble: 'Dein Konto war nicht erreichbar. Alles ist weiterhin hier und wird gesendet, sobald es geht.',
+      cloudRetry: 'Jetzt noch einmal versuchen',
+      cloudLastSynced: 'Zuletzt mit deinem Konto abgeglichen {when}.',
 
       optionLocal: 'Auf diesem Gerät speichern',
 
@@ -321,6 +385,21 @@ export const de: Messages = {
       finalConfirm: 'Ja, alles löschen',
       done: 'Gelöscht. Es ist nichts mehr da.',
       restart: 'Neu anfangen',
+      alsoCloud:
+        'Damit wird auch die Kopie in deinem Konto gelöscht, und du wirst abgemeldet. Jedes andere Gerät, auf dem du angemeldet bist, zieht beim nächsten Verbinden nach. Dein Konto selbst bleibt.',
+      cloudFailed: 'Dein Konto war nicht erreichbar, deshalb wurde nichts gelöscht — weder hier noch dort. Versuch es noch einmal, wenn du Verbindung hast.',
+    },
+
+    account: {
+      title: 'Dein Konto',
+      signedInAs: 'Angemeldet als {email}.',
+      delete: 'Konto löschen',
+      warnTitle: 'Dein Konto löschen?',
+      warnBody:
+        'Damit werden dein Konto, alles darin und die Kopie auf diesem Gerät gelöscht. Das lässt sich nicht rückgängig machen.',
+      cancel: 'Behalten',
+      confirm: 'Ja, mein Konto löschen',
+      done: 'Dein Konto ist weg, und alles, was darin war, auch.',
     },
   },
 
@@ -336,5 +415,6 @@ export const de: Messages = {
     whereTitle: 'Wo deine Antworten liegen',
     whereP1: 'Vorerst in diesem Browser, in einem einzigen Eintrag namens {key}, auf diesem Gerät. Wenn du deine Browserdaten löschst, ist er weg — genauso über „alles löschen“ unter Datenschutz.',
     whereP2: 'Wenn du abgelehnt hast, existiert nicht einmal dieser Eintrag: die App läuft dann nur im Arbeitsspeicher und schreibt gar nichts. Das hat eine ehrliche Folge — sie kann sich nicht merken, dass du abgelehnt hast, und fragt dich beim nächsten Mal wieder.',
+    whereP3: 'Du bist angemeldet, also gibt es eine zweite Kopie in deinem Konto, auf Servern in der EU (Supabase). Gelesen wird weiterhin die Kopie auf dem Gerät; das Konto ist das, womit ein anderes Gerät nachziehen kann. Die Synchronisierung auszuschalten meldet dich ab und lässt hier alles unangetastet, und „alles löschen“ entfernt beide Kopien.',
   },
 }

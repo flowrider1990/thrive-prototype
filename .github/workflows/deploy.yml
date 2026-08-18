@@ -44,6 +44,22 @@ jobs:
         run: pnpm build
         env:
           PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          # Repository **variables**, not secrets, and that is the point: the static
+          # export inlines every NEXT_PUBLIC_* value straight into the JavaScript it
+          # ships, so both of these are printed on the page whatever we call them here.
+          # Marking a value secret that is then published teaches the wrong lesson about
+          # which values are which. The publishable key grants nothing without a session,
+          # and RLS is what bounds it -- see docs/supabase-migration.md section 18.
+          #
+          # It is `PUBLISHABLE_KEY`, not the legacy `ANON_KEY`: the project has four keys
+          # and only the `sb_publishable_...` one is meant for a browser.
+          # scripts/check-supabase.mjs fails on a legacy JWT rather than silently
+          # accepting it.
+          #
+          # Leaving them unset is a valid build, not a broken one: the app then has no
+          # cloud to sync with, says so under Data protection, and offers no sign-in.
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
 
       # The artifact flow does not run Jekyll, so no .nojekyll file is needed.
       - name: Upload artifact

@@ -4,11 +4,13 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { APP_NAME } from '@/lib/app'
+import { openSignIn, stopSync, useSync } from '@/lib/cloud/sync'
 import { useI18n } from '@/lib/i18n'
 import { introductionFinished } from '@/lib/person/goals'
 import { usePerson } from '@/lib/person/store'
 import { LanguageSwitch } from './language-switch'
 import { Check, Menu, menuItemClass } from './menu'
+import { SignInDialog } from './sign-in-dialog'
 import { ThemeSwitch } from './theme-switch'
 
 const trim = (path: string) => path.replace(/\/+$/, '') || '/'
@@ -44,6 +46,7 @@ function inSection(pathname: string, href: string): boolean {
 export function PageShell({ children }: { children: ReactNode }) {
   const { m, status } = useI18n()
   const person = usePerson()
+  const sync = useSync()
   const ready = status === 'ready'
   const pathname = usePathname()
 
@@ -160,17 +163,47 @@ export function PageShell({ children }: { children: ReactNode }) {
           {ready && (
             <>
               <p className="max-w-prose text-xs leading-relaxed text-muted">{m.app.description}</p>
-              <Link
-                href="/about"
-                aria-current={samePath(pathname, '/about') ? 'page' : undefined}
-                className="nav-link text-xs"
-              >
-                {m.nav.about}
-              </Link>
+              <div className="flex items-baseline gap-x-5">
+                {/* The one item in the app that changes what it says rather than whether
+                    it is there. Two words for two states: somebody checking whether they
+                    are signed in can read the answer instead of clicking to find out.
+
+                    Shown only where an account is possible at all — a build with no
+                    project attached, or somebody who asked for nothing to be written to
+                    this device, is offered nothing rather than a control that can only
+                    explain itself. The switch on `/data/` is where that explanation
+                    lives, next to the setting it belongs to.
+
+                    Both this and that switch call `stopSync()`, which is what makes the
+                    two doors end in the same state rather than in two states that look
+                    alike. */}
+                {sync.available && (sync.syncing || person.mode === 'local') && (
+                  <button
+                    type="button"
+                    className="nav-link text-xs"
+                    disabled={sync.busy !== null}
+                    onClick={() => (sync.syncing ? void stopSync() : openSignIn())}
+                  >
+                    {sync.syncing ? m.nav.signOut : m.nav.signIn}
+                  </button>
+                )}
+                <Link
+                  href="/about"
+                  aria-current={samePath(pathname, '/about') ? 'page' : undefined}
+                  className="nav-link text-xs"
+                >
+                  {m.nav.about}
+                </Link>
+              </div>
             </>
           )}
         </div>
       </footer>
+
+      {/* Mounted once for the whole app, and inert until something opens it: two copies
+          would be two answers to "is the sign-in open". It renders nothing at all until
+          `showModal()` is called on it. */}
+      {ready && sync.available && <SignInDialog />}
     </div>
   )
 }

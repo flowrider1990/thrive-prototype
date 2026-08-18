@@ -30,5 +30,6 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "//": "supabase/functions is Deno, not Next: it uses jsr: specifiers and the Deno global, and type-checking it with the browser lib set fails on both. It is deployed by the Supabase CLI and is never part of the export.",
+  "exclude": ["node_modules", "supabase/functions"]
 }

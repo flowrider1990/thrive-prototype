@@ -174,15 +174,24 @@ enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
 #
-# **Off, and this is the real gate.** Nothing in the shipped app talks to Supabase yet, but the
-# endpoint is reachable by anyone holding the publishable key -- which is a browser key, not a
-# secret. It was open, and a probe with nothing but that key created a confirmed account.
-# Closing it here rather than relying on a UI flag is the whole point: a client-side check is
-# a suggestion.
+# **On, and this is now open registration -- read the next paragraph before pushing it.**
 #
-# Cloud sync will need this back on, together with a real invite or allow-list decision. That
-# is the moment to make it, not now.
-enable_signup = false
+# It was deliberately off while nothing in the app talked to Supabase, because the endpoint is
+# reachable by anyone holding the publishable key (a browser key, not a secret) and a probe
+# with nothing but that key once created a confirmed account. Cloud sync needs it back on:
+# signing in creates the account when there is not one yet, which is the whole of the sign-up
+# flow this product has, and it cannot work against a closed endpoint.
+#
+# What that costs, stated plainly rather than discovered later: anyone who finds the URL can
+# create an account by proving they can read email at an address they control. There is no
+# invite list and no allow-list. What they get is an empty account of their own -- RLS means
+# they can reach nobody else's rows -- and the built-in SMTP sender is rate-limited, so the
+# practical exposure is rows in a free-tier database rather than anything of anyone's.
+#
+# The decision that is still open, and that this file cannot make: whether an allow-list is
+# wanted before the deployed URL is shared. `auth.email.max_frequency` and the rate limits
+# below are the only throttles in place.
+enable_signup = true
 # Allow/disallow anonymous sign-ins to your project.
 enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
@@ -255,6 +264,37 @@ otp_expiry = 3600
 # pass = "env(SENDGRID_API_KEY)"
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
+
+# The sign-in email, and it is **not** optional decoration -- but it cannot be pushed from
+# here on this project's current plan, so it is commented out rather than left to break
+# every `config push`.
+#
+# **Measured on 2026-08-19**, pushing it returned:
+#
+#     Email template modification is not available for free tier projects using the
+#     default email provider. Please upgrade your plan or configure a custom SMTP provider.
+#
+# and because the CLI sends the whole auth block as one update, that 400 rejected
+# `enable_signup = true` along with it. An unpushable template here is therefore not a
+# harmless aspiration; it silently blocks every other auth setting in this file.
+#
+# What that means for the product, plainly: `signInWithOtp` still issues a real code, and
+# `verifyOtp` still accepts it, but the **email that goes out is the stock magic-link
+# template, which contains a link and no code** -- so nobody can complete a sign-in by
+# reading their inbox until one of these is done:
+#
+#   1. configure a custom SMTP provider (`[auth.email.smtp]` below), which also lifts the
+#      template restriction, or
+#   2. upgrade the project's plan.
+#
+# The template itself is kept at supabase/templates/magic_link.html. When either of the
+# above is in place, uncomment this block and push. `content_path` is resolved from the
+# **project root**, not from this file's directory -- getting that wrong makes every CLI
+# command fail with LegacyDbConfigLoadError, `db query` and `db push` included.
+#
+# [auth.email.template.magic_link]
+# subject = "Your code for Thrive"
+# content_path = "./supabase/templates/magic_link.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
@@ -397,6 +437,13 @@ deno_version = 2
 
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
+
+# The one Edge Function in the project (decision D10): it deletes the caller's own account
+# and nothing else. `verify_jwt` is the gateway refusing anonymous calls before the function
+# runs at all -- the function checks the token again itself, and both layers are wanted here.
+[functions.delete-account]
+enabled = true
+verify_jwt = true
 
 [analytics]
 enabled = true

@@ -30,6 +30,7 @@ phases are in §20, and the few questions still open are at the end.
 | D8 | The app **keeps working locally** when Supabase is unavailable | §14, §15 |
 | D9 | Full "forget everything" **eventually deletes cloud data and the auth account** | §16 |
 | D10 | A **narrowly scoped Edge Function** may hold the privileged credential for D9 — **for that purpose only**, and this does not open the door to a general server-side architecture | §16, §18 |
+| D11 | The prototype **stays on the free tier with the default email sender**, which means real email sign-in does not work and is knowingly deferred (2026-08-19) | below |
 
 D10 is a deliberately small exception to "no server". The guard against it
 spreading is written into §16 and §18 as requirements, not left to memory.
@@ -955,14 +956,35 @@ Two things §16 did not anticipate:
 
 ### What still needs doing by hand
 
-Two of the three original items are done: the auth config is pushed (sign-up is on)
-and the Edge Function is deployed and tested. **One remains, and it blocks sign-in for
-real people:** the email carries a link rather than a code, and the template cannot be
-replaced on the free tier with the default sender. Configure custom SMTP or upgrade the
-plan, then uncomment the `[auth.email.template.magic_link]` block in
-`supabase/config.toml` and push.
+Nothing. Both remaining items became **decision D11** instead.
 
-Also open, and a product decision rather than a technical one: sign-up is now **open
-registration**. Anyone with the URL can create an empty account. RLS keeps them out of
-everybody else's rows, and in practice the template blocker means they cannot finish
-signing in — but that is an accident of the current state, not a control.
+## D11: real email sign-in is deferred, knowingly (2026-08-19)
+
+The auth config is pushed and the Edge Function is deployed and tested. The third item —
+an email that carries a code — is **not going to be fixed in the prototype phase**, and
+that was decided rather than postponed by drift.
+
+What was on the table and rejected, for now: a paid plan, a custom SMTP provider, and
+rebuilding sign-in around magic links. The last one is worth naming separately, because
+it is the only one that costs nothing in money: it was rejected because §3's reasoning
+still holds — a link has to come back to an allowlisted URL, and this app is a static
+export on a GitHub Pages subpath, which is exactly the surface where a link works locally
+and breaks in production. Trading a working design for a broken deploy to avoid a bill
+would be the wrong trade.
+
+**So the accepted state is:**
+
+- the sign-in flow is complete, reachable, and **cannot be finished by a real person** —
+  the email arrives with a link and no code;
+- it *can* be finished by a developer, who can read the code out of the admin API, which
+  is how `pnpm check:delete-account` signs in;
+- the dialog says so, in `m.auth.prototypeNote`. A control that cannot succeed must admit
+  it, and `scripts/verify.mjs` §54e2 fails if that sentence disappears;
+- sign-up stays **enabled**, because `check:delete-account` creates its throwaway accounts
+  through the app's own `signInWithOtp`. Turning it off breaks that suite. The exposure is
+  an empty account per stranger, bounded by RLS.
+
+**When this is revisited**, the whole change is: configure SMTP (or upgrade), uncomment
+`[auth.email.template.magic_link]` in `supabase/config.toml`, push, delete
+`m.auth.prototypeNote` from both catalogs and from the dialog, and drop check 54e2. The
+template is already written and already correct.

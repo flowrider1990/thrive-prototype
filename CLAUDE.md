@@ -720,10 +720,45 @@ Current known state:
 - `useSyncExternalStore` is intentionally used for browser-backed external state,
 - static-export verification is implemented in `scripts/verify.mjs`,
 - the verification suite currently passes every check,
-- cloud sync is implemented: `lib/cloud/`, `supabase/migrations/`,
-  `supabase/functions/delete-account/`, and the check scripts in §16.
-  **The Edge Function and the `config.toml` auth changes still need deploying** —
-  see `docs/supabase-migration.md`.
+- cloud sync is implemented and deployed: `lib/cloud/`, `supabase/migrations/`,
+  `supabase/functions/delete-account/` (live), and the check scripts in §16.
+
+**Known limitation, accepted deliberately (decision D11):** a real person cannot
+finish signing in. Replacing Supabase's stock email template needs a paid plan or
+a custom SMTP provider, and the prototype has both of those off the table — so the
+sign-in email arrives with a link and no code, while the app deliberately ignores
+links (D4). Everything else about sync works and is tested; sign-in is exercised
+internally by reading the code out of the admin API.
+
+Three things follow from that, and each will look like a bug to whoever finds it
+next:
+
+- **the sign-in dialog carries `m.auth.prototypeNote`**, which says so. A control
+  that cannot succeed must admit it. Check 54e2 fails if the sentence goes;
+- **sign-up stays enabled** on the project, because `check:delete-account` creates
+  its throwaway accounts through the app's own `signInWithOtp`;
+- **do not "fix" this by switching to magic links.** It is the cheap-looking
+  option and it is the one §3 rejected on the merits: a link returns to an
+  allowlisted URL, and this is a static export on a subpath.
+
+Revisiting it is one commit, described at the end of
+`docs/supabase-migration.md`.
+
+Important implementation details:
+- `lib/i18n/locale.ts` holds the shared `Locale` type and avoids circular imports.
+- `lib/person/goals.ts` is the only module that knows the life-area fact-key shape;
+  a next step's id lives inside its keys, which is what leaves a fact's single value
+  free to be the person's own words. See `docs/goals-and-areas.md`.
+- `scripts/verify.mjs` drives real headless Chrome against the served static export without adding a browser-test dependency.
+- On this Windows setup, plain `corepack enable pnpm` can fail with `EPERM`; the documented non-admin workaround is:
+  `corepack enable pnpm --install-directory "$env:APPDATA\npm"`.
+
+Current remaining work from the original foundation plan:
+1. push the existing commits when explicitly approved,
+2. enable GitHub Pages,
+3. verify the deployed URL,
+4. verify subpath asset loading,
+5. verify a deep-link reload such as `/you/`.
 
 Use `docs/progress.md` for live implementation status. If this section becomes stale, `docs/progress.md` and the repository itself take precedence.
 

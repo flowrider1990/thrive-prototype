@@ -759,6 +759,8 @@ const EN = {
   cloudNeedsSaving: 'This needs saving on this device first',
   signIn: 'Sign in',
   signOut: 'Sign out',
+  /** Matched on the claim, not the whole sentence, so the wording can be improved. */
+  authPrototype: 'this does not work yet',
   /** Matched on the half that carries the commitment, not on the whole sentence. */
   authNote: 'one is created when you sign in',
   authUpload: 'What is on this device is added to your account when you sign in.',
@@ -4334,6 +4336,16 @@ if (cloudBuild) {
       shown.includes(EN.authEmailQuestion) &&
       shown.indexOf(EN.authEmailQuestion) < shown.indexOf(EN.authSend),
     shown.includes(EN.authNote) ? 'both notes present' : 'MISSING the account note',
+  )
+
+  // The control is complete and reachable, and on the current Supabase plan it cannot
+  // actually be finished — the sign-in email carries a link rather than a code. That is a
+  // known, accepted limitation (D11), and the one thing it may not do is stay unsaid.
+  check(
+    '54e2. and it admits, before the field, that it cannot be finished yet',
+    shown.includes(EN.authPrototype) &&
+      shown.indexOf(EN.authPrototype) < shown.indexOf(EN.authSend),
+    shown.includes(EN.authPrototype) ? 'stated above the button' : 'MISSING the limitation note',
   )
 
   await clickText(EN.cancel)

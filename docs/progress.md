@@ -9,7 +9,7 @@ product behaviour — it still describes a name question and a single open quest
 both since removed. For what the app does today, read this file and the repository
 itself.
 
-Last worked: 2026-08-18.
+Last worked: 2026-08-19.
 
 ## State: steps 0–11 done, verification 1–10 and 12 passing
 
@@ -1786,6 +1786,24 @@ at the cost of more refreshes.
 - **The dangerous test is check 8**, and it is the one to keep: account B calls the function
   with `{user_id, userId, id, email}` all naming account A. B is deleted and A is untouched,
   because the function reads no body at all.
+
+## Decision: the prototype stays on the free tier (2026-08-19)
+
+The blocker above is **accepted rather than fixed** — decision D11. No paid plan, no
+custom SMTP, no magic-link rewrite, and the auth/sync architecture stays exactly as it
+is. Real email sign-in therefore does not work, and work continues against the existing
+test suites, which sign in by reading the code out of the admin API.
+
+The rewrite was the tempting one to take, because it is the only option that costs no
+money — and it is the one to keep saying no to. `docs/supabase-migration.md` §3 chose
+codes over links because a link has to return to an allowlisted URL and this app is a
+static export on a GitHub Pages subpath, which is precisely where a link works locally
+and breaks in production.
+
+What the decision changes in the repository: one sentence in the sign-in dialog
+(`m.auth.prototypeNote`) admitting the flow cannot be finished yet, one check asserting
+that sentence stays (§54e2), and the limitation recorded in `CLAUDE.md` so it is not
+rediscovered as a bug. Nothing else — the code was already right.
 
 ## The repository
 

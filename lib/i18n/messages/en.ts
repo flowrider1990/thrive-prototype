@@ -61,6 +61,21 @@ export const en = {
     note: 'If you do not have an account yet, one is created when you sign in. What is synced is then stored with us, and you can delete it again at any time.',
     /** Said in the same breath, because it is the part that is hard to take back. */
     noteData: 'What is on this device is added to your account when you sign in.',
+    /**
+     * The prototype's one honest admission, and it sits above the field rather than after
+     * the button — somebody should learn this before typing an address, not after.
+     *
+     * The email really does arrive without a code: replacing Supabase's stock template
+     * needs a paid plan or a custom SMTP provider, and this project has decided against
+     * both for now (D11). The flow is left in place because it is complete and works for
+     * a developer who can read the code out of the admin API — but a control that cannot
+     * succeed must say so, which is the same rule the old "developers only" note followed.
+     *
+     * Delete this key when the template ships. It describes this phase, and copy that
+     * outlives its phase is how a product starts lying quietly.
+     */
+    prototypeNote:
+      'Note: this does not work yet. The email arrives without a code in it, so the sign-in cannot be finished — a limit of how this prototype is set up, not something you did. Nothing on this device changes either way.',
     codeQuestion: 'What is the code?',
     codeSent: 'We sent one to {email}. It stays valid for about an hour.',
     codePlaceholder: 'The code from the email',

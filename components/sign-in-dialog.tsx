@@ -117,7 +117,14 @@ export function SignInDialog() {
             {message ?? (done ? m.auth.done : '')}
           </p>
 
-          {conflict ? (
+          {/* Above everything, including the heading's own explanation: this is the one
+            thing that changes whether the rest is worth reading. §7's hint colour, and the
+            sentence opens with "Note:" so it reads as a hint without the hue. */}
+        {!conflict && !done && !account && (
+          <p className="max-w-prose text-sm leading-relaxed text-note">{m.auth.prototypeNote}</p>
+        )}
+
+        {conflict ? (
             <div className="space-y-5">
               {/* Two reasons to be asking, and they are not interchangeable: one is "we
                   have never met", the other is "what you have here was replaced from

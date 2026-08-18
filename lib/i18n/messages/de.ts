@@ -31,6 +31,8 @@ export const de: Messages = {
     send: 'Code schicken',
     note: 'Wenn du noch kein Konto hast, wird beim Anmelden eines angelegt. Was synchronisiert wird, liegt dann bei uns — und du kannst es jederzeit wieder löschen.',
     noteData: 'Was auf diesem Gerät liegt, kommt beim Anmelden in dein Konto.',
+    prototypeNote:
+      'Hinweis: Das funktioniert noch nicht. In der E-Mail steht kein Code, die Anmeldung lässt sich also nicht abschließen — eine Einschränkung dieses Prototyps, nicht dein Fehler. Auf diesem Gerät ändert sich dadurch nichts.',
     codeQuestion: 'Wie lautet der Code?',
     codeSent: 'Wir haben ihn an {email} geschickt. Er gilt etwa eine Stunde.',
     codePlaceholder: 'Der Code aus der E-Mail',
